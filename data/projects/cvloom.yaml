@@ -1,0 +1,11 @@
+name: cvloom
+description: >
+  CLI tool to manage CV/resume content as YAML and generate
+  tailored PDF/HTML outputs per job application.
+url: https://github.com/SWEStash/cvloom
+start_date: "2026-01"
+highlights:
+  - Single YAML source of truth with per-profile section filtering.
+  - WeasyPrint PDF generation; no headless browser dependency.
+  - PII kept out of version control via gitignored private/ directory.
+tags: [python, cli, open-source, developer-tooling]

@@ -1,0 +1,27 @@
+- company: Acme Corp
+  title: Senior Backend Engineer
+  location: Remote
+  start_date: "2021-03"
+  end_date: Present
+  highlights:
+    - id: microservices-migration
+      text: Led migration of monolith to microservices, reducing deploy time by 60%.
+    - id: kafka-pipeline
+      text: Designed event-driven pipeline processing 50k events/sec with Kafka.
+    - id: mentoring
+      text: "Mentored 3 junior engineers; introduced team-wide coding standards."
+  tags: [python, kafka, microservices, aws]
+
+- company: Previous Inc
+  title: Software Engineer
+  location: "New York, USA"
+  start_date: "2018-06"
+  end_date: "2021-02"
+  highlights:
+    - id: rest-api
+      text: Built REST API serving 2M daily active users with FastAPI and PostgreSQL.
+    - id: latency-optimization
+      text: Reduced p99 latency from 800ms to 120ms through query optimisation and caching.
+    - id: ci-cd-pipeline
+      text: Implemented CI/CD pipeline cutting release cycle from 2 weeks to 2 days.
+  tags: [python, postgresql, redis, fastapi]

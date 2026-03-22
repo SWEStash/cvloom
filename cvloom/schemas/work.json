@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "work",
+  "title": "CV Work History",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["company", "title", "start_date"],
+    "additionalProperties": false,
+    "properties": {
+      "company": {"type": "string"},
+      "title": {"type": "string"},
+      "location": {"type": "string"},
+      "start_date": {"type": "string", "description": "YYYY-MM or YYYY"},
+      "end_date": {"type": "string", "description": "YYYY-MM, YYYY, or 'Present'"},
+      "highlights": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "object",
+              "required": ["text"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {"type": "string"},
+                "text": {"type": "string"}
+              }
+            }
+          ]
+        },
+        "description": "Achievement bullets — plain strings or {id, text} objects (Markdown supported)"
+      },
+      "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Technology/domain tags for profile filtering"
+      }
+    }
+  }
+}

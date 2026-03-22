@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ contact.name }} — CV{% endblock %}</title>
+  {% block head_extra %}{% endblock %}
+  <style>
+    /* ---- Reset ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ---- CSS Variables (override in child templates) ---- */
+    :root {
+      --accent: #1a56db;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #ffffff;
+      --font-body: Arial, Helvetica, sans-serif;
+      --font-mono: "Courier New", monospace;
+      --page-width: 210mm;
+      --page-padding: 18mm 16mm;
+    }
+    {% block css_vars %}{% endblock %}
+
+    /* ---- Base styles ---- */
+    body {
+      font-family: var(--font-body);
+      font-size: 10pt;
+      line-height: 1.45;
+      color: var(--text);
+      background: var(--bg);
+      max-width: var(--page-width);
+      margin: 0 auto;
+      padding: 12mm 14mm;
+    }
+    h1 { font-size: 20pt; }
+    h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 2px; margin: 14px 0 6px; }
+    h3 { font-size: 10pt; font-weight: 600; }
+    a { color: var(--accent); text-decoration: none; }
+    ul { padding-left: 1.2em; }
+    li { margin-bottom: 2px; }
+    p { margin-bottom: 4px; }
+
+    /* ---- Print ---- */
+    @page { size: A4; margin: var(--page-padding); }
+    @media print {
+      body { padding: 0; max-width: none; }
+      a { color: inherit; }
+    }
+
+    /* ---- Utilities ---- */
+    .muted { color: var(--muted); }
+    .right { float: right; }
+    .clearfix::after { content: ""; display: table; clear: both; }
+    .skill-tag { display: inline-block; background: #f3f4f6; border-radius: 3px; padding: 1px 6px; font-size: 8.5pt; margin: 2px 2px 2px 0; }
+
+    {% block css_extra %}{% endblock %}
+  </style>
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,7 @@
+template: cv/ats-single
+output_filename: cv
+sections:
+  work: true
+  education: true
+  skills: true
+  projects: true

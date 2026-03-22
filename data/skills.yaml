@@ -1,0 +1,19 @@
+- category: Languages
+  items:
+    - name: Python
+      level: expert
+    - name: Go
+      level: advanced
+    - name: SQL
+      level: advanced
+    - name: TypeScript
+      level: intermediate
+
+- category: Frameworks & Libraries
+  items: [FastAPI, Django, SQLAlchemy, Pydantic, Gin]
+
+- category: Data & Messaging
+  items: [PostgreSQL, Redis, Kafka, Elasticsearch]
+
+- category: Infrastructure & Cloud
+  items: [AWS, GCP, Docker, Kubernetes, Terraform, GitHub Actions]

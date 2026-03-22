@@ -1,0 +1,59 @@
+"""Jinja2 template rendering for CV outputs."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import jinja2
+
+from cvloom.filters import register_filters
+
+# Templates are resolved relative to the repo root's templates/ directory.
+# When installed as a package, the templates/ directory is included as package data
+# and resolved relative to this file's parent's parent.
+_TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+def _make_env(templates_dir: Path) -> jinja2.Environment:
+    loader = jinja2.FileSystemLoader(str(templates_dir))
+    env = jinja2.Environment(
+        loader=loader,
+        autoescape=jinja2.select_autoescape(["html", "j2"]),
+        trim_blocks=True,
+        lstrip_blocks=True,
+        undefined=jinja2.StrictUndefined,
+    )
+    register_filters(env)
+    return env
+
+
+def render_template(
+    template_name: str,
+    context: dict[str, Any],
+    templates_dir: Path | None = None,
+) -> str:
+    """Render *template_name* (e.g. ``'cv/ats-single'``) with *context*.
+
+    The ``.html.j2`` extension is appended automatically if not already present.
+    """
+    if templates_dir is None:
+        templates_dir = _TEMPLATES_DIR
+
+    if not template_name.endswith(".html.j2"):
+        template_name = f"{template_name}.html.j2"
+
+    env = _make_env(templates_dir)
+    try:
+        template = env.get_template(template_name)
+    except jinja2.TemplateNotFound:
+        available = sorted(
+            str(p.relative_to(templates_dir))
+            for p in templates_dir.rglob("*.html.j2")
+        )
+        raise SystemExit(
+            f"Template '{template_name}' not found in {templates_dir}.\n"
+            f"Available templates: {', '.join(available) or 'none'}"
+        )
+
+    return template.render(**context)

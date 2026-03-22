@@ -1,0 +1,87 @@
+{% extends "base.html.j2" %}
+
+{% block title %}{{ contact.name }} — Cover Letter{% endblock %}
+
+{% block css_vars %}
+:root {
+  --accent: #1e3a5f;
+  --font-body: Georgia, "Times New Roman", serif;
+  --page-padding: 22mm 24mm;
+}
+{% endblock %}
+
+{% block css_extra %}
+body { font-size: 11pt; line-height: 1.6; }
+h2 { display: none; }
+.sender { margin-bottom: 24px; }
+.sender .name { font-weight: 700; font-size: 13pt; }
+.sender .contact-line { font-size: 9.5pt; color: var(--muted); margin-top: 4px; }
+.sender .contact-line span + span::before { content: " · "; }
+.letter-date { color: var(--muted); margin-bottom: 20px; }
+.recipient { margin-bottom: 20px; }
+.recipient .hiring-manager { font-weight: 600; }
+.recipient .company { color: var(--muted); }
+.salutation { margin-bottom: 16px; font-weight: 600; }
+.letter-body p { margin-bottom: 12px; text-align: justify; }
+.sign-off { margin-top: 32px; }
+.sign-off .closing { margin-bottom: 20px; }
+.sign-off .sig-name { font-weight: 700; font-size: 11pt; }
+.sign-off .sig-links { margin-top: 4px; font-size: 9.5pt; color: var(--muted); }
+{% endblock %}
+
+{% block body %}
+<!-- SENDER -->
+<div class="sender">
+  <div class="name">{{ contact.name }}</div>
+  <div class="contact-line">
+    {% if contact.email %}<span>{{ contact.email }}</span>{% endif %}
+    {% if contact.phone %}<span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location %}<span>{{ contact.location }}</span>{% endif %}
+    {% if contact.linkedin %}<span>linkedin.com/in/{{ contact.linkedin }}</span>{% endif %}
+    {% if contact.website %}<span>{{ contact.website }}</span>{% endif %}
+  </div>
+</div>
+
+<!-- DATE -->
+<div class="letter-date">{{ today }}</div>
+
+<!-- RECIPIENT -->
+<div class="recipient">
+  {% if job_context.hiring_manager %}<div class="hiring-manager">{{ job_context.hiring_manager }}</div>{% endif %}
+  {% if job_context.company %}<div class="company">{{ job_context.company }}</div>{% endif %}
+</div>
+
+<!-- SALUTATION -->
+<div class="salutation">
+Dear {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else %}Hiring Manager{% endif %},
+</div>
+
+<!-- BODY -->
+<div class="letter-body">
+{% if job_context.notes %}
+{{ job_context.notes | md }}
+{% else %}
+<p>
+  I am writing to express my interest in the
+  {% if job_context.role %}<strong>{{ job_context.role }}</strong>{% else %}open position{% endif %}
+  {% if job_context.company %}at <strong>{{ job_context.company }}</strong>{% endif %}.
+</p>
+<p>{{ basics.summary }}</p>
+<p>
+  I would welcome the opportunity to discuss how my background aligns with your needs.
+  Please find my CV attached for your reference.
+</p>
+{% endif %}
+</div>
+
+<!-- SIGN-OFF -->
+<div class="sign-off">
+  <div class="closing">Sincerely,</div>
+  <div class="sig-name">{{ contact.name }}</div>
+  <div class="sig-links">
+    {% if contact.linkedin %}<div>linkedin.com/in/{{ contact.linkedin }}</div>{% endif %}
+    {% if contact.github %}<div>github.com/{{ contact.github }}</div>{% endif %}
+    {% if contact.website %}<div>{{ contact.website }}</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+template: cv/modern-single
+output_filename: cv-modern
+sections:
+  work: true
+  education: true
+  skills: true
+  projects: true

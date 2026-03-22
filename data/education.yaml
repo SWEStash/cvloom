@@ -1,0 +1,10 @@
+- institution: State University
+  degree: "Bachelor of Science"
+  field: Computer Science
+  location: "Anytown, USA"
+  start_date: "2014"
+  end_date: "2018"
+  highlights:
+    - GPA 3.8/4.0
+    - Teaching assistant for Data Structures and Algorithms
+    - "Final project: distributed key-value store in Go"

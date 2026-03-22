@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project",
+  "title": "CV Project",
+  "type": "object",
+  "required": ["name", "description", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {"type": "string"},
+    "description": {"type": "string", "description": "Short description (Markdown supported)"},
+    "url": {"type": "string", "format": "uri"},
+    "start_date": {"type": "string"},
+    "end_date": {"type": "string"},
+    "highlights": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type": "string"},
+          {
+            "type": "object",
+            "required": ["text"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"type": "string"},
+              "text": {"type": "string"}
+            }
+          }
+        ]
+      },
+      "description": "Achievement bullets — plain strings or {id, text} objects (Markdown supported)"
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Technology/domain tags for profile filtering"
+    }
+  }
+}

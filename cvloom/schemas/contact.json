@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contact",
+  "title": "CV Contact (private)",
+  "type": "object",
+  "required": ["name", "email"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {"type": "string"},
+    "email": {"type": "string", "format": "email"},
+    "phone": {"type": "string"},
+    "location": {"type": "string", "description": "City, Country or full address"},
+    "website": {"type": "string", "format": "uri"},
+    "linkedin": {"type": "string"},
+    "github": {"type": "string"}
+  }
+}

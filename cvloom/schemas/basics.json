@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "basics",
+  "title": "CV Basics",
+  "type": "object",
+  "required": ["headline", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "headline": {
+      "type": "string",
+      "description": "One-line professional title, e.g. 'Senior Backend Engineer'"
+    },
+    "summary": {
+      "type": "string",
+      "description": "2–4 sentence professional summary (Markdown supported)"
+    },
+    "public_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "label": {"type": "string"},
+          "url": {"type": "string", "format": "uri"}
+        }
+      }
+    }
+  }
+}

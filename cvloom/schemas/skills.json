@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "skills",
+  "title": "CV Skills",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["category", "items"],
+    "additionalProperties": false,
+    "properties": {
+      "category": {"type": "string", "description": "e.g. 'Languages', 'Frameworks', 'Cloud'"},
+      "items": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "object",
+              "required": ["name"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {"type": "string"},
+                "level": {
+                  "type": "string",
+                  "enum": ["beginner", "intermediate", "advanced", "expert"]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

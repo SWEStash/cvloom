@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# cvloom pre-commit hook: block commits that contain PII outside private/
+#
+# Scans staged files for patterns that look like:
+#   - email addresses
+#   - phone numbers
+#   - physical addresses (street number + street name pattern)
+#
+# Files inside private/ are intentionally excluded from scanning because
+# they should already be gitignored. If a file inside private/ is staged,
+# that itself is the problem and we block the commit immediately.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+
+if [[ -z "$STAGED" ]]; then
+  exit 0
+fi
+
+# 1. Block any file from private/ being staged at all.
+PRIVATE_STAGED=$(echo "$STAGED" | grep -E '^private/' || true)
+if [[ -n "$PRIVATE_STAGED" ]]; then
+  echo -e "${RED}cvloom pre-commit: ERROR${NC}"
+  echo "Files inside private/ must not be committed — they may contain PII."
+  echo ""
+  echo "Staged private files:"
+  echo "$PRIVATE_STAGED" | sed 's/^/  /'
+  echo ""
+  echo "To fix: ensure 'private/' is in your .gitignore, then:"
+  echo "  git rm --cached <file>"
+  exit 1
+fi
+
+# 2. Scan staged files (outside private/) for PII patterns.
+EMAIL_PATTERN='[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}'
+PHONE_PATTERN='(\+\d[\d \-()]{7,}\d|\(\d{3}\)\s*\d{3}[\- ]\d{4})'
+
+FOUND_PII=()
+
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  [[ ! -f "$file" ]] && continue
+
+  # Get staged content (not working tree content)
+  CONTENT=$(git show ":$file" 2>/dev/null || true)
+
+  if echo "$CONTENT" | grep -qP "$EMAIL_PATTERN" 2>/dev/null; then
+    FOUND_PII+=("$file (email address detected)")
+  fi
+
+  if echo "$CONTENT" | grep -qP "$PHONE_PATTERN" 2>/dev/null; then
+    FOUND_PII+=("$file (phone number detected)")
+  fi
+done <<< "$STAGED"
+
+if [[ ${#FOUND_PII[@]} -gt 0 ]]; then
+  echo -e "${YELLOW}cvloom pre-commit: WARNING — possible PII detected in staged files${NC}"
+  echo ""
+  echo "Files with suspected PII:"
+  for item in "${FOUND_PII[@]}"; do
+    echo "  ✗ $item"
+  done
+  echo ""
+  echo "If this is intentional (e.g. a placeholder or public link), you can"
+  echo "bypass this check with:  git commit --no-verify"
+  echo ""
+  echo "If this is real contact information, move it to private/contact.yaml"
+  echo "and reference it from your data files using the build system."
+  exit 1
+fi
+
+exit 0

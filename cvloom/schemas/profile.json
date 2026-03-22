@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "profile",
+  "title": "Build Profile",
+  "type": "object",
+  "required": ["template"],
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "type": "string",
+      "description": "Template path relative to templates/, e.g. 'cv/ats-single'"
+    },
+    "output_filename": {
+      "type": "string",
+      "description": "Base filename for outputs (without extension), e.g. 'jane-smith-cv'"
+    },
+    "sections": {
+      "type": "object",
+      "description": "Per-section include/exclude overrides",
+      "additionalProperties": false,
+      "properties": {
+        "work": {"type": "boolean", "default": true},
+        "education": {"type": "boolean", "default": true},
+        "skills": {"type": "boolean", "default": true},
+        "projects": {"type": "boolean", "default": true}
+      }
+    },
+    "include_tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Only include projects/work with at least one of these tags. Empty = include all."
+    },
+    "job_context": {
+      "type": "object",
+      "description": "Job-specific context for cover letter template",
+      "additionalProperties": false,
+      "properties": {
+        "company": {"type": "string"},
+        "role": {"type": "string"},
+        "hiring_manager": {"type": "string"},
+        "notes": {"type": "string"}
+      }
+    },
+    "section_order": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["skills", "work", "education", "projects"]
+      },
+      "description": "Render sections in this order (overrides template default)"
+    },
+    "include_entries": {
+      "type": "object",
+      "description": "Force-include entries that would be excluded by tag filtering",
+      "additionalProperties": false,
+      "properties": {
+        "work": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/match_spec"}
+        },
+        "projects": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/match_spec"}
+        }
+      }
+    },
+    "overlays": {
+      "type": "object",
+      "description": "Per-job data patches applied after tag filtering",
+      "additionalProperties": false,
+      "properties": {
+        "basics": {
+          "type": "object",
+          "description": "Shallow merge into basics data",
+          "properties": {
+            "headline": {"type": "string"},
+            "summary": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "work": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/entry_overlay"}
+        },
+        "education": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/entry_overlay"}
+        },
+        "projects": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/entry_overlay"}
+        },
+        "skills": {
+          "$ref": "#/$defs/skills_overlay"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "match_spec": {
+      "type": "object",
+      "description": "Field-value pairs to identify an entry (AND logic)",
+      "additionalProperties": {"type": "string"}
+    },
+    "entry_overlay": {
+      "type": "object",
+      "required": ["match"],
+      "additionalProperties": false,
+      "properties": {
+        "match": {"$ref": "#/$defs/match_spec"},
+        "exclude": {"type": "boolean"},
+        "title": {"type": "string"},
+        "highlights": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["all", "pick", "exclude"],
+              "default": "all"
+            },
+            "items": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Highlight IDs to pick or exclude"
+            },
+            "append": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Extra highlights to add after filtered ones"
+            },
+            "replace": {
+              "type": "object",
+              "additionalProperties": {"type": "string"},
+              "description": "Map of highlight ID to replacement text"
+            }
+          }
+        }
+      }
+    },
+    "skills_overlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include_categories": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Only include these skill categories"
+        },
+        "exclude_categories": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Exclude these skill categories"
+        },
+        "category_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "exclude_items": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "not": {
+        "required": ["include_categories", "exclude_categories"]
+      }
+    }
+  }
+}

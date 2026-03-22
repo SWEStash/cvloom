@@ -1,0 +1,33 @@
+template: cv/ats-single
+output_filename: example-job-cv
+include_tags: [python, kafka, aws, microservices]
+
+section_order: [skills, work, projects, education]
+
+sections:
+  work: true
+  education: true
+  skills: true
+  projects: true
+
+job_context:
+  company: Stripe
+  role: Senior Infrastructure Engineer
+
+overlays:
+  basics:
+    headline: "Senior Infrastructure Engineer"
+    summary: >
+      Infrastructure engineer with 8+ years building high-throughput
+      distributed systems. Deep Kafka and AWS experience at scale.
+
+  work:
+    - match: {company: "Acme Corp"}
+      highlights:
+        mode: pick
+        items: [kafka-pipeline, microservices-migration]
+        append:
+          - "Designed zero-downtime deployment for 200-node Kafka cluster."
+
+  skills:
+    include_categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
