@@ -7,6 +7,32 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased] — Phase 3
+
+### Added
+- `cvloom match --jd <file> [--profile]` — keyword gap analysis comparing CV
+  content against a plain-text job description. Reports coverage percentage,
+  matched/missing keywords by section, and top JD keywords.
+- MCP server parity: 4 new tools (`check_cv`, `trim_report`, `diff_profiles`,
+  `match_jd`) bringing the total from 8 to 12 tools.
+- `validate_overlays()` now checks for: unmatched overlay entries, nonexistent
+  highlight IDs in pick/exclude/replace, unknown match field names, and
+  non-existent skill categories.
+- `renderer.template_exists()` and `renderer.list_templates()` helper functions.
+- Template existence pre-check in `builder.resolve()` with available templates
+  listed in the error message.
+- `cvloom-template-*` naming convention for third-party templates.
+
+### Fixed
+- MCP `upsert_project` slug generation now handles accents, special characters,
+  consecutive spaces, and empty names via `_slugify()`.
+- ATS linter passive voice rule (ats-001) no longer flags adjectives ending in
+  -nt, -lt, etc. (e.g. "is present", "was efficient").
+- Overlay warnings now surface during `builder.resolve()` instead of being
+  silently discarded.
+
+---
+
 ## [Unreleased] — Phase 2
 
 ### Added

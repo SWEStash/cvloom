@@ -14,6 +14,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [check](#check)
 - [trim](#trim)
 - [diff](#diff)
+- [match](#match)
 - [export](#export)
 - [init](#init)
 - [list-projects](#list-projects)
@@ -217,6 +218,61 @@ Highlight counts:
   work:       12 → 9 (-3)
   projects:    4 → 5 (+1)
 ```
+
+---
+
+## `match`
+
+Compare CV keywords against a plain-text job description to identify gaps.
+
+```bash
+cvloom match --jd job-description.txt
+cvloom match --jd jd.txt --profile backend-role
+```
+
+### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--jd PATH` | *(required)* | Path to a plain-text job description file |
+| `--profile`, `-p` | `general` | Build profile to resolve before matching |
+
+### Output
+
+- **Coverage percentage** — ratio of JD keywords found in the CV
+- **Top JD Keywords table** — most frequent keywords with CV presence and sections
+- **Gaps list** — keywords from the JD not found anywhere in the CV
+
+### Example
+
+```
+$ cvloom match --jd stripe-infra.txt --profile backend-role
+Coverage: 72% (18 of 25 JD keywords found)
+JD keyword count: 84
+
+  Top JD Keywords
+  ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━┓
+  ┃ Keyword        ┃ JD Freq ┃ In CV ┃ CV Sections   ┃
+  ┡━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━┩
+  │ python         │       5 │   ✓   │ skills, work  │
+  │ infrastructure │       3 │   ✓   │ work          │
+  │ kubernetes     │       3 │   ✗   │               │
+  │ distributed    │       2 │   ✓   │ work          │
+  └────────────────┴─────────┴───────┴───────────────┘
+
+Gaps (7):
+  ✗ kubernetes
+  ✗ terraform
+  ✗ grafana
+```
+
+### How it works
+
+1. The profile is resolved (same pipeline as `build`)
+2. The JD file is tokenised into keywords (stop words removed)
+3. CV content from all visible sections is tokenised
+4. Keywords are classified as matched (in CV) or gap (missing)
+5. Results are sorted by JD frequency — most important gaps first
 
 ---
 

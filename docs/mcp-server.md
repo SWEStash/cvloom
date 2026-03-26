@@ -2,7 +2,7 @@
 
 [Back to README](../README.md)
 
-The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard that lets AI assistants interact with external tools and data sources through a structured interface. cvloom ships an MCP server that exposes its full build pipeline as typed tools, so an LLM can query your CV data, build tailored outputs, create profiles, and validate schemas -- all without leaving the conversation.
+The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard that lets AI assistants interact with external tools and data sources through a structured interface. cvloom ships an MCP server that exposes 12 typed tools, so an LLM can query your CV data, build tailored outputs, create profiles, and validate schemas -- all without leaving the conversation.
 
 ## Installation
 
@@ -78,6 +78,10 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 | `upsert_project` | `project` (object), `project_root?` | `{written: path}` or `{error, details}` | Validates `project` against the project schema and writes it to `data/projects/{slug}.yaml`, where slug is derived from the project name. Creates or overwrites. |
 | `validate_data` | `project_root?` | `{valid: true}` or `{valid: false, errors: [...]}` | Runs schema validation against all data files in the project. |
 | `export_json_resume` | `profile?` (default `"general"`), `project_root?` | Full JSON Resume object | Resolves the given profile and exports it in [JSON Resume](https://jsonresume.org) format. |
+| `check_cv` | `profile?` (default `"general"`), `rule_ids?` (string array), `project_root?` | Array of finding objects (`rule_id`, `severity`, `section`, `entry`, `message`, `fix_hint`) | Runs the ATS linter on the resolved profile. Optionally filter by rule IDs. |
+| `trim_report` | `profile?` (default `"general"`), `target_pages?` (int, default 1), `project_root?` | `{total_words, estimated_pages, words_to_cut, sections: [...], recommendations: [...]}` | Per-section word count breakdown with actionable trim recommendations. |
+| `diff_profiles` | `profile_a` (string), `profile_b` (string), `project_root?` | `{template_a, template_b, sections_only_in_a, sections_only_in_b, entries_only_in_a, entries_only_in_b, word_count_a, word_count_b, highlight_count_a, highlight_count_b}` | Compares two profiles: sections, entries, word counts, and highlight counts. |
+| `match_jd` | `jd_text` (string), `profile?` (default `"general"`), `project_root?` | `{coverage, jd_word_count, matched: [...], gaps: [...], top_jd_keywords: [...]}` | Keyword gap analysis comparing CV content against a job description. |
 
 ## Example workflow
 

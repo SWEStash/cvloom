@@ -17,6 +17,10 @@ $ cvloom diff general backend-role
   Sections only in general: projects
   Words: 620 vs 450 (-170)
   Highlights: 12 vs 8
+
+$ cvloom match --jd stripe-infra.txt --profile backend-role
+  Coverage: 72% (18 of 25 JD keywords found)
+  Gaps (7): kubernetes, terraform, grafana, ...
 ```
 
 ## Features
@@ -31,10 +35,11 @@ $ cvloom diff general backend-role
 | **Analyse** | ATS linter — 5 rules with per-bullet feedback | `cvloom check` |
 | | Per-section word breakdown + trim guidance | `cvloom trim` |
 | | Side-by-side profile comparison | `cvloom diff A B` |
+| **Match** | Keyword gap analysis from job description | `cvloom match --jd FILE` |
 | **Export** | JSON Resume format | `cvloom export --format json-resume` |
 | **Inspect** | List projects with tag filtering | `cvloom list-projects` |
 | | List all build profiles | `cvloom list-profiles` |
-| **Integrate** | MCP server — 8 tools for LLM-driven CV management | `cvloom-mcp` |
+| **Integrate** | MCP server — 12 tools for LLM-driven CV management | `cvloom-mcp` |
 | | GitHub Pages deployment | Built-in CI workflow |
 | **Safety** | PII compartmentalisation + pre-commit scanner | `private/` + hook |
 
