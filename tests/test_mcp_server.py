@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from cvloom.mcp_server import (
+    _slugify,
     create_profile,
     get_section,
     list_profiles,
@@ -123,6 +124,35 @@ def test_upsert_project(project_dir: str) -> None:
 def test_validate_data_valid(project_dir: str) -> None:
     result = json.loads(validate_data(project_root=project_dir))
     assert result["valid"] is True
+
+
+def test_slugify_basic() -> None:
+    assert _slugify("My Project") == "my-project"
+
+
+def test_slugify_accents() -> None:
+    assert _slugify("Résumé Professionnel") == "resume-professionnel"
+
+
+def test_slugify_special_chars() -> None:
+    assert _slugify("C++ & Rust!") == "c-rust"
+
+
+def test_slugify_consecutive_spaces() -> None:
+    assert _slugify("  foo   bar  ") == "foo-bar"
+
+
+def test_slugify_empty() -> None:
+    assert _slugify("") == "untitled"
+
+
+def test_upsert_project_special_name(project_dir: str) -> None:
+    project = {"name": "My Project!", "description": "Special.", "tags": ["test"]}
+    result = json.loads(upsert_project(project, project_root=project_dir))
+    assert "written" in result
+    written_path = Path(result["written"])
+    assert written_path.name == "my-project.yaml"
+    assert written_path.exists()
 
 
 def test_validate_data_invalid(project_dir: str) -> None:

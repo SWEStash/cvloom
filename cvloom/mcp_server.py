@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -148,6 +150,13 @@ def create_profile(
     return json.dumps({"created": str(path)})
 
 
+def _slugify(name: str) -> str:
+    """Convert a project name to a safe filename slug."""
+    text = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return text or "untitled"
+
+
 @mcp.tool()
 def upsert_project(
     project: dict[str, Any],
@@ -162,7 +171,7 @@ def upsert_project(
         return json.dumps({"error": "Validation failed", "details": errors})
 
     name = project.get("name", "untitled")
-    slug = name.lower().replace(" ", "-")
+    slug = _slugify(name)
     projects_dir = root / "data" / "projects"
     projects_dir.mkdir(parents=True, exist_ok=True)
     path = projects_dir / f"{slug}.yaml"
