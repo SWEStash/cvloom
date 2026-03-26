@@ -9,7 +9,9 @@ import pytest
 
 from cvloom.mcp_server import (
     _slugify,
+    build_cv,
     create_profile,
+    export_json_resume,
     get_section,
     list_profiles,
     list_projects,
@@ -27,11 +29,15 @@ def project_dir(tmp_path: Path) -> str:
         'headline: "Test Engineer"\nsummary: "A test summary."\n'
     )
     (data / "work.yaml").write_text(
-        '- company: Acme\n  title: Engineer\n  start_date: "2020-01"\n'
-        "  highlights:\n    - Built things.\n"
+        '- company: Acme\n  title: Engineer\n  location: Remote\n'
+        '  start_date: "2020-01"\n  end_date: Present\n'
+        "  highlights:\n    - Designed and built a distributed system handling 10k requests.\n"
+        "  tags: [python]\n"
     )
     (data / "education.yaml").write_text(
-        '- institution: Uni\n  degree: BSc\n  start_date: "2016"\n'
+        '- institution: Uni\n  degree: BSc\n  field: CS\n  location: "City"\n'
+        '  start_date: "2016"\n  end_date: "2020"\n'
+        "  highlights:\n    - Graduated with honours in computer science program.\n"
     )
     (data / "skills.yaml").write_text(
         "- category: Languages\n  items: [Python]\n"
@@ -40,15 +46,21 @@ def project_dir(tmp_path: Path) -> str:
     projects.mkdir()
     (projects / "alpha.yaml").write_text(
         'name: alpha\ndescription: "A project."\ntags: [python]\n'
+        'url: "https://example.com/alpha"\nstart_date: "2023-01"\n'
+        "highlights:\n  - Built a CLI tool used by 500 developers daily.\n"
     )
     (projects / "beta.yaml").write_text(
         'name: beta\ndescription: "Another project."\ntags: [go]\n'
+        'url: "https://example.com/beta"\nstart_date: "2024-01"\n'
+        "highlights:\n  - Implemented a high-performance parser.\n"
     )
 
     private = tmp_path / "private"
     private.mkdir()
     (private / "contact.yaml").write_text(
-        'name: Test\nemail: "test@example.com"\n'
+        'name: Test\nemail: "test@example.com"\nphone: "+1 (555) 000-0000"\n'
+        'location: "Test City"\nlinkedin: testuser\ngithub: testuser\n'
+        'website: "https://example.com"\n'
     )
 
     profiles = tmp_path / "profiles"
@@ -56,15 +68,22 @@ def project_dir(tmp_path: Path) -> str:
     (profiles / "general.yaml").write_text(
         "template: cv/ats-single\noutput_filename: cv\n"
     )
+    (profiles / "backend.yaml").write_text(
+        "template: cv/modern-single\noutput_filename: backend-cv\n"
+        "include_tags: [python]\n"
+    )
 
     return str(tmp_path)
 
 
 def test_list_profiles(project_dir: str) -> None:
     result = json.loads(list_profiles(project_root=project_dir))
-    assert len(result) == 1
-    assert result[0]["name"] == "general"
-    assert result[0]["template"] == "cv/ats-single"
+    assert len(result) == 2
+    names = {p["name"] for p in result}
+    assert "general" in names
+    assert "backend" in names
+    general = next(p for p in result if p["name"] == "general")
+    assert general["template"] == "cv/ats-single"
 
 
 def test_list_projects_all(project_dir: str) -> None:
@@ -161,3 +180,32 @@ def test_validate_data_invalid(project_dir: str) -> None:
     result = json.loads(validate_data(project_root=project_dir))
     assert result["valid"] is False
     assert len(result["errors"]) > 0
+
+
+# ── build_cv tests ─────────────────────────────────────────────────
+
+
+def test_build_cv_html_only(project_dir: str) -> None:
+    result = json.loads(build_cv(profile="general", skip_pdf=True, project_root=project_dir))
+    assert "html_path" in result
+    assert result["words"] > 0
+    assert result["pages"] >= 1
+
+
+def test_build_cv_missing_profile(project_dir: str) -> None:
+    with pytest.raises(FileNotFoundError):
+        build_cv(profile="nonexistent", skip_pdf=True, project_root=project_dir)
+
+
+# ── export_json_resume tests ───────────────────────────────────────
+
+
+def test_export_json_resume_valid(project_dir: str) -> None:
+    result = json.loads(export_json_resume(profile="general", project_root=project_dir))
+    assert "basics" in result
+    assert result["basics"]["name"] == "Test"
+
+
+def test_export_json_resume_missing_profile(project_dir: str) -> None:
+    with pytest.raises(FileNotFoundError):
+        export_json_resume(profile="nonexistent", project_root=project_dir)
