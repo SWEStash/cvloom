@@ -11,8 +11,11 @@ from typing import Any
 import yaml
 from mcp.server.fastmcp import FastMCP
 
-from cvloom import builder, loader, schema
+from cvloom import builder, linter, loader, schema
+from cvloom import trim as trim_mod
+from cvloom.diff import compare
 from cvloom.export import to_json_resume
+from cvloom.match import analyze_match
 
 mcp = FastMCP("cvloom")
 
@@ -214,6 +217,151 @@ def export_json_resume(
         )
         resume = to_json_resume(resolved)
         return json.dumps(resume, indent=2, ensure_ascii=False)
+    except SystemExit as e:
+        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+
+
+@mcp.tool()
+def check_cv(
+    profile: str = "general",
+    rule_ids: list[str] | None = None,
+    project_root: str | None = None,
+) -> str:
+    """Run ATS linter on a profile. Returns lint findings as JSON."""
+    root = _root(project_root)
+    try:
+        resolved = builder.resolve(
+            data_dir=root / "data",
+            private_dir=root / "private",
+            profiles_dir=root / "profiles",
+            profile_name=profile,
+            public=True,
+        )
+        findings = linter.lint(resolved, rule_ids=rule_ids)
+        return json.dumps([
+            {
+                "rule_id": f.rule_id,
+                "severity": f.severity,
+                "section": f.section,
+                "entry": f.entry,
+                "message": f.message,
+                "fix_hint": f.fix_hint,
+            }
+            for f in findings
+        ], indent=2)
+    except SystemExit as e:
+        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+
+
+@mcp.tool()
+def trim_report(
+    profile: str = "general",
+    target_pages: int = 1,
+    project_root: str | None = None,
+) -> str:
+    """Get per-section word count breakdown and trim recommendations."""
+    root = _root(project_root)
+    try:
+        resolved = builder.resolve(
+            data_dir=root / "data",
+            private_dir=root / "private",
+            profiles_dir=root / "profiles",
+            profile_name=profile,
+            public=True,
+        )
+        report = trim_mod.analyze(resolved, target_pages=target_pages)
+        return json.dumps({
+            "total_words": report.total_words,
+            "estimated_pages": report.estimated_pages,
+            "words_to_cut": report.words_to_cut,
+            "sections": [
+                {
+                    "section": s.section,
+                    "total_words": s.total_words,
+                    "entries": [
+                        {"label": e.label, "total_words": e.total_words}
+                        for e in s.entries
+                    ],
+                }
+                for s in report.sections
+            ],
+            "recommendations": report.recommendations,
+        }, indent=2)
+    except SystemExit as e:
+        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+
+
+@mcp.tool()
+def diff_profiles(
+    profile_a: str,
+    profile_b: str,
+    project_root: str | None = None,
+) -> str:
+    """Compare two profiles side by side. Returns structural differences."""
+    root = _root(project_root)
+    try:
+        resolved_a = builder.resolve(
+            data_dir=root / "data",
+            private_dir=root / "private",
+            profiles_dir=root / "profiles",
+            profile_name=profile_a,
+            public=True,
+        )
+        resolved_b = builder.resolve(
+            data_dir=root / "data",
+            private_dir=root / "private",
+            profiles_dir=root / "profiles",
+            profile_name=profile_b,
+            public=True,
+        )
+        result = compare(resolved_a, resolved_b, name_a=profile_a, name_b=profile_b)
+        return json.dumps({
+            "template_a": result.template_a,
+            "template_b": result.template_b,
+            "sections_only_in_a": result.sections_only_in_a,
+            "sections_only_in_b": result.sections_only_in_b,
+            "entries_only_in_a": result.entries_only_in_a,
+            "entries_only_in_b": result.entries_only_in_b,
+            "word_count_a": result.word_count_a,
+            "word_count_b": result.word_count_b,
+            "highlight_count_a": result.highlight_count_a,
+            "highlight_count_b": result.highlight_count_b,
+        }, indent=2)
+    except SystemExit as e:
+        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+
+
+@mcp.tool()
+def match_jd(
+    jd_text: str,
+    profile: str = "general",
+    project_root: str | None = None,
+) -> str:
+    """Analyze keyword gaps between CV and a job description text."""
+    root = _root(project_root)
+    try:
+        resolved = builder.resolve(
+            data_dir=root / "data",
+            private_dir=root / "private",
+            profiles_dir=root / "profiles",
+            profile_name=profile,
+            public=True,
+        )
+        report = analyze_match(resolved, jd_text)
+        return json.dumps({
+            "coverage": round(report.cv_keywords_coverage, 3),
+            "jd_word_count": report.jd_word_count,
+            "matched": [
+                {
+                    "keyword": m.keyword,
+                    "found_in": m.found_in,
+                    "frequency_jd": m.frequency_jd,
+                }
+                for m in report.matched
+            ],
+            "gaps": report.gaps,
+            "top_jd_keywords": report.top_jd_keywords,
+        }, indent=2)
     except SystemExit as e:
         return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
 

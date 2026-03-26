@@ -10,11 +10,15 @@ import pytest
 from cvloom.mcp_server import (
     _slugify,
     build_cv,
+    check_cv,
     create_profile,
+    diff_profiles,
     export_json_resume,
     get_section,
     list_profiles,
     list_projects,
+    match_jd,
+    trim_report,
     upsert_project,
     validate_data,
 )
@@ -209,3 +213,56 @@ def test_export_json_resume_valid(project_dir: str) -> None:
 def test_export_json_resume_missing_profile(project_dir: str) -> None:
     with pytest.raises(FileNotFoundError):
         export_json_resume(profile="nonexistent", project_root=project_dir)
+
+
+# ── check_cv tests ────────────────────────────────────────────────
+
+
+def test_check_cv_returns_findings(project_dir: str) -> None:
+    result = json.loads(check_cv(profile="general", project_root=project_dir))
+    assert isinstance(result, list)
+
+
+def test_check_cv_with_rule_filter(project_dir: str) -> None:
+    result = json.loads(
+        check_cv(profile="general", rule_ids=["ats-001"], project_root=project_dir)
+    )
+    assert isinstance(result, list)
+    for finding in result:
+        assert finding["rule_id"] == "ats-001"
+
+
+# ── trim_report tests ─────────────────────────────────────────────
+
+
+def test_trim_report_returns_sections(project_dir: str) -> None:
+    result = json.loads(trim_report(profile="general", project_root=project_dir))
+    assert "total_words" in result
+    assert "sections" in result
+    assert isinstance(result["sections"], list)
+    if result["sections"]:
+        assert "section" in result["sections"][0]
+
+
+# ── diff_profiles tests ───────────────────────────────────────────
+
+
+def test_diff_profiles_returns_comparison(project_dir: str) -> None:
+    result = json.loads(
+        diff_profiles(profile_a="general", profile_b="backend", project_root=project_dir)
+    )
+    assert "word_count_a" in result
+    assert "word_count_b" in result
+    assert "template_a" in result
+
+
+# ── match_jd tests ────────────────────────────────────────────────
+
+
+def test_match_jd_returns_coverage(project_dir: str) -> None:
+    jd = "Python engineer with distributed systems experience"
+    result = json.loads(match_jd(jd_text=jd, profile="general", project_root=project_dir))
+    assert "coverage" in result
+    assert "matched" in result
+    assert "gaps" in result
+    assert isinstance(result["matched"], list)
