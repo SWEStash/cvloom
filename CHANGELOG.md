@@ -7,7 +7,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — Phase 3
+## [0.3.0] — Phase 3 — 2026-03-26
 
 ### Added
 - `cvloom match --jd <file> [--profile]` — keyword gap analysis comparing CV
@@ -33,7 +33,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — Phase 2
+## [0.2.0] — Phase 2 — 2026-03-24
 
 ### Added
 - `cvloom check [--profile]` — ATS linter with 5 built-in rules: passive
@@ -66,7 +66,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — Phase 1
+## [0.1.0] — Phase 0 + Phase 1 — 2026-03-20
 
 ### Added
 - `cvloom list-projects [--tag TAG]` — list projects from `data/projects/`,
@@ -89,11 +89,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.1.0] — Phase 0 — 2026-03-20
-
-Initial working prototype.
-
-### Added
+### Added (Phase 0)
 - `cvloom build [--profile] [--template] [--public] [--skip-pdf]` — full
   build pipeline: YAML → JSON Schema validation → Jinja2 HTML → WeasyPrint PDF.
 - `cvloom init` — scaffold project structure, install pre-commit PII scanner
