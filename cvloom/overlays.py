@@ -17,12 +17,7 @@ _MATCH_KEYS: dict[str, str] = {
 
 
 def apply_overlays(data: dict[str, Any], profile: dict[str, Any]) -> None:
-    """Apply all overlay operations from *profile* onto *data* in-place.
-
-    Call order: force-includes → overlays (basics, array sections, skills).
-    """
-    _apply_include_entries(data, profile)
-
+    """Apply all overlay operations from *profile* onto *data* in-place."""
     overlays = profile.get("overlays")
     if not overlays:
         return
@@ -36,23 +31,6 @@ def apply_overlays(data: dict[str, Any], profile: dict[str, Any]) -> None:
 
     if "skills" in overlays:
         _apply_skills_overlay(data, overlays["skills"])
-
-
-# ── Force-include entries ────────────────────────────────────────────
-
-
-def _apply_include_entries(data: dict[str, Any], profile: dict[str, Any]) -> None:
-    """Re-add entries that were excluded by tag filtering."""
-    include_entries = profile.get("include_entries")
-    if not include_entries:
-        return
-
-    # We need the original unfiltered data, but at this point filtering
-    # has already happened. Force-includes work by checking if matched
-    # entries are already present; if not, we can't re-add them here.
-    # The loader must pass original data for this to work.
-    # For now, include_entries is handled in the builder by re-loading.
-    # This is a placeholder — see builder.py integration.
 
 
 # ── Basics overlay ───────────────────────────────────────────────────

@@ -1,0 +1,60 @@
+{% extends "base.html.j2" %}
+
+{% block title %}{{ contact.name }} — Cover Letter{% endblock %}
+
+{% block css_vars %}
+:root {
+  --accent: #1e3a5f;
+  --font-body: Arial, Helvetica, sans-serif;
+  --page-padding: 20mm 22mm;
+}
+{% endblock %}
+
+{% block css_extra %}
+body { font-size: 10pt; line-height: 1.5; }
+h2 { display: none; }
+.header { margin-bottom: 16px; }
+.header .name { font-weight: 700; font-size: 12pt; }
+.header .contact-line { font-size: 9pt; color: var(--muted); margin-top: 2px; }
+.header .contact-line span + span::before { content: " · "; }
+.letter-date { font-size: 9pt; color: var(--muted); margin-bottom: 14px; }
+.salutation { margin-bottom: 10px; }
+.letter-body p { margin-bottom: 8px; }
+.sign-off { margin-top: 20px; }
+.sign-off .sig-name { font-weight: 700; }
+{% endblock %}
+
+{% block body %}
+<div class="header">
+  <div class="name">{{ contact.name }}</div>
+  <div class="contact-line">
+    {% if contact.email %}<span>{{ contact.email }}</span>{% endif %}
+    {% if contact.phone %}<span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location %}<span>{{ contact.location }}</span>{% endif %}
+  </div>
+</div>
+
+<div class="letter-date">{{ today }}</div>
+
+<div class="salutation">
+Dear {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else %}Hiring Manager{% endif %},
+</div>
+
+<div class="letter-body">
+{% if job_context.notes %}
+{{ job_context.notes | md }}
+{% else %}
+<p>
+  I am writing regarding the
+  {% if job_context.role %}<strong>{{ job_context.role }}</strong>{% else %}open{% endif %}
+  position{% if job_context.company %} at <strong>{{ job_context.company }}</strong>{% endif %}.
+  {{ basics.summary }}
+</p>
+<p>Please find my CV attached. I look forward to hearing from you.</p>
+{% endif %}
+</div>
+
+<div class="sign-off">
+  <div class="sig-name">{{ contact.name }}</div>
+</div>
+{% endblock %}

@@ -9,6 +9,16 @@ description = "CLI tool to manage CV/resume content as a single source of truth 
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
 dependencies = [
     "click>=8.1",
     "pyyaml>=6.0",
@@ -17,19 +27,23 @@ dependencies = [
     "weasyprint>=62.0",
     "markdown-it-py>=3.0",
     "rich>=13.0",
-    "pytest-cov>=7.1.0",
 ]
 
 [project.scripts]
 cvloom = "cvloom.cli:cli"
+cvloom-mcp = "cvloom.mcp_server:main"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.4",
     "mypy>=1.9",
     "types-PyYAML",
     "types-jsonschema",
+]
+mcp = [
+    "mcp>=1.0",
 ]
 
 [tool.hatch.build.targets.wheel]

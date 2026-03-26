@@ -1,0 +1,72 @@
+{% extends "base.html.j2" %}
+
+{% set project = projects[0] if projects else {} %}
+
+{% block title %}{{ project.name | default("Project") }} — Summary{% endblock %}
+
+{% block css_vars %}
+:root {
+  --accent: #2563eb;
+  --font-body: Arial, Helvetica, sans-serif;
+  --page-padding: 20mm;
+}
+{% endblock %}
+
+{% block css_extra %}
+body { font-size: 10.5pt; line-height: 1.5; }
+h2 { display: none; }
+.card { border: 1px solid var(--border); border-radius: 6px; padding: 24px; }
+.card-title { font-size: 16pt; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.card-url { font-size: 9pt; margin-bottom: 12px; }
+.card-url a { color: var(--accent); }
+.card-dates { font-size: 9pt; color: var(--muted); margin-bottom: 12px; }
+.card-description { margin-bottom: 14px; }
+.card-highlights { margin-bottom: 14px; }
+.card-highlights ul { padding-left: 1.4em; }
+.card-highlights li { margin-bottom: 4px; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.card-tags .tag { display: inline-block; background: #eff6ff; color: var(--accent); border-radius: 3px; padding: 2px 8px; font-size: 8.5pt; }
+.card-author { margin-top: 20px; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--border); padding-top: 10px; }
+{% endblock %}
+
+{% block body %}
+{% if project %}
+<div class="card">
+  <div class="card-title">{{ project.name }}</div>
+
+  {% if project.url is defined and project.url %}
+  <div class="card-url"><a href="{{ project.url }}">{{ project.url }}</a></div>
+  {% endif %}
+
+  {% if project.start_date is defined and project.start_date %}
+  <div class="card-dates">
+    {{ project.start_date }}{% if project.end_date is defined and project.end_date %} – {{ project.end_date }}{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card-description">{{ project.description | md }}</div>
+
+  {% if project.highlights is defined and project.highlights %}
+  <div class="card-highlights">
+    <ul>
+      {% for hl in project.highlights %}
+      <li>{{ hl | md }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if project.tags is defined and project.tags %}
+  <div class="card-tags">
+    {% for tag in project.tags %}
+    <span class="tag">{{ tag }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card-author">{{ contact.name }}{% if contact.email %} · {{ contact.email }}{% endif %}</div>
+{% else %}
+<p>No projects available.</p>
+{% endif %}
+{% endblock %}

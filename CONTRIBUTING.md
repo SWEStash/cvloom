@@ -11,7 +11,7 @@ headless browsers. Contributions that preserve this scope are most welcome.
 **Good fit:**
 - Bug fixes and validation improvements
 - New built-in templates (CV layouts, cover letter styles)
-- ATS linter rules (Phase 2)
+- New ATS linter rules (see `docs/ats-linter-rules.md`)
 - Documentation and examples
 - Test coverage
 
@@ -73,13 +73,31 @@ All four commands must pass cleanly before opening a PR.
 All Jinja2 filters defined in `cvloom/filters.py` are available:
 `md` (Markdown → HTML), `date_range`, `skill_level_bar`.
 
-## Adding a linter rule (Phase 2)
+## Adding a linter rule
 
-*(Placeholder — ATS linter not yet implemented.)*
+Each rule is a function `(ResolvedProfile) -> list[LintFinding]` registered in
+the `RULES` list in `cvloom/linter.py`.
 
-Each rule will be a small function in `cvloom/linter.py` with a docstring
-explaining what it checks and why. Rules should return per-bullet feedback with
-the specific issue and a suggested fix.
+1. Write a check function following the existing pattern. Use `_check_highlights()`
+   if your rule applies to individual bullet points (work/education/projects).
+2. Create a `LintRule` entry with a unique `ats-NNN` ID, a short name, description,
+   and your check function.
+3. Append it to `RULES`.
+4. Add tests in `tests/test_linter.py` covering both positive and negative cases.
+5. Document the rule in `docs/ats-linter-rules.md`.
+
+See `_check_passive_voice` (ats-001) for a minimal example.
+
+## Adding an export format
+
+Export functions live in `cvloom/export.py`. Each format needs:
+
+1. A `to_<format>(resolved: ResolvedProfile) -> dict` pure function that maps
+   resolved CV data to the target schema.
+2. An `export_<format>(resolved, output_path: Path) -> None` function that
+   writes the file.
+3. A new `--format` choice added to the `export` command in `cli.py`.
+4. Tests in `tests/test_export.py`.
 
 ## Commit style
 
@@ -98,4 +116,5 @@ test: cover list-projects tag filtering
 - [ ] `uv run ruff check cvloom tests` passes (no errors)
 - [ ] `uv run mypy cvloom` passes
 - [ ] CHANGELOG.md updated under `[Unreleased]`
+- [ ] `docs/` updated if user-facing behaviour changed
 - [ ] New templates include a render test

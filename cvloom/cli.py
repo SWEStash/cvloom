@@ -10,7 +10,10 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from cvloom import builder
+from cvloom import builder, export, linter
+from cvloom import trim as trim_mod
+from cvloom.builder import _section_summary
+from cvloom.diff import compare
 
 _console = Console()
 _err = Console(stderr=True)
@@ -57,7 +60,7 @@ def build(
 ) -> None:
     """Build CV outputs for a given profile."""
     root = _root()
-    builder.build(
+    result = builder.build(
         data_dir=root / "data",
         private_dir=root / "private",
         profiles_dir=root / "profiles",
@@ -67,6 +70,216 @@ def build(
         public=public,
         skip_pdf=skip_pdf,
     )
+    _console.print(f"[green]✓[/green] HTML  → {result.html_path}")
+    if result.pdf_path:
+        _console.print(f"[green]✓[/green] PDF   → {result.pdf_path}")
+    summary = _section_summary(result.resolved.data, result.resolved.show_sections)
+    _console.print(f"[dim]  {result.words} words · ~{result.pages} page(s)  [{summary}][/dim]")
+    if result.pages > 2 and not result.resolved.template_name.startswith("cv/academic"):
+        _console.print(
+            "[yellow]Warning:[/yellow] Output exceeds 2 pages. "
+            "Consider trimming content or using include_tags to filter sections."
+        )
+
+
+# ---------------------------------------------------------------------------
+# check
+# ---------------------------------------------------------------------------
+
+@cli.command()
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+def check(profile: str) -> None:
+    """Run ATS linter checks on a profile's resolved data."""
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    findings = linter.lint(resolved)
+    if not findings:
+        _console.print("[green]✓ No issues found.[/green]")
+        return
+
+    table = Table(
+        show_header=True, header_style="bold", box=None, padding=(0, 1),
+    )
+    table.add_column("Rule")
+    table.add_column("Section")
+    table.add_column("Entry")
+    table.add_column("Message")
+    table.add_column("Fix hint")
+
+    for f in findings:
+        table.add_row(
+            f.rule_id,
+            f.section,
+            f.entry,
+            f.message,
+            f.fix_hint,
+        )
+
+    _console.print(table)
+    _console.print(f"\n[yellow]{len(findings)} issue(s) found.[/yellow]")
+    raise SystemExit(1)
+
+
+# ---------------------------------------------------------------------------
+# trim
+# ---------------------------------------------------------------------------
+
+@cli.command()
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+@click.option(
+    "--target-pages", default=1,
+    show_default=True, help="Target page count.",
+)
+def trim(profile: str, target_pages: int) -> None:
+    """Show per-section word breakdown and trim recommendations."""
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    report = trim_mod.analyze(resolved, target_pages=target_pages)
+
+    table = Table(
+        show_header=True, header_style="bold", box=None, padding=(0, 1),
+    )
+    table.add_column("Section")
+    table.add_column("Words", justify="right")
+    table.add_column("Entries", justify="right")
+
+    for sec in report.sections:
+        entry_count = str(len(sec.entries)) if sec.entries else "—"
+        table.add_row(sec.section, str(sec.total_words), entry_count)
+
+    _console.print(table)
+    _console.print(
+        f"\n[dim]Total: {report.total_words} words · "
+        f"~{report.estimated_pages} page(s) · "
+        f"target: {report.target_pages}[/dim]"
+    )
+
+    if report.words_to_cut > 0:
+        _console.print(f"\n[yellow]Cut ~{report.words_to_cut} words to reach target.[/yellow]")
+
+    if report.recommendations:
+        _console.print("\n[bold]Recommendations:[/bold]")
+        for rec in report.recommendations:
+            _console.print(f"  • {rec}")
+
+
+# ---------------------------------------------------------------------------
+# diff
+# ---------------------------------------------------------------------------
+
+@cli.command()
+@click.argument("profile_a")
+@click.argument("profile_b")
+def diff(profile_a: str, profile_b: str) -> None:
+    """Compare two profiles side by side."""
+    root = _root()
+    resolved_a = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile_a,
+        public=True,
+    )
+    resolved_b = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile_b,
+        public=True,
+    )
+    result = compare(resolved_a, resolved_b, profile_a, profile_b)
+
+    # Template
+    if result.template_a != result.template_b:
+        _console.print(
+            f"[bold]Template:[/bold] {result.template_a} → {result.template_b}"
+        )
+
+    # Sections
+    if result.sections_only_in_a:
+        _console.print(
+            f"[red]Sections only in {profile_a}:[/red] "
+            + ", ".join(result.sections_only_in_a)
+        )
+    if result.sections_only_in_b:
+        _console.print(
+            f"[green]Sections only in {profile_b}:[/green] "
+            + ", ".join(result.sections_only_in_b)
+        )
+
+    # Entries
+    for section, labels in result.entries_only_in_a.items():
+        _console.print(
+            f"[red]{section} only in {profile_a}:[/red] " + ", ".join(labels)
+        )
+    for section, labels in result.entries_only_in_b.items():
+        _console.print(
+            f"[green]{section} only in {profile_b}:[/green] " + ", ".join(labels)
+        )
+
+    # Word counts
+    delta = result.word_count_b - result.word_count_a
+    sign = "+" if delta > 0 else ""
+    color = "green" if delta <= 0 else "yellow"
+    _console.print(
+        f"\n[bold]Words:[/bold] {result.word_count_a} vs {result.word_count_b} "
+        f"[{color}]({sign}{delta})[/{color}]"
+    )
+    _console.print(
+        f"[bold]Highlights:[/bold] {result.highlight_count_a} vs "
+        f"{result.highlight_count_b}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# export
+# ---------------------------------------------------------------------------
+
+@cli.command("export")
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+@click.option(
+    "--format", "fmt", type=click.Choice(["json-resume"]),
+    required=True, help="Export format.",
+)
+@click.option(
+    "--output", "-o", default=None,
+    help="Output file path (defaults to dist/<profile>.resume.json).",
+)
+def export_cmd(profile: str, fmt: str, output: str | None) -> None:
+    """Export CV data to an external format."""
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=False,
+    )
+    if fmt == "json-resume":
+        out_path = Path(output) if output else root / "dist" / f"{profile}.resume.json"
+        export.export_json_resume(resolved, out_path)
+        _console.print(f"[green]✓[/green] JSON Resume → {out_path}")
 
 
 # ---------------------------------------------------------------------------

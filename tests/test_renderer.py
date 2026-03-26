@@ -38,3 +38,74 @@ def test_render_appends_extension(templates_dir: Path) -> None:
 def test_render_missing_template(templates_dir: Path) -> None:
     with pytest.raises(SystemExit):
         render_template("cv/nonexistent", {}, templates_dir=templates_dir)
+
+
+# ── Built-in template render tests ──────────────────────────────────
+
+_FULL_CONTEXT = {
+    "contact": {
+        "name": "Jane",
+        "email": "jane@test.com",
+        "phone": "+1 555",
+        "location": "SF",
+        "linkedin": "jane",
+        "github": "jane",
+        "website": "https://jane.dev",
+    },
+    "basics": {
+        "headline": "Engineer",
+        "summary": "Great engineer.",
+        "public_links": [{"label": "GitHub", "url": "https://github.com/jane"}],
+    },
+    "work": [
+        {
+            "company": "Acme",
+            "title": "Engineer",
+            "start_date": "2020-01",
+            "end_date": "Present",
+            "location": "Remote",
+            "highlights": ["Built things."],
+        },
+    ],
+    "education": [
+        {
+            "institution": "Uni",
+            "degree": "BSc",
+            "field": "CS",
+            "start_date": "2016",
+            "end_date": "2020",
+            "highlights": ["Dean's list."],
+        },
+    ],
+    "skills": [{"category": "Languages", "items": ["Python", "Go"]}],
+    "projects": [
+        {
+            "name": "proj",
+            "description": "A project.",
+            "tags": ["python"],
+            "url": "https://example.com",
+            "start_date": "2024-01",
+            "highlights": ["Built it."],
+        },
+    ],
+    "show": {"work": True, "education": True, "skills": True, "projects": True},
+    "section_order": ["skills", "work", "education", "projects"],
+    "job_context": {"company": "Acme", "role": "SWE", "hiring_manager": "Bob", "notes": ""},
+    "profile": {},
+    "public": False,
+    "today": "March 22, 2026",
+}
+
+
+def test_render_brief_cover_letter() -> None:
+    html = render_template("cover-letter/brief", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Bob" in html
+    assert "Cover Letter" in html
+
+
+def test_render_project_card() -> None:
+    html = render_template("project-summary/card", _FULL_CONTEXT)
+    assert "proj" in html
+    assert "python" in html
+    assert "A project." in html

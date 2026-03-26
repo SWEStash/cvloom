@@ -7,6 +7,39 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased] — Phase 2
+
+### Added
+- `cvloom check [--profile]` — ATS linter with 5 built-in rules: passive
+  voice, missing quantification, noise skills, weak action verbs, highlight
+  length. Per-bullet feedback with fix hints.
+- `cvloom trim [--profile] [--target-pages]` — per-section word breakdown
+  with cut recommendations to reach target page count.
+- `cvloom diff <profile-a> <profile-b>` — compare two profiles: sections,
+  entries, word counts, and highlight counts side by side.
+- `cvloom export --format json-resume [--profile]` — export CV data to
+  JSON Resume schema for interoperability with the JSON Resume ecosystem.
+- `cvloom-mcp` — MCP server exposing 8 tools (list_profiles, list_projects,
+  get_section, build_cv, create_profile, upsert_project, validate_data,
+  export_json_resume) for LLM-accessible CV management. Data stays local.
+- `templates/cover-letter/brief.html.j2` — compact cover letter template.
+- `templates/project-summary/card.html.j2` — single-page project summary card.
+- `builder.resolve()` — pure function returning `ResolvedProfile` for
+  programmatic access to the build pipeline without rendering or file I/O.
+- `builder.build()` now returns `BuildResult` with structured data (words,
+  pages, section word counts, file paths).
+- Per-section word counts in build output via `_word_count_by_section()`.
+- `schema.validate_all()` accepts `raise_on_error=False` for programmatic use.
+- Profile YAML is now validated against the profile schema during build.
+
+### Fixed
+- `_estimate_pages()` now strips `<style>` blocks before word counting,
+  preventing CSS tokens from inflating word counts.
+- `pytest-cov` moved from runtime to dev dependencies.
+- Removed dead `_apply_include_entries()` placeholder in overlays.py.
+
+---
+
 ## [Unreleased] — Phase 1
 
 ### Added

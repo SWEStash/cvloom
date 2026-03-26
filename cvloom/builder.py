@@ -7,16 +7,15 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
-
 from cvloom import loader, overlays, renderer, schema
-
-_console = Console()
+from cvloom.models import BuildResult, ResolvedProfile
 
 
 def _estimate_pages(html: str) -> tuple[int, int]:
     """Strip HTML tags, count words, estimate pages at 350 words/page."""
-    text = re.sub(r"<[^>]+>", " ", html)
+    # Strip <style> blocks before removing tags so CSS tokens aren't counted.
+    text = re.sub(r"<style[^>]*>.*?</style>", " ", html, flags=re.DOTALL)
+    text = re.sub(r"<[^>]+>", " ", text)
     words = len(text.split())
     pages = max(1, round(words / 350))
     return words, pages
@@ -59,27 +58,81 @@ def _apply_force_includes(
         data[section] = existing
 
 
-def build(
+def _word_count_by_section(
+    data: dict[str, Any], show: dict[str, bool]
+) -> dict[str, int]:
+    """Count words per visible section from the data model."""
+    counts: dict[str, int] = {}
+    for section in ("work", "education", "projects"):
+        if not show.get(section):
+            continue
+        words = 0
+        for entry in data.get(section, []):
+            for key in ("title", "company", "institution", "name", "description",
+                        "location", "degree", "field"):
+                val = entry.get(key)
+                if isinstance(val, str):
+                    words += len(val.split())
+            for hl in entry.get("highlights", []):
+                text = hl if isinstance(hl, str) else hl.get("text", "")
+                words += len(text.split())
+        counts[section] = words
+
+    if show.get("skills"):
+        words = 0
+        for group in data.get("skills", []):
+            words += len(group.get("category", "").split())
+            for item in group.get("items", []):
+                if isinstance(item, str):
+                    words += len(item.split())
+                else:
+                    words += len(item.get("name", "").split())
+        counts["skills"] = words
+
+    # basics (headline + summary)
+    basics = data.get("basics", {})
+    bw = 0
+    for key in ("headline", "summary"):
+        val = basics.get(key)
+        if isinstance(val, str):
+            bw += len(val.split())
+    counts["basics"] = bw
+
+    return counts
+
+
+def resolve(
     data_dir: Path,
     private_dir: Path,
     profiles_dir: Path,
-    output_dir: Path,
     profile_name: str = "general",
     template_override: str | None = None,
     public: bool = False,
-    templates_dir: Path | None = None,
-    skip_pdf: bool = False,
-) -> None:
-    """Full build pipeline for one profile."""
+) -> ResolvedProfile:
+    """Run the pipeline up to rendering: load, filter, overlay, validate.
+
+    Returns a :class:`ResolvedProfile` with fully resolved data.
+    """
     # Load profile
     profile_path = profiles_dir / f"{profile_name}.yaml"
     profile = loader.load_profile(profile_path)
+
+    # Validate profile against schema
+    profile_errors = schema.validate(
+        "profile", profile, source_path=f"profiles/{profile_name}.yaml"
+    )
+    if profile_errors:
+        from rich.console import Console
+        _err = Console(stderr=True)
+        _err.print("[bold red]Profile validation errors:[/bold red]")
+        for err in profile_errors:
+            _err.print(f"  [red]✗[/red] {err}")
+        raise SystemExit(1)
 
     template_name = template_override or profile.get("template", "cv/ats-single")
     output_filename = profile.get("output_filename") or profile_name
     include_tags: list[str] = profile.get("include_tags", []) or []
     sections_cfg: dict[str, bool] = profile.get("sections", {}) or {}
-    job_context: dict[str, Any] = profile.get("job_context", {}) or {}
 
     # Load data
     data = loader.load_data(
@@ -123,42 +176,80 @@ def build(
     default_order = ["skills", "work", "education", "projects"]
     section_order = profile.get("section_order", default_order)
 
-    # Validate
+    # Validate data
     schema.validate_all(data, private_path=str(private_dir / "contact.yaml"))
+
+    return ResolvedProfile(
+        profile=profile,
+        data=data,
+        show_sections=show_sections,
+        section_order=section_order,
+        template_name=template_name,
+        output_filename=output_filename,
+    )
+
+
+def build(
+    data_dir: Path,
+    private_dir: Path,
+    profiles_dir: Path,
+    output_dir: Path,
+    profile_name: str = "general",
+    template_override: str | None = None,
+    public: bool = False,
+    templates_dir: Path | None = None,
+    skip_pdf: bool = False,
+) -> BuildResult:
+    """Full build pipeline for one profile. Returns structured result."""
+    resolved = resolve(
+        data_dir=data_dir,
+        private_dir=private_dir,
+        profiles_dir=profiles_dir,
+        profile_name=profile_name,
+        template_override=template_override,
+        public=public,
+    )
+
+    job_context: dict[str, Any] = resolved.profile.get("job_context", {}) or {}
 
     # Build render context
     context: dict[str, Any] = {
-        **data,
-        "profile": profile,
-        "show": show_sections,
-        "section_order": section_order,
+        **resolved.data,
+        "profile": resolved.profile,
+        "show": resolved.show_sections,
+        "section_order": resolved.section_order,
         "job_context": job_context,
         "public": public,
         "today": date.today().strftime("%B %d, %Y"),
     }
 
     # Render HTML
-    html = renderer.render_template(template_name, context, templates_dir=templates_dir)
+    html = renderer.render_template(
+        resolved.template_name, context, templates_dir=templates_dir
+    )
 
     # Write outputs
     output_dir.mkdir(parents=True, exist_ok=True)
-    html_path = output_dir / f"{output_filename}.html"
+    html_path = output_dir / f"{resolved.output_filename}.html"
     html_path.write_text(html, encoding="utf-8")
-    _console.print(f"[green]✓[/green] HTML  → {html_path}")
 
+    pdf_path: Path | None = None
     if not skip_pdf:
-        pdf_path = output_dir / f"{output_filename}.pdf"
+        pdf_path = output_dir / f"{resolved.output_filename}.pdf"
         _render_pdf(html, pdf_path)
-        _console.print(f"[green]✓[/green] PDF   → {pdf_path}")
 
     words, pages = _estimate_pages(html)
-    summary = _section_summary(data, show_sections)
-    _console.print(f"[dim]  {words} words · ~{pages} page(s)  [{summary}][/dim]")
-    if pages > 2 and not profile.get("template", "").startswith("cv/academic"):
-        _console.print(
-            "[yellow]Warning:[/yellow] Output exceeds 2 pages. "
-            "Consider trimming content or using include_tags to filter sections."
-        )
+    section_word_counts = _word_count_by_section(resolved.data, resolved.show_sections)
+
+    return BuildResult(
+        resolved=resolved,
+        html=html,
+        html_path=html_path,
+        pdf_path=pdf_path,
+        words=words,
+        pages=pages,
+        section_word_counts=section_word_counts,
+    )
 
 
 def _render_pdf(html: str, output_path: Path) -> None:

@@ -32,8 +32,16 @@ def validate(name: str, data: Any, source_path: str = "") -> list[str]:
     return errors
 
 
-def validate_all(data: dict[str, Any], private_path: str = "") -> None:
-    """Validate all sections in *data*, printing errors and raising on failure."""
+def validate_all(
+    data: dict[str, Any],
+    private_path: str = "",
+    raise_on_error: bool = True,
+) -> list[str]:
+    """Validate all sections in *data*.
+
+    Returns a list of error messages. When *raise_on_error* is True (the
+    default), validation failures are printed and ``SystemExit(1)`` is raised.
+    """
     all_errors: list[str] = []
 
     section_schemas = {
@@ -59,8 +67,10 @@ def validate_all(data: dict[str, Any], private_path: str = "") -> None:
         errs = validate("project", project, source_path=f"data/projects/{slug}.yaml")
         all_errors.extend(errs)
 
-    if all_errors:
+    if all_errors and raise_on_error:
         _console.print("[bold red]Validation errors:[/bold red]")
         for err in all_errors:
             _console.print(f"  [red]✗[/red] {err}")
         raise SystemExit(1)
+
+    return all_errors
