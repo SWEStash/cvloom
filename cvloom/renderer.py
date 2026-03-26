@@ -28,6 +28,26 @@ def _make_env(templates_dir: Path) -> jinja2.Environment:
     return env
 
 
+def template_exists(template_name: str, templates_dir: Path | None = None) -> bool:
+    """Return True if *template_name* exists in the templates directory."""
+    if templates_dir is None:
+        templates_dir = _TEMPLATES_DIR
+    if not template_name.endswith(".html.j2"):
+        template_name = f"{template_name}.html.j2"
+    return (templates_dir / template_name).exists()
+
+
+def list_templates(templates_dir: Path | None = None) -> list[str]:
+    """Return sorted list of available template names (without .html.j2 extension)."""
+    if templates_dir is None:
+        templates_dir = _TEMPLATES_DIR
+    return sorted(
+        str(p.relative_to(templates_dir)).removesuffix(".html.j2")
+        for p in templates_dir.rglob("*.html.j2")
+        if p.name != "base.html.j2"
+    )
+
+
 def render_template(
     template_name: str,
     context: dict[str, Any],

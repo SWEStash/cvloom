@@ -12,6 +12,7 @@ from cvloom.builder import (
     _word_count_by_section,
     resolve,
 )
+from cvloom.renderer import list_templates, template_exists
 
 # ── _estimate_pages ─────────────────────────────────────────────────
 
@@ -155,6 +156,33 @@ def test_resolve_returns_resolved_profile(project_dir: Path) -> None:
     assert "basics" in result.data
     assert "work" in result.data
     assert result.show_sections["work"] is True
+
+
+def test_resolve_invalid_template_fails_early(project_dir: Path) -> None:
+    (project_dir / "profiles" / "bad.yaml").write_text("template: cv/nonexistent\n")
+    with pytest.raises(SystemExit, match="not found"):
+        resolve(
+            data_dir=project_dir / "data",
+            private_dir=project_dir / "private",
+            profiles_dir=project_dir / "profiles",
+            profile_name="bad",
+            public=True,
+        )
+
+
+def test_template_exists_true() -> None:
+    assert template_exists("cv/ats-single") is True
+
+
+def test_template_exists_false() -> None:
+    assert template_exists("cv/nonexistent") is False
+
+
+def test_list_templates_contains_known() -> None:
+    templates = list_templates()
+    assert "cv/ats-single" in templates
+    assert "cv/modern-single" in templates
+    assert "cv/academic" in templates
 
 
 def test_resolve_public_uses_placeholder(project_dir: Path) -> None:

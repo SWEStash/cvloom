@@ -130,6 +130,14 @@ def resolve(
         raise SystemExit(1)
 
     template_name = template_override or profile.get("template", "cv/ats-single")
+
+    if not renderer.template_exists(template_name):
+        available = renderer.list_templates()
+        raise SystemExit(
+            f"Template '{template_name}' not found.\n"
+            f"Available templates: {', '.join(available) or 'none'}"
+        )
+
     output_filename = profile.get("output_filename") or profile_name
     include_tags: list[str] = profile.get("include_tags", []) or []
     sections_cfg: dict[str, bool] = profile.get("sections", {}) or {}
