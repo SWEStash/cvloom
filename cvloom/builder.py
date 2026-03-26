@@ -159,6 +159,14 @@ def resolve(
         if entries:
             loader.normalize_highlights(entries)
 
+    # Validate overlays before applying
+    overlay_warnings = overlays.validate_overlays(data, profile)
+    if overlay_warnings:
+        from rich.console import Console
+        _warn = Console(stderr=True)
+        for w in overlay_warnings:
+            _warn.print(f"[yellow]Warning:[/yellow] {w}")
+
     # Apply overlays
     overlays.apply_overlays(data, profile)
 

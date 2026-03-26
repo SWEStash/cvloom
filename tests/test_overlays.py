@@ -449,5 +449,122 @@ class TestValidateOverlays:
             }
         }
         warnings = validate_overlays(data, profile)
-        assert len(warnings) == 1
-        assert "mutually exclusive" in warnings[0]
+        assert any("mutually exclusive" in w for w in warnings)
+
+    def test_warns_unmatched_work_overlay(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "work": [{"match": {"company": "NonExistent"}}],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("does not match any entry" in w for w in warnings)
+
+    def test_warns_unmatched_project_overlay(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "projects": [{"match": {"name": "NonExistent"}}],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("does not match any entry" in w for w in warnings)
+
+    def test_no_warning_when_matched(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "work": [{"match": {"company": "Acme Corp"}}],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert not any("does not match" in w for w in warnings)
+
+    def test_warns_nonexistent_highlight_id_pick(self):
+        data = _base_data()
+        # Normalize highlights to {id, text} format for ID checking
+        for entry in data["work"]:
+            for i, h in enumerate(entry.get("highlights", [])):
+                if isinstance(h, str):
+                    entry["highlights"][i] = {"id": f"h{i}", "text": h}
+        profile = {
+            "overlays": {
+                "work": [{
+                    "match": {"company": "Acme Corp"},
+                    "highlights": {"mode": "pick", "items": ["nonexistent"]},
+                }],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("highlight ID 'nonexistent' not found" in w for w in warnings)
+
+    def test_warns_nonexistent_replace_id(self):
+        data = _base_data()
+        for entry in data["work"]:
+            for i, h in enumerate(entry.get("highlights", [])):
+                if isinstance(h, str):
+                    entry["highlights"][i] = {"id": f"h{i}", "text": h}
+        profile = {
+            "overlays": {
+                "work": [{
+                    "match": {"company": "Acme Corp"},
+                    "highlights": {"replace": {"badid": "new text"}},
+                }],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("replace ID 'badid' not found" in w for w in warnings)
+
+    def test_no_warning_valid_highlight_ids(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "work": [{
+                    "match": {"company": "Acme Corp"},
+                    "highlights": {"mode": "pick", "items": ["migration"]},
+                }],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert not any("not found" in w for w in warnings)
+
+    def test_warns_unknown_match_field(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "work": [{"match": {"company": "Acme Corp", "foo": "bar"}}],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("unknown match field 'foo'" in w for w in warnings)
+
+    def test_warns_unknown_skill_category(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "skills": {"include_categories": ["Nonexistent"]},
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("unknown category 'Nonexistent'" in w for w in warnings)
+
+    def test_warns_unknown_category_override(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "skills": {"category_overrides": {"Fake": {"exclude_items": ["x"]}}},
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert any("unknown category 'Fake'" in w for w in warnings)
+
+    def test_valid_match_fields_no_warning(self):
+        data = _base_data()
+        profile = {
+            "overlays": {
+                "work": [{"match": {"company": "Acme Corp", "title": "Engineer"}}],
+            }
+        }
+        warnings = validate_overlays(data, profile)
+        assert not any("unknown match field" in w for w in warnings)

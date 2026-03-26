@@ -179,6 +179,13 @@ def _item_name(item: Any) -> str:
 # ── Validation ───────────────────────────────────────────────────────
 
 
+_VALID_MATCH_FIELDS: dict[str, set[str]] = {
+    "work": {"company", "title", "location", "start_date"},
+    "education": {"institution", "degree", "field"},
+    "projects": {"name"},
+}
+
+
 def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str]:
     """Pre-flight checks: warn on structural issues. Returns warning messages."""
     warnings: list[str] = []
@@ -186,6 +193,7 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
     if not overlays:
         return warnings
 
+    # --- Skills overlay checks ---
     skills_ov = overlays.get("skills", {})
     if skills_ov.get("include_categories") and skills_ov.get("exclude_categories"):
         warnings.append(
@@ -193,4 +201,81 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
             "are mutually exclusive — only include_categories will be used."
         )
 
+    existing_categories = {g.get("category") for g in data.get("skills", [])}
+
+    for key in ("include_categories", "exclude_categories"):
+        for cat in skills_ov.get(key, []):
+            if cat not in existing_categories:
+                warnings.append(f"skills overlay: {key} references unknown category '{cat}'.")
+
+    for cat_name in skills_ov.get("category_overrides", {}):
+        if cat_name not in existing_categories:
+            warnings.append(
+                f"skills overlay: category_overrides references unknown category '{cat_name}'."
+            )
+
+    # --- Array section overlay checks ---
+    for section in ("work", "education", "projects"):
+        overlay_list = overlays.get(section, [])
+        entries: list[dict[str, Any]] = data.get(section, [])
+        valid_fields = _VALID_MATCH_FIELDS.get(section, set())
+
+        for ov in overlay_list:
+            match_spec = ov.get("match", {})
+
+            # Check match field names
+            for field in match_spec:
+                if field not in valid_fields:
+                    warnings.append(
+                        f"{section} overlay: unknown match field '{field}' "
+                        f"(valid: {', '.join(sorted(valid_fields))})."
+                    )
+
+            # Check if match spec matches any entry
+            matched_entries = [e for e in entries if _match_entry(e, match_spec)]
+            if not matched_entries:
+                warnings.append(
+                    f"{section} overlay: match={match_spec} does not match any entry."
+                )
+                continue
+
+            # Check highlight IDs in pick/exclude/replace
+            hl_overlay = ov.get("highlights")
+            if not hl_overlay:
+                continue
+
+            mode = hl_overlay.get("mode", "all")
+            items = hl_overlay.get("items", [])
+            replace_map = hl_overlay.get("replace", {})
+
+            for entry in matched_entries:
+                entry_highlights = entry.get("highlights", [])
+                available_ids: set[str] = {
+                    h["id"] for h in entry_highlights
+                    if isinstance(h, dict) and isinstance(h.get("id"), str)
+                }
+
+                if mode in ("pick", "exclude") and items:
+                    for item_id in items:
+                        if item_id not in available_ids:
+                            label = _entry_label(section, entry)
+                            warnings.append(
+                                f"{section} overlay for {label}: highlight ID '{item_id}' "
+                                f"not found (available: {', '.join(sorted(available_ids))})."
+                            )
+
+                for rid in replace_map:
+                    if rid not in available_ids:
+                        label = _entry_label(section, entry)
+                        warnings.append(
+                            f"{section} overlay for {label}: replace ID '{rid}' "
+                            f"not found (available: {', '.join(sorted(available_ids))})."
+                        )
+
     return warnings
+
+
+def _entry_label(section: str, entry: dict[str, Any]) -> str:
+    """Return a human-readable label for an entry."""
+    key = _MATCH_KEYS.get(section, "name")
+    return str(entry.get(key, "?"))
