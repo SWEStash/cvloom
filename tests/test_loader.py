@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from cvloom.loader import load_data, load_profile
+from cvloom.loader import (
+    flatten_highlights,
+    load_data,
+    load_profile,
+    normalize_highlights,
+)
 
 
 @pytest.fixture
@@ -70,3 +75,61 @@ def test_load_profile(tmp_path: Path) -> None:
 def test_load_profile_not_found(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_profile(tmp_path / "nope.yaml")
+
+
+# ── Edge cases ─────────────────────────────────────────────────────
+
+
+def test_load_data_missing_projects_dir(tmp_path: Path) -> None:
+    d = tmp_path / "data2"
+    d.mkdir()
+    (d / "basics.yaml").write_text("headline: X\nsummary: Y.\n")
+    (d / "work.yaml").write_text("[]\n")
+    (d / "education.yaml").write_text("[]\n")
+    (d / "skills.yaml").write_text("[]\n")
+    result = load_data(d, private_dir=None, public=True)
+    assert result["projects"] == []
+
+
+def test_load_data_empty_yaml(tmp_path: Path) -> None:
+    d = tmp_path / "data3"
+    d.mkdir()
+    (d / "basics.yaml").write_text("headline: X\nsummary: Y.\n")
+    (d / "work.yaml").write_text("")  # empty file → yaml.safe_load returns None
+    (d / "education.yaml").write_text("")
+    (d / "skills.yaml").write_text("")
+    (d / "projects").mkdir()
+    result = load_data(d, private_dir=None, public=True)
+    # Empty YAML files return None from yaml.safe_load
+    assert result["work"] is None or result["work"] == []
+    assert result["education"] is None or result["education"] == []
+    assert result["skills"] is None or result["skills"] == []
+
+
+# ── Highlight normalization ────────────────────────────────────────
+
+
+def test_normalize_highlights_strings():
+    entries = [{"highlights": ["Built things.", "Fixed bugs."]}]
+    normalize_highlights(entries)
+    assert all(isinstance(h, dict) for h in entries[0]["highlights"])
+    assert entries[0]["highlights"][0]["text"] == "Built things."
+
+
+def test_normalize_highlights_already_dicts():
+    entries = [{"highlights": [{"id": "a", "text": "Built."}]}]
+    normalize_highlights(entries)
+    assert entries[0]["highlights"][0]["id"] == "a"
+
+
+def test_flatten_highlights():
+    entries = [{"highlights": [{"id": "a", "text": "Built."}, {"id": "b", "text": "Fixed."}]}]
+    flatten_highlights(entries)
+    assert entries[0]["highlights"] == ["Built.", "Fixed."]
+
+
+def test_normalize_flatten_roundtrip():
+    original = [{"highlights": ["One.", "Two."]}]
+    normalize_highlights(original)
+    flatten_highlights(original)
+    assert original[0]["highlights"] == ["One.", "Two."]

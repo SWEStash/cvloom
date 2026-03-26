@@ -65,6 +65,7 @@ _FULL_CONTEXT = {
             "end_date": "Present",
             "location": "Remote",
             "highlights": ["Built things."],
+            "tags": ["python"],
         },
     ],
     "education": [
@@ -72,6 +73,7 @@ _FULL_CONTEXT = {
             "institution": "Uni",
             "degree": "BSc",
             "field": "CS",
+            "location": "Cambridge",
             "start_date": "2016",
             "end_date": "2020",
             "highlights": ["Dean's list."],
@@ -109,3 +111,41 @@ def test_render_project_card() -> None:
     assert "proj" in html
     assert "python" in html
     assert "A project." in html
+
+
+# ── Built-in CV template rendering ────────────────────────────────
+
+
+def test_render_ats_single_template() -> None:
+    html = render_template("cv/ats-single", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Engineer" in html
+    assert "Experience" in html or "Skills" in html
+    assert "Acme" in html
+
+
+def test_render_modern_single_template() -> None:
+    html = render_template("cv/modern-single", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Acme" in html
+    assert "Languages" in html
+
+
+def test_render_academic_template() -> None:
+    html = render_template("cv/academic", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Education" in html
+    assert "Uni" in html
+
+
+def test_render_standard_cover_letter() -> None:
+    html = render_template("cover-letter/standard", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Bob" in html
+
+
+def test_render_strict_undefined_error(templates_dir: Path) -> None:
+    """StrictUndefined raises on missing variables."""
+    (templates_dir / "cv" / "strict.html.j2").write_text("{{ nonexistent_var }}")
+    with pytest.raises(Exception):  # UndefinedError
+        render_template("cv/strict", {}, templates_dir=templates_dir)
