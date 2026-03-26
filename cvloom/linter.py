@@ -42,9 +42,21 @@ class LintRule:
 _PASSIVE_RE = re.compile(
     r"\b(?:was|were|been|being|is|are)\s+"
     r"(?:also\s+)?"
-    r"[a-z]+(?:ed|en|wn|lt|ht|pt|nt)\b",
+    r"([a-z]+(?:ed|en|wn|lt|ht|pt|nt))\b",
     re.IGNORECASE,
 )
+
+# Words that match the passive participle pattern but are adjectives/non-participles.
+_PASSIVE_FALSE_POSITIVES = {
+    "present", "recent", "absent", "current", "different", "important", "efficient",
+    "excellent", "sufficient", "consistent", "persistent", "resilient", "intelligent",
+    "confident", "competent", "relevant", "elegant", "frequent", "urgent", "ancient",
+    "silent", "content", "evident", "dependent", "independent", "spent", "sent", "went",
+    "bent", "lent", "meant", "dealt", "felt", "built", "knelt", "prevalent", "prominent",
+    "transparent", "coherent", "concurrent", "existent", "inherent", "latent", "potent",
+    "reluctant", "apparent", "brilliant", "compliant", "diligent", "proficient",
+    "sufficient", "emergent", "equivalent", "fluent",
+}
 
 _WEAK_OPENERS = [
     "helped",
@@ -112,7 +124,7 @@ def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
 
     def test(text: str, idx: int) -> LintFinding | None:
         match = _PASSIVE_RE.search(text)
-        if match:
+        if match and match.group(1).lower() not in _PASSIVE_FALSE_POSITIVES:
             return LintFinding(
                 rule_id="ats-001",
                 severity="warning",

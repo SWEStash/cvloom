@@ -51,6 +51,21 @@ def test_passive_voice_clean():
     assert len(findings) == 0
 
 
+def test_passive_voice_false_positive_adjective():
+    """Adjectives like 'present', 'efficient', 'built' should not flag."""
+    resolved = _make_resolved(work=[
+        {"company": "Acme", "highlights": [
+            "The system is present in every data center across the region.",
+            "The architecture was efficient and reduced overall compute costs.",
+            "The pipeline was built to process events at scale with Kafka.",
+        ]},
+    ])
+    findings = lint(resolved, rule_ids=["ats-001"])
+    # Only "was built" should NOT flag (built is in false positives).
+    # "is present" and "was efficient" should NOT flag (adjectives).
+    assert len(findings) == 0
+
+
 # ── ats-002: missing quantification ─────────────────────────────────
 
 
@@ -159,7 +174,7 @@ def test_lint_all_rules():
         work=[
             {"company": "Acme", "highlights": [
                 "Helped with stuff.",  # ats-004 + ats-005
-                "The system was built.",  # ats-001 + ats-002 + ats-005
+                "The system was designed.",  # ats-001 + ats-002 + ats-005
             ]},
         ],
         skills=[
