@@ -73,6 +73,19 @@ All four commands must pass cleanly before opening a PR.
 All Jinja2 filters defined in `cvloom/filters.py` are available:
 `md` (Markdown → HTML), `date_range`, `skill_level_bar`.
 
+## Third-party template convention
+
+If you publish a template as a standalone package (not a PR to this repo), follow
+this naming convention:
+
+- **Package name:** `cvloom-template-<name>` (e.g. `cvloom-template-minimal`)
+- **Template file:** `templates/<category>/<name>.html.j2` extending `base.html.j2`
+- **pyproject.toml:** include `cvloom-template` as a keyword for discoverability
+- **Required:** a render test, a CHANGELOG entry, and a README with a screenshot
+
+This convention enables ecosystem discovery and makes it easy for users to find
+community templates.
+
 ## Adding a linter rule
 
 Each rule is a function `(ResolvedProfile) -> list[LintFinding]` registered in
