@@ -283,6 +283,68 @@ def export_cmd(profile: str, fmt: str, output: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# match
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.option("--profile", "-p", default="general", help="Build profile name.")
+@click.option(
+    "--jd",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to a plain-text job description file.",
+)
+def match(profile: str, jd: str) -> None:
+    """Match CV keywords against a job description."""
+    from cvloom.match import analyze_match
+
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+
+    jd_text = Path(jd).read_text(encoding="utf-8")
+    report = analyze_match(resolved, jd_text)
+
+    _console.print(
+        f"[bold]Coverage:[/bold] {report.cv_keywords_coverage:.0%} "
+        f"({len(report.matched)} of {len(report.matched) + len(report.gaps)} JD keywords found)"
+    )
+    _console.print(f"[bold]JD keyword count:[/bold] {report.jd_word_count}")
+    _console.print()
+
+    if report.top_jd_keywords:
+        table = Table(title="Top JD Keywords")
+        table.add_column("Keyword", style="bold")
+        table.add_column("JD Freq", justify="right")
+        table.add_column("In CV?", justify="center")
+        table.add_column("CV Sections")
+        for kw, freq in report.top_jd_keywords:
+            cv_sections = ""
+            in_cv = "[red]✗[/red]"
+            for m in report.matched:
+                if m.keyword == kw:
+                    in_cv = "[green]✓[/green]"
+                    cv_sections = ", ".join(m.found_in)
+                    break
+            table.add_row(kw, str(freq), in_cv, cv_sections)
+        _console.print(table)
+
+    if report.gaps:
+        _console.print()
+        _console.print(f"[bold yellow]Gaps ({len(report.gaps)}):[/bold yellow]")
+        for gap in report.gaps[:30]:
+            _console.print(f"  [red]✗[/red] {gap}")
+        if len(report.gaps) > 30:
+            _console.print(f"  ... and {len(report.gaps) - 30} more")
+
+
+# ---------------------------------------------------------------------------
 # init
 # ---------------------------------------------------------------------------
 
