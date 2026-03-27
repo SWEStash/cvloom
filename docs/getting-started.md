@@ -16,13 +16,14 @@ This tutorial walks you through every feature, step by step. By the end you will
 4. [Scenario 3: First Build](#scenario-3-first-build)
 5. [Scenario 4: Lint Your CV](#scenario-4-lint-your-cv)
 6. [Scenario 5: Trim Analysis](#scenario-5-trim-analysis)
-7. [Scenario 6: Create a Tailored Profile](#scenario-6-create-a-tailored-profile)
-8. [Scenario 7: Compare Profiles](#scenario-7-compare-profiles)
-9. [Scenario 8: Export to JSON Resume](#scenario-8-export-to-json-resume)
-10. [Scenario 9: Cover Letters](#scenario-9-cover-letters)
-11. [Scenario 10: MCP Server](#scenario-10-mcp-server)
-12. [Scenario 11: PII Safety and GitHub Pages](#scenario-11-pii-safety-and-github-pages)
-13. [Next Steps](#next-steps)
+7. [Scenario 6: Match Against a Job Description](#scenario-6-match-against-a-job-description)
+8. [Scenario 7: Create a Tailored Profile](#scenario-7-create-a-tailored-profile)
+9. [Scenario 8: Compare Profiles](#scenario-8-compare-profiles)
+10. [Scenario 9: Export to JSON Resume](#scenario-9-export-to-json-resume)
+11. [Scenario 10: Cover Letters](#scenario-10-cover-letters)
+12. [Scenario 11: MCP Server](#scenario-11-mcp-server)
+13. [Scenario 12: PII Safety and GitHub Pages](#scenario-12-pii-safety-and-github-pages)
+14. [Next Steps](#next-steps)
 
 ---
 
@@ -69,6 +70,7 @@ my-cv/
 │   └── cover-letter.yaml     # Cover letter profile
 ├── private/
 │   └── contact.yaml          # Your real name, email, phone (gitignored)
+├── templates/                 # Custom Jinja2 templates (optional)
 └── .gitignore                # Protects private/ and dist/
 ```
 
@@ -79,6 +81,7 @@ my-cv/
 | `data/`     | All CV content (PII-free)                | Yes     |
 | `profiles/` | Build configurations                     | Yes     |
 | `private/`  | Contact info, cover letter prose         | No      |
+| `templates/`| Custom Jinja2 template overrides (optional) | Yes  |
 | `dist/`     | Generated HTML and PDF output            | No      |
 
 Verify the scaffold worked:
@@ -166,7 +169,7 @@ Edit `data/work.yaml`. Notice two formats for highlights — plain strings and `
 
 **Tips:**
 - `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. Use `Present` for current roles.
-- `tags` are used for filtering in profiles (covered in Scenario 6).
+- `tags` are used for filtering in profiles (covered in Scenario 7).
 - Work entries without `tags` are always included regardless of filtering.
 
 ### 2.4 Education
@@ -409,7 +412,79 @@ uv run cvloom trim
 
 ---
 
-## Scenario 6: Create a Tailored Profile
+## Scenario 6: Match Against a Job Description
+
+Before tailoring your CV, run a keyword gap analysis to see how well your current content matches a specific job description.
+
+### 6.1 Create a job description file
+
+Save the job description as a plain text file:
+
+```bash
+cat > jd-backend.txt << 'EOF'
+Senior Backend Engineer — DataStream Inc
+
+We are looking for a Senior Backend Engineer with deep experience in
+Python, distributed systems, and event-driven architectures. You will
+design and maintain high-throughput data pipelines using Kafka and AWS.
+Experience with microservices, CI/CD, and observability is required.
+Strong skills in PostgreSQL and REST API design preferred.
+EOF
+```
+
+### 6.2 Run the match
+
+```bash
+uv run cvloom match --jd jd-backend.txt
+```
+
+By default this uses the `general` profile. To match against a specific profile:
+
+```bash
+uv run cvloom match --jd jd-backend.txt --profile backend-role
+```
+
+### 6.3 Read the report
+
+Sample output:
+
+```
+Coverage: 72% (13 of 18 JD keywords found)
+JD keyword count: 68
+
+        Top JD Keywords
+Keyword          JD Freq  In CV?  CV Sections
+python                 3    ✓     work, skills
+kafka                  2    ✓     work, skills
+microservices          2    ✓     work
+aws                    2    ✓     work, skills
+distributed            1    ✓     basics
+postgresql             1    ✓     work
+observability          1    ✗
+
+Gaps (5):
+  ✗ observability
+  ✗ event-driven
+  ✗ high-throughput
+  ✗ rest api design
+  ✗ ci/cd
+```
+
+The report shows:
+- **Coverage** — percentage of JD keywords found in your CV
+- **Top JD Keywords** — the most frequent JD terms and whether your CV contains them
+- **Gaps** — keywords present in the JD but missing from your CV
+
+### 6.4 Act on the gaps
+
+Use the gaps to improve your CV before applying:
+1. Add missing keywords to your highlights where they truthfully apply.
+2. Create a tailored profile (Scenario 7) with overlays that emphasize the matched terms.
+3. Re-run `match` to verify improved coverage.
+
+---
+
+## Scenario 7: Create a Tailored Profile
 
 This is where cvloom shines. You will create a job-specific profile that:
 - Filters entries by tags
@@ -418,7 +493,7 @@ This is where cvloom shines. You will create a job-specific profile that:
 - Reorders sections
 - Filters skill categories
 
-### 6.1 Create the profile
+### 7.1 Create the profile
 
 Create `profiles/backend-role.yaml`:
 
@@ -477,7 +552,7 @@ overlays:
         exclude_items: [TypeScript]
 ```
 
-### 6.2 Build the tailored profile
+### 7.2 Build the tailored profile
 
 ```bash
 uv run cvloom build --profile backend-role
@@ -490,7 +565,7 @@ Open `dist/backend-role-cv.html` and compare it to your general CV. Notice:
 - Skills show only 3 categories
 - Sections are reordered (skills first)
 
-### 6.3 Overlay reference
+### 7.3 Overlay reference
 
 Here is a summary of overlay operations:
 
@@ -531,7 +606,7 @@ For the full overlay reference, see [Profiles and Overlays](profiles-and-overlay
 
 ---
 
-## Scenario 7: Compare Profiles
+## Scenario 8: Compare Profiles
 
 The diff command shows what changed between two profiles:
 
@@ -567,7 +642,7 @@ This helps you see at a glance how much content differs and whether you have tri
 
 ---
 
-## Scenario 8: Export to JSON Resume
+## Scenario 9: Export to JSON Resume
 
 Export your CV to the [JSON Resume](https://jsonresume.org) standard for uploading to job boards:
 
@@ -591,11 +666,11 @@ The exported file follows JSON Resume v1.0.0 and can be used with any tool or se
 
 ---
 
-## Scenario 9: Cover Letters
+## Scenario 10: Cover Letters
 
 cvloom can generate cover letters using the same data pipeline.
 
-### 9.1 Create a cover letter profile
+### 10.1 Create a cover letter profile
 
 Create `profiles/datastream-letter.yaml`:
 
@@ -622,7 +697,7 @@ job_context:
     with your team's goals. Thank you for your consideration.
 ```
 
-### 9.2 Build the cover letter
+### 10.2 Build the cover letter
 
 ```bash
 uv run cvloom build --profile datastream-letter
@@ -636,19 +711,19 @@ Available cover letter templates:
 
 ---
 
-## Scenario 10: MCP Server
+## Scenario 11: MCP Server
 
 > **Optional** — requires an MCP-compatible client (Claude Desktop, Claude Code).
 
 cvloom ships an MCP server that lets AI assistants build CVs, create profiles, validate data, and more — all through a structured tool interface.
 
-### 10.1 Install the MCP extra
+### 11.1 Install the MCP extra
 
 ```bash
 uv sync --extra mcp
 ```
 
-### 10.2 Connect to a client
+### 11.2 Connect to a client
 
 **Claude Code:**
 ```bash
@@ -667,15 +742,15 @@ claude mcp add cvloom -- cvloom-mcp
 }
 ```
 
-The MCP server exposes 8 tools: `list_profiles`, `list_projects`, `get_section`, `build_cv`, `create_profile`, `upsert_project`, `validate_data`, and `export_json_resume`.
+The MCP server exposes 12 tools: `list_profiles`, `list_projects`, `get_section`, `build_cv`, `create_profile`, `upsert_project`, `validate_data`, `export_json_resume`, `check_cv`, `trim_report`, `diff_profiles`, and `match_jd`.
 
 For the full tool reference and example workflows, see [MCP Server](mcp-server.md).
 
 ---
 
-## Scenario 11: PII Safety and GitHub Pages
+## Scenario 12: PII Safety and GitHub Pages
 
-### 11.1 How PII is protected
+### 12.1 How PII is protected
 
 Your real contact info lives in `private/contact.yaml`, which is gitignored. The pre-commit hook (installed by `cvloom init`) scans staged files for email addresses and phone numbers. If it finds a match outside `private/`, the commit is blocked.
 
@@ -686,7 +761,7 @@ Two build modes keep your data safe:
 | *(default)* | `private/contact.yaml` | Local builds for applications |
 | `--public` | Placeholder values | CI, GitHub Pages, sharing |
 
-### 11.2 GitHub Pages deployment
+### 12.2 GitHub Pages deployment
 
 You can publish a public CV (with placeholder contact) automatically:
 
