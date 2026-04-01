@@ -11,7 +11,7 @@ from rich.console import Console
 
 _console = Console(stderr=True)
 
-# Placeholder contact used in --public mode
+# Placeholder contact used when private/contact.yaml is absent
 _PLACEHOLDER_CONTACT: dict[str, Any] = {
     "name": "Your Name",
     "email": "your.email@example.com",
@@ -21,6 +21,19 @@ _PLACEHOLDER_CONTACT: dict[str, Any] = {
     "linkedin": "yourlinkedin",
     "github": "SWEStash",
 }
+
+# Fields that must never appear in public builds
+_SENSITIVE_FIELDS: frozenset[str] = frozenset({"email", "phone"})
+
+
+def _apply_public_mode(contact: dict[str, Any]) -> dict[str, Any]:
+    """Strip sensitive fields and apply public_name override for public builds."""
+    result = {k: v for k, v in contact.items() if k not in _SENSITIVE_FIELDS}
+    if "public_name" in result:
+        result["name"] = result.pop("public_name")
+    else:
+        result.pop("public_name", None)
+    return result
 
 
 def _load_yaml(path: Path) -> Any:
@@ -100,19 +113,24 @@ def load_data(
         ]
 
     # Contact data
-    if public:
-        result["contact"] = copy.deepcopy(_PLACEHOLDER_CONTACT)
-    else:
-        contact_path = (private_dir / "contact.yaml") if private_dir else None
-        if contact_path and contact_path.exists():
-            result["contact"] = _load_yaml(contact_path)
+    contact_path = (private_dir / "contact.yaml") if private_dir else None
+    if contact_path and contact_path.exists():
+        raw_contact: dict[str, Any] = _load_yaml(contact_path)
+        if public:
+            result["contact"] = _apply_public_mode(raw_contact)
         else:
-            if not public:
-                _console.print(
-                    "[yellow]Warning:[/yellow] private/contact.yaml not found — "
-                    "using placeholder contact. Run with --public to silence this warning."
-                )
-            result["contact"] = copy.deepcopy(_PLACEHOLDER_CONTACT)
+            contact = dict(raw_contact)
+            contact.pop("public_name", None)
+            result["contact"] = contact
+    elif public:
+        # No private dir in public build — use minimal name-only placeholder
+        result["contact"] = {"name": "Your Name"}
+    else:
+        _console.print(
+            "[yellow]Warning:[/yellow] private/contact.yaml not found — "
+            "using placeholder contact. Run with --public to silence this warning."
+        )
+        result["contact"] = copy.deepcopy(_PLACEHOLDER_CONTACT)
 
     return result
 

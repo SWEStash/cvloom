@@ -39,22 +39,59 @@ def private_dir(tmp_path: Path) -> Path:
     p = tmp_path / "private"
     p.mkdir()
     (p / "contact.yaml").write_text(
-        "name: Test User\nemail: test@example.com\n"
+        "name: Test User\nemail: test@example.com\nphone: '+1 555 000'\n"
+        "location: Test City\ngithub: testuser\n"
     )
     return p
 
 
-def test_load_data_public(data_dir: Path) -> None:
-    result = load_data(data_dir, private_dir=None, public=True)
-    assert result["contact"]["name"] == "Your Name"
+def test_load_data_public(data_dir: Path, private_dir: Path) -> None:
+    result = load_data(data_dir, private_dir=private_dir, public=True)
+    assert result["contact"]["name"] == "Test User"
+    assert "email" not in result["contact"]
+    assert "phone" not in result["contact"]
+    assert result["contact"]["location"] == "Test City"
+    assert result["contact"]["github"] == "testuser"
     assert result["basics"]["headline"] == "Engineer"
     assert len(result["work"]) == 1
     assert len(result["projects"]) == 1
 
 
+def test_load_data_public_no_private_dir(data_dir: Path) -> None:
+    result = load_data(data_dir, private_dir=None, public=True)
+    assert result["contact"]["name"] == "Your Name"
+    assert "email" not in result["contact"]
+    assert "phone" not in result["contact"]
+
+
+def test_load_data_public_name_override(data_dir: Path, tmp_path: Path) -> None:
+    p = tmp_path / "private2"
+    p.mkdir()
+    (p / "contact.yaml").write_text(
+        "name: Real Name\npublic_name: Public Alias\nemail: r@example.com\n"
+    )
+    result = load_data(data_dir, private_dir=p, public=True)
+    assert result["contact"]["name"] == "Public Alias"
+    assert "public_name" not in result["contact"]
+    assert "email" not in result["contact"]
+
+
+def test_load_data_private_strips_public_name(data_dir: Path, tmp_path: Path) -> None:
+    p = tmp_path / "private3"
+    p.mkdir()
+    (p / "contact.yaml").write_text(
+        "name: Real Name\npublic_name: Public Alias\nemail: r@example.com\n"
+    )
+    result = load_data(data_dir, private_dir=p, public=False)
+    assert result["contact"]["name"] == "Real Name"
+    assert "public_name" not in result["contact"]
+    assert result["contact"]["email"] == "r@example.com"
+
+
 def test_load_data_private(data_dir: Path, private_dir: Path) -> None:
     result = load_data(data_dir, private_dir=private_dir, public=False)
     assert result["contact"]["name"] == "Test User"
+    assert result["contact"]["email"] == "test@example.com"
 
 
 def test_tag_filtering(data_dir: Path) -> None:

@@ -23,7 +23,8 @@ This tutorial walks you through every feature, step by step. By the end you will
 11. [Scenario 10: Cover Letters](#scenario-10-cover-letters)
 12. [Scenario 11: MCP Server](#scenario-11-mcp-server)
 13. [Scenario 12: PII Safety and GitHub Pages](#scenario-12-pii-safety-and-github-pages)
-14. [Next Steps](#next-steps)
+14. [Upgrading cvloom](#upgrading-cvloom)
+15. [Next Steps](#next-steps)
 
 ---
 
@@ -113,7 +114,7 @@ linkedin: "janesmith"
 github: "janesmith"
 ```
 
-Only `name` and `email` are required. Everything else is optional.
+Only `name` is required. Everything else is optional.
 
 ### 2.2 Basics
 
@@ -758,8 +759,10 @@ Two build modes keep your data safe:
 
 | Flag | Contact data | Use case |
 |------|-------------|----------|
-| *(default)* | `private/contact.yaml` | Local builds for applications |
-| `--public` | Placeholder values | CI, GitHub Pages, sharing |
+| *(default)* | `private/contact.yaml` — full contact info | Local builds for applications |
+| `--public` | Real data with `email` and `phone` removed | CI, GitHub Pages, sharing |
+
+In `--public` mode all other fields (name, location, website, linkedin, github) are shown as-is. If you want a different display name for public artifacts, add an optional `public_name` field to `private/contact.yaml` — it will replace `name` in public builds only.
 
 ### 12.2 GitHub Pages deployment
 
@@ -770,6 +773,51 @@ You can publish a public CV (with placeholder contact) automatically:
 3. Your CV is available at `https://<username>.github.io/<repo>/`.
 
 For full setup instructions, see [GitHub Pages Setup](github-pages-setup.md) and [PII Safety](pii-safety.md).
+
+---
+
+## Upgrading cvloom
+
+When a new version of cvloom is released, your project data files are never touched — they live in `data/`, `profiles/`, and `private/`, which the tool only writes when they do not already exist. The upgrade process is two steps:
+
+### Step 1 — Update the package
+
+```bash
+# If installed globally with uv tool:
+uv tool upgrade cvloom
+
+# If it is a dependency in your own pyproject.toml:
+uv lock --upgrade-package cvloom && uv sync
+```
+
+### Step 2 — Refresh the pre-commit hook
+
+The pre-commit hook is the only file that `cvloom init` always rewrites. Run `init` from your project directory to pick up any changes to it:
+
+```bash
+cd my-cv
+cvloom init
+```
+
+All existing files are skipped:
+
+```
+  data/basics.yaml already exists, skipping
+  data/work.yaml already exists, skipping
+  ...
+  private/contact.yaml already exists, skipping
+✓ Pre-commit hook installed
+```
+
+### What is safe and what to check
+
+| What | Safe to ignore | When to act |
+|------|---------------|-------------|
+| `data/`, `profiles/`, `private/` | Always — init skips them | Never |
+| Pre-commit hook | Refresh with `cvloom init` | Every upgrade |
+| YAML schema changes | Check [CHANGELOG](../CHANGELOG.md) | Only if `[breaking]` tag appears |
+
+If the CHANGELOG lists a breaking schema change (e.g. a field was renamed), update the affected files in `data/` or `profiles/` manually before running a build.
 
 ---
 

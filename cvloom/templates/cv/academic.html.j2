@@ -139,14 +139,18 @@ h2 {
   <h1>{{ contact.name }}</h1>
   <div class="headline">{{ basics.headline }}</div>
   <div class="contact-line">
-    {% if contact.email %}<span>{{ contact.email }}</span>{% endif %}
-    {% if contact.phone %}<span>{{ contact.phone }}</span>{% endif %}
-    {% if contact.location %}<span>{{ contact.location }}</span>{% endif %}
-    {% if contact.linkedin %}<span>linkedin.com/in/{{ contact.linkedin }}</span>{% endif %}
-    {% if contact.github %}<span>github.com/{{ contact.github }}</span>{% endif %}
-    {% if contact.website %}<span>{{ contact.website }}</span>{% endif %}
+    {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined %}<span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span>{{ contact.location }}</span>{% endif %}
+    {% if contact.linkedin is defined %}<span>linkedin.com/in/{{ contact.linkedin }}</span>{% endif %}
+    {% if contact.github is defined %}<span>github.com/{{ contact.github }}</span>{% endif %}
+    {% if contact.website is defined %}<span>{{ contact.website }}</span>{% endif %}
     {% for link in basics.public_links | default([]) %}
+    {% if not (contact.github is defined and contact.github and contact.github in link.url)
+       and not (contact.website is defined and contact.website and contact.website in link.url)
+       and not (contact.linkedin is defined and contact.linkedin and contact.linkedin in link.url) %}
     <span>{{ link.label }}: {{ link.url }}</span>
+    {% endif %}
     {% endfor %}
   </div>
 </div>

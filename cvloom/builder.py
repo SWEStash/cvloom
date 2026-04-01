@@ -145,7 +145,7 @@ def resolve(
     # Load data
     data = loader.load_data(
         data_dir=data_dir,
-        private_dir=private_dir if not public else None,
+        private_dir=private_dir,
         public=public,
         include_tags=include_tags if include_tags else None,
     )
@@ -155,7 +155,7 @@ def resolve(
     if include_entries and include_tags:
         unfiltered = loader.load_data(
             data_dir=data_dir,
-            private_dir=private_dir if not public else None,
+            private_dir=private_dir,
             public=public,
             include_tags=None,
         )

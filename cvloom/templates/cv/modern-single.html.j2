@@ -152,12 +152,12 @@
   <h1>{{ contact.name }}</h1>
   <div class="headline">{{ basics.headline }}</div>
   <div class="contact-pills">
-    {% if contact.email %}<span class="contact-pill">{{ contact.email }}</span>{% endif %}
-    {% if contact.phone %}<span class="contact-pill">{{ contact.phone }}</span>{% endif %}
-    {% if contact.location %}<span class="contact-pill">{{ contact.location }}</span>{% endif %}
-    {% if contact.linkedin %}<span class="contact-pill">in/{{ contact.linkedin }}</span>{% endif %}
-    {% if contact.github %}<span class="contact-pill">gh/{{ contact.github }}</span>{% endif %}
-    {% if contact.website %}<span class="contact-pill">{{ contact.website }}</span>{% endif %}
+    {% if contact.email is defined %}<span class="contact-pill">{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined %}<span class="contact-pill">{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span class="contact-pill">{{ contact.location }}</span>{% endif %}
+    {% if contact.linkedin is defined %}<span class="contact-pill">in/{{ contact.linkedin }}</span>{% endif %}
+    {% if contact.github is defined %}<span class="contact-pill">gh/{{ contact.github }}</span>{% endif %}
+    {% if contact.website is defined %}<span class="contact-pill">{{ contact.website }}</span>{% endif %}
   </div>
 </div>
 

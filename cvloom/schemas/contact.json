@@ -3,7 +3,7 @@
   "$id": "contact",
   "title": "CV Contact (private)",
   "type": "object",
-  "required": ["name", "email"],
+  "required": ["name"],
   "additionalProperties": false,
   "properties": {
     "name": {"type": "string"},

@@ -185,11 +185,13 @@ def test_list_templates_contains_known() -> None:
     assert "cv/academic" in templates
 
 
-def test_resolve_public_uses_placeholder(project_dir: Path) -> None:
+def test_resolve_public_redacts_sensitive_fields(project_dir: Path) -> None:
     result = resolve(
         data_dir=project_dir / "data",
         private_dir=project_dir / "private",
         profiles_dir=project_dir / "profiles",
         public=True,
     )
-    assert result.data["contact"]["email"] == "your.email@example.com"
+    assert "email" not in result.data["contact"]
+    assert "phone" not in result.data["contact"]
+    assert result.data["contact"]["name"] == "Test"

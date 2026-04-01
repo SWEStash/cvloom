@@ -57,6 +57,18 @@ cd cvloom
 uv sync --all-extras
 ```
 
+### Upgrade
+
+```bash
+# If installed globally:
+uv tool upgrade cvloom
+
+# Then refresh the pre-commit hook in your project directory:
+cvloom init
+```
+
+`init` skips every file that already exists — your `data/`, `profiles/`, and `private/` are untouched. Only the pre-commit hook is always reinstalled. Check the [CHANGELOG](CHANGELOG.md) for any schema changes that require editing your YAML files.
+
 ### Initialise a new CV project
 
 ```bash
