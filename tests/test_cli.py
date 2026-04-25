@@ -166,6 +166,31 @@ def test_build_with_template_override(
     assert "HTML" in result.output
 
 
+def test_build_check_flag(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--check"])
+    assert result.exit_code == 0
+    assert "ATS Score" in result.output
+
+
+def test_build_strict_passes(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--strict", "0"])
+    assert result.exit_code == 0
+    assert "ATS Score" in result.output
+
+
+def test_build_strict_fails(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    # 101 exceeds the maximum possible score (100), so any build will fail --strict
+    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--strict", "101"])
+    assert result.exit_code != 0
+    assert "ATS Score" in result.output
+
+
 # ── check command ──────────────────────────────────────────────────
 
 

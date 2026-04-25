@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}{{ contact.name }} — CV{% endblock %}</title>
+  <meta name="author" content="{{ contact.name }}">
+  <title>{% block title %}{{ contact.name }} — Resume{% endblock %}</title>
   {% block head_extra %}{% endblock %}
   <style>
     /* ---- Reset ---- */
@@ -53,6 +54,15 @@
     .right { float: right; }
     .clearfix::after { content: ""; display: table; clear: both; }
     .skill-tag { display: inline-block; background: #f3f4f6; border-radius: 3px; padding: 1px 6px; font-size: 8.5pt; margin: 2px 2px 2px 0; }
+
+    /* ---- Skill level bars (skill_level_bar filter) ---- */
+    .skill-level { display: inline-block; width: 40px; height: 5px; background: var(--border); border-radius: 3px; position: relative; vertical-align: middle; margin-left: 4px; }
+    .skill-level::after { content: ""; position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 3px; }
+    .skill-level-0 { display: none; }
+    .skill-level-1::after { width: 25%; }
+    .skill-level-2::after { width: 50%; }
+    .skill-level-3::after { width: 75%; }
+    .skill-level-4::after { width: 100%; }
 
     {% block css_extra %}{% endblock %}
   </style>

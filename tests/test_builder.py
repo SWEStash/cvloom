@@ -8,10 +8,12 @@ import pytest
 
 from cvloom.builder import (
     _estimate_pages,
+    _pdf_filename,
     _section_summary,
     _word_count_by_section,
     resolve,
 )
+from cvloom.models import ResolvedProfile
 from cvloom.renderer import list_templates, template_exists
 
 # ── _estimate_pages ─────────────────────────────────────────────────
@@ -99,6 +101,58 @@ def test_word_count_by_section():
     assert counts["basics"] > 0
     assert counts["work"] > 0
     assert counts["skills"] > 0
+
+
+# ── _pdf_filename ────────────────────────────────────────────────────
+
+
+def _make_resolved_for_pdf(
+    contact_name: str = "Jane Doe",
+    output_filename: str = "cv",
+    pdf_filename_format: str | None = None,
+) -> ResolvedProfile:
+    profile: dict = {}
+    if pdf_filename_format:
+        profile["pdf_filename_format"] = pdf_filename_format
+    return ResolvedProfile(
+        profile=profile,
+        data={"contact": {"name": contact_name}},
+        show_sections={},
+        section_order=[],
+        template_name="cv/ats-single",
+        output_filename=output_filename,
+    )
+
+
+def test_pdf_filename_derives_from_contact_name():
+    resolved = _make_resolved_for_pdf(contact_name="Jane Doe")
+    assert _pdf_filename(resolved) == "Jane_Doe_Resume"
+
+
+def test_pdf_filename_single_name():
+    resolved = _make_resolved_for_pdf(contact_name="Mononym")
+    assert _pdf_filename(resolved) == "Mononym_Resume"
+
+
+def test_pdf_filename_format_override():
+    resolved = _make_resolved_for_pdf(
+        contact_name="Jane Doe",
+        pdf_filename_format="{first}_{last}_CV_2026",
+    )
+    assert _pdf_filename(resolved) == "Jane_Doe_CV_2026"
+
+
+def test_pdf_filename_format_name_placeholder():
+    resolved = _make_resolved_for_pdf(
+        contact_name="Jane Doe",
+        pdf_filename_format="{name}_Resume",
+    )
+    assert _pdf_filename(resolved) == "Jane_Doe_Resume"
+
+
+def test_pdf_filename_fallback_on_empty_name():
+    resolved = _make_resolved_for_pdf(contact_name="", output_filename="my-cv")
+    assert _pdf_filename(resolved) == "my-cv"
 
 
 # ── resolve() ───────────────────────────────────────────────────────

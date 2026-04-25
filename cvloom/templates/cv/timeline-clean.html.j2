@@ -1,0 +1,233 @@
+{% extends "base.html.j2" %}
+
+{% block css_vars %}
+:root {
+  --accent: #2563eb;
+  --timeline-line: #dbeafe;
+  --timeline-dot: #2563eb;
+  --font-body: Inter, "Helvetica Neue", Arial, sans-serif;
+}
+{% endblock %}
+
+{% block css_extra %}
+/* Minimalist Swiss design with timeline */
+.header h1 {
+  font-size: 24pt;
+  font-weight: 300;
+  color: var(--text);
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+.header .headline {
+  font-size: 11pt;
+  color: var(--muted);
+  font-weight: 400;
+  margin-bottom: 6px;
+}
+.contact-line {
+  font-size: 9pt;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.contact-line .sep { margin: 0 6px; }
+
+.section-title {
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: none;
+  margin: 20px 0 10px;
+}
+.summary {
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.55;
+}
+
+/* Timeline entries for work and education */
+.timeline-section { margin-left: 10px; }
+.timeline-entry {
+  position: relative;
+  padding-left: 22px;
+  border-left: 2px solid var(--timeline-line);
+  padding-bottom: 14px;
+}
+.timeline-entry:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+.timeline-entry::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--timeline-dot);
+}
+.timeline-entry .entry-header { overflow: hidden; margin-bottom: 2px; }
+.timeline-entry .entry-title { font-weight: 600; font-size: 10.5pt; }
+.timeline-entry .entry-org { color: var(--accent); font-weight: 500; }
+.timeline-entry .entry-date { float: right; color: var(--muted); font-size: 8.5pt; }
+.timeline-entry .entry-meta { color: var(--muted); font-size: 9pt; margin-bottom: 3px; }
+
+/* Skills grid */
+.skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 20px;
+}
+.skill-row { display: flex; gap: 6px; align-items: baseline; }
+.skill-category {
+  font-weight: 600;
+  font-size: 9pt;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.skill-items { font-size: 9pt; color: var(--text); }
+
+/* Plain entries for projects */
+.entry { margin-bottom: 12px; }
+.entry-header { overflow: hidden; margin-bottom: 2px; }
+.entry-title { font-weight: 600; font-size: 10.5pt; }
+.entry-date { float: right; color: var(--muted); font-size: 8.5pt; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+{% endblock %}
+
+{# ── Section macros ────────────────────────────────────────────── #}
+
+{% macro section_skills() %}
+{% if show.skills and skills %}
+<div class="section-title">Skills</div>
+<div class="skills-grid">
+  {% for group in skills %}
+  <div class="skill-row">
+    <span class="skill-category">{{ group.category }}</span>
+    <span class="skill-items">
+      {%- for item in group['items'] -%}
+        {%- if item is mapping -%}{{ item.name }}{%- else -%}{{ item }}{%- endif -%}
+        {%- if not loop.last -%}, {% endif -%}
+      {%- endfor -%}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro section_work() %}
+{% if show.work and work %}
+<div class="section-title">Experience</div>
+<div class="timeline-section">
+  {% for job in work %}
+  <div class="timeline-entry">
+    <div class="entry-header clearfix">
+      <span class="entry-title">{{ job.title }}</span>
+      <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
+    </div>
+    <div class="entry-meta">
+      <span class="entry-org">{{ job.company }}</span>
+      {% if job.location %} · {{ job.location }}{% endif %}
+    </div>
+    {% if job.highlights %}
+    <ul>
+      {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro section_education() %}
+{% if show.education and education %}
+<div class="section-title">Education</div>
+<div class="timeline-section">
+  {% for edu in education %}
+  <div class="timeline-entry">
+    <div class="entry-header clearfix">
+      <span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
+      <span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>
+    </div>
+    <div class="entry-meta">
+      <span class="entry-org">{{ edu.institution }}</span>
+      {% if edu.location %} · {{ edu.location }}{% endif %}
+    </div>
+    {% if edu.highlights %}
+    <ul>
+      {% for h in edu.highlights %}<li>{{ h | md }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro section_projects() %}
+{% if show.projects and projects %}
+<div class="section-title">Projects</div>
+{% for proj in projects %}
+<div class="entry">
+  <div class="entry-header clearfix">
+    <span class="entry-title">
+      {% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+    </span>
+    {% if proj.start_date %}
+    <span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none)) }}</span>
+    {% endif %}
+  </div>
+  {% if proj.description %}<p>{{ proj.description | md }}</p>{% endif %}
+  {% if proj.highlights %}
+  <ul>
+    {% for h in proj.highlights %}<li>{{ h | md }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if proj.tags %}
+  <div class="tags" style="margin-top:4px;">
+    {% for tag in proj.tags %}<span class="skill-tag">{{ tag }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{# ── Section dispatch ──────────────────────────────────────────── #}
+
+{% set _section_macros = {
+  "skills": section_skills,
+  "work": section_work,
+  "education": section_education,
+  "projects": section_projects,
+} %}
+
+{% block body %}
+<!-- HEADER -->
+<div class="header">
+  <h1>{{ contact.name }}</h1>
+  <div class="headline">{{ basics.headline }}</div>
+  <div class="contact-line">
+    {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined %}<span class="sep">|</span><span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span class="sep">|</span><span>{{ contact.location }}</span>{% endif %}
+    {% if contact.linkedin is defined %}<span class="sep">|</span><span>in/{{ contact.linkedin }}</span>{% endif %}
+    {% if contact.github is defined %}<span class="sep">|</span><span>gh/{{ contact.github }}</span>{% endif %}
+    {% if contact.website is defined %}<span class="sep">|</span><span>{{ contact.website }}</span>{% endif %}
+  </div>
+</div>
+
+<!-- SUMMARY -->
+{% if basics.summary %}
+<div class="summary">{{ basics.summary | md }}</div>
+{% endif %}
+
+<!-- SECTIONS (ordered) -->
+{% for sec in section_order | default(["skills", "work", "education", "projects"]) %}
+{{ _section_macros[sec]() }}
+{% endfor %}
+{% endblock %}

@@ -205,6 +205,26 @@ def resolve(
     )
 
 
+def _pdf_filename(resolved: ResolvedProfile) -> str:
+    """Derive the PDF output stem from profile format string or contact name."""
+    fmt = resolved.profile.get("pdf_filename_format")
+    if fmt:
+        name = resolved.data.get("contact", {}).get("name", "")
+        parts = name.split()
+        first = parts[0] if parts else ""
+        last = parts[-1] if len(parts) > 1 else ""
+        return str(fmt.format(first=first, last=last, name=name.replace(" ", "_")))
+
+    name = resolved.data.get("contact", {}).get("name", "")
+    if name:
+        parts = name.split()
+        first = parts[0]
+        last = parts[-1] if len(parts) > 1 else ""
+        return f"{first}_{last}_Resume" if last else f"{first}_Resume"
+
+    return resolved.output_filename
+
+
 def build(
     data_dir: Path,
     private_dir: Path,
@@ -251,7 +271,7 @@ def build(
 
     pdf_path: Path | None = None
     if not skip_pdf:
-        pdf_path = output_dir / f"{resolved.output_filename}.pdf"
+        pdf_path = output_dir / f"{_pdf_filename(resolved)}.pdf"
         _render_pdf(html, pdf_path)
 
     words, pages = _estimate_pages(html)

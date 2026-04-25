@@ -1,0 +1,258 @@
+{% extends "base.html.j2" %}
+
+{% block css_vars %}
+:root {
+  --accent: #0f766e;
+  --accent-light: #f0fdfa;
+  --sidebar-bg: #0f766e;
+  --sidebar-text: #ffffff;
+  --sidebar-muted: rgba(255, 255, 255, 0.7);
+  --font-body: "Segoe UI", Roboto, Arial, sans-serif;
+}
+{% endblock %}
+
+{% block css_extra %}
+/* Two-column sidebar layout */
+.layout {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 0;
+  margin: -12mm -14mm;
+  min-height: 100vh;
+}
+.sidebar {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 16mm 12px 12mm 14mm;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.sidebar h1 {
+  font-size: 18pt;
+  color: var(--sidebar-text);
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+.sidebar .headline {
+  font-size: 9.5pt;
+  color: var(--sidebar-muted);
+  margin-bottom: 14px;
+}
+.sidebar .section-title {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sidebar-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  padding-bottom: 2px;
+  margin: 14px 0 6px;
+  font-weight: 700;
+}
+.sidebar .contact-list {
+  list-style: none;
+  padding: 0;
+  font-size: 8.5pt;
+}
+.sidebar .contact-list li {
+  margin-bottom: 5px;
+}
+.sidebar .contact-label {
+  display: block;
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-muted);
+}
+.sidebar .contact-value {
+  color: var(--sidebar-text);
+  word-break: break-all;
+}
+.sidebar .skill-group { margin-bottom: 6px; }
+.sidebar .skill-group-title {
+  font-weight: 700;
+  font-size: 9pt;
+  margin-bottom: 2px;
+}
+.sidebar .tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.sidebar .skill-tag {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--sidebar-text);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 7.5pt;
+}
+.sidebar .entry { margin-bottom: 8px; }
+.sidebar .entry-title { font-weight: 700; font-size: 9pt; }
+.sidebar .entry-meta { color: var(--sidebar-muted); font-size: 8pt; }
+.sidebar .entry-date { color: var(--sidebar-muted); font-size: 7.5pt; }
+
+.main {
+  padding: 16mm 14mm 12mm 20px;
+}
+.main .section-title {
+  font-size: 11pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  font-weight: 700;
+  border-left: 3px solid var(--accent);
+  border-bottom: none;
+  padding-left: 8px;
+  padding-bottom: 0;
+  margin: 16px 0 8px;
+}
+.main .entry { margin-bottom: 12px; }
+.main .entry-header { overflow: hidden; margin-bottom: 2px; }
+.main .entry-title { font-weight: 700; font-size: 10.5pt; }
+.main .entry-org { color: var(--accent); font-weight: 600; }
+.main .entry-date { float: right; color: var(--muted); font-size: 9pt; }
+.main .entry-meta { color: var(--muted); font-size: 9pt; margin-bottom: 3px; }
+.main .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+@media print {
+  .layout { margin: 0; min-height: auto; }
+  .sidebar { padding: 0 12px 0 0; background: #f3f4f6 !important; }
+  .sidebar * { color: #111111 !important; }
+  .main { padding: 0 0 0 16px; }
+}
+{% endblock %}
+
+{# ── Sidebar section macros ─────────────────────────────────────── #}
+
+{% macro sidebar_skills() %}
+{% if show.skills and skills %}
+<div class="section-title">Skills</div>
+{% for group in skills %}
+<div class="skill-group">
+  <div class="skill-group-title">{{ group.category }}</div>
+  <div class="tags">
+    {% for item in group['items'] %}
+    <span class="skill-tag">
+      {%- if item is mapping -%}{{ item.name }}{%- else -%}{{ item }}{%- endif -%}
+    </span>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro sidebar_education() %}
+{% if show.education and education %}
+<div class="section-title">Education</div>
+{% for edu in education %}
+<div class="entry">
+  <div class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</div>
+  <div class="entry-meta">{{ edu.institution }}</div>
+  <div class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{# ── Main section macros ────────────────────────────────────────── #}
+
+{% macro main_work() %}
+{% if show.work and work %}
+<div class="section-title">Experience</div>
+{% for job in work %}
+<div class="entry">
+  <div class="entry-header clearfix">
+    <span class="entry-title">{{ job.title }}</span>
+    <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
+  </div>
+  <div class="entry-meta">
+    <span class="entry-org">{{ job.company }}</span>
+    {% if job.location %} · {{ job.location }}{% endif %}
+  </div>
+  {% if job.highlights %}
+  <ul>
+    {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if job.tags %}
+  <div class="tags" style="margin-top:4px;">
+    {% for tag in job.tags %}<span class="skill-tag">{{ tag }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro main_projects() %}
+{% if show.projects and projects %}
+<div class="section-title">Projects</div>
+{% for proj in projects %}
+<div class="entry">
+  <div class="entry-header clearfix">
+    <span class="entry-title">
+      {% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+    </span>
+    {% if proj.start_date %}
+    <span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none)) }}</span>
+    {% endif %}
+  </div>
+  {% if proj.description %}<p>{{ proj.description | md }}</p>{% endif %}
+  {% if proj.highlights %}
+  <ul>
+    {% for h in proj.highlights %}<li>{{ h | md }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if proj.tags %}
+  <div class="tags" style="margin-top:4px;">
+    {% for tag in proj.tags %}<span class="skill-tag">{{ tag }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{# ── Section dispatch maps ──────────────────────────────────────── #}
+
+{% set _sidebar_macros = {
+  "skills": sidebar_skills,
+  "education": sidebar_education,
+} %}
+
+{% set _main_macros = {
+  "work": main_work,
+  "projects": main_projects,
+} %}
+
+{% block body %}
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <h1>{{ contact.name }}</h1>
+    <div class="headline">{{ basics.headline }}</div>
+
+    <div class="section-title">Contact</div>
+    <ul class="contact-list">
+      {% if contact.email is defined %}<li><span class="contact-label">Email</span><span class="contact-value">{{ contact.email }}</span></li>{% endif %}
+      {% if contact.phone is defined %}<li><span class="contact-label">Phone</span><span class="contact-value">{{ contact.phone }}</span></li>{% endif %}
+      {% if contact.location is defined %}<li><span class="contact-label">Location</span><span class="contact-value">{{ contact.location }}</span></li>{% endif %}
+      {% if contact.linkedin is defined %}<li><span class="contact-label">LinkedIn</span><span class="contact-value">in/{{ contact.linkedin }}</span></li>{% endif %}
+      {% if contact.github is defined %}<li><span class="contact-label">GitHub</span><span class="contact-value">gh/{{ contact.github }}</span></li>{% endif %}
+      {% if contact.website is defined %}<li><span class="contact-label">Web</span><span class="contact-value">{{ contact.website }}</span></li>{% endif %}
+    </ul>
+
+    {% for sec in section_order | default(["skills", "work", "education", "projects"]) if sec in _sidebar_macros %}
+    {{ _sidebar_macros[sec]() }}
+    {% endfor %}
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    {% if basics.summary %}
+    <p style="margin-bottom: 12px;">{{ basics.summary | md }}</p>
+    {% endif %}
+
+    {% for sec in section_order | default(["skills", "work", "education", "projects"]) if sec in _main_macros %}
+    {{ _main_macros[sec]() }}
+    {% endfor %}
+  </main>
+</div>
+{% endblock %}

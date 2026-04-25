@@ -33,6 +33,13 @@ def cli() -> None:
 # build
 # ---------------------------------------------------------------------------
 
+
+def _ats_score(findings: list[linter.LintFinding]) -> int:
+    """Compute an ATS score (0–100) by deducting per finding severity."""
+    _deductions = {"error": 10, "warning": 5, "suggestion": 2}
+    return max(0, 100 - sum(_deductions.get(f.severity, 5) for f in findings))
+
+
 @cli.command()
 @click.option(
     "--profile", "-p", default="general",
@@ -54,9 +61,17 @@ def cli() -> None:
     "--skip-pdf", is_flag=True, default=False,
     help="Skip PDF generation (HTML only).",
 )
+@click.option(
+    "--check", "run_check", is_flag=True, default=False,
+    help="Run ATS linter after build and print score.",
+)
+@click.option(
+    "--strict", default=None, type=int, metavar="N",
+    help="Exit non-zero if ATS score is below N (implies --check).",
+)
 def build(
     profile: str, template: str | None, output_dir: str,
-    public: bool, skip_pdf: bool,
+    public: bool, skip_pdf: bool, run_check: bool, strict: int | None,
 ) -> None:
     """Build CV outputs for a given profile."""
     root = _root()
@@ -80,6 +95,20 @@ def build(
             "[yellow]Warning:[/yellow] Output exceeds 2 pages. "
             "Consider trimming content or using include_tags to filter sections."
         )
+
+    if run_check or strict is not None:
+        findings = linter.lint(result.resolved)
+        score = _ats_score(findings)
+        color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
+        _console.print(
+            f"[{color}]ATS Score: {score}/100[/{color}] "
+            f"({len(findings)} issue(s) found)"
+        )
+        if strict is not None and score < strict:
+            _console.print(
+                f"[red]Score {score} is below --strict threshold {strict}.[/red]"
+            )
+            raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------
