@@ -30,6 +30,7 @@ class MatchReport:
     jd_word_count: int
     cv_keywords_coverage: float
     top_jd_keywords: list[tuple[str, int]] = field(default_factory=list)
+    suggestions: dict[str, str] = field(default_factory=dict)
 
 
 # ── Stop words ─────────────────────────────────────────────────────
@@ -111,6 +112,22 @@ def _extract_cv_keywords(
     return result
 
 
+# ── Placement suggestions ──────────────────────────────────────────
+
+_SINGLE_TOKEN_RE = re.compile(r"^[a-z0-9+#.]+$")
+
+
+def _suggest_section(keyword: str) -> str:
+    """Recommend which CV section a gap keyword should be added to.
+
+    Single short tokens that look like tool/tech names go to 'skills';
+    everything else goes to 'work' highlights.
+    """
+    if _SINGLE_TOKEN_RE.match(keyword) and len(keyword) <= 20:
+        return "skills"
+    return "work"
+
+
 # ── Public API ─────────────────────────────────────────────────────
 
 
@@ -151,10 +168,13 @@ def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
 
     top_jd = sorted(jd_kw.items(), key=lambda x: -x[1])[:20]
 
+    suggestions = {gap: _suggest_section(gap) for gap in gaps}
+
     return MatchReport(
         matched=matched,
         gaps=gaps,
         jd_word_count=sum(jd_kw.values()),
         cv_keywords_coverage=coverage,
         top_jd_keywords=top_jd,
+        suggestions=suggestions,
     )

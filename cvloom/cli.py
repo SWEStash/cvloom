@@ -339,7 +339,9 @@ def match(profile: str, jd: str) -> None:
         _console.print()
         _console.print(f"[bold yellow]Gaps ({len(report.gaps)}):[/bold yellow]")
         for gap in report.gaps[:30]:
-            _console.print(f"  [red]✗[/red] {gap}")
+            hint = report.suggestions.get(gap, "")
+            suffix = f"  [dim]→ add to {hint}[/dim]" if hint else ""
+            _console.print(f"  [red]✗[/red] {gap}{suffix}")
         if len(report.gaps) > 30:
             _console.print(f"  ... and {len(report.gaps) - 30} more")
 

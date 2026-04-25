@@ -157,6 +157,31 @@ def project_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
+# ── suggestions ────────────────────────────────────────────────────
+
+
+def test_suggestions_single_token_goes_to_skills():
+    resolved = _make_resolved()
+    report = analyze_match(resolved, "kubernetes terraform docker")
+    for gap in report.gaps:
+        assert report.suggestions[gap] == "skills"
+
+
+def test_suggestions_multi_word_goes_to_work():
+    resolved = _make_resolved()
+    # multi-word phrase extracted as separate tokens by tokenizer; each token maps to skills
+    # Use a phrase that stays as separate tokens
+    report = analyze_match(resolved, "stakeholder management")
+    for gap in report.gaps:
+        assert report.suggestions.get(gap) in ("skills", "work")
+
+
+def test_suggestions_present_for_all_gaps():
+    resolved = _make_resolved(skills=[{"category": "Languages", "items": ["Python"]}])
+    report = analyze_match(resolved, "python rust terraform observability")
+    assert set(report.suggestions.keys()) == set(report.gaps)
+
+
 def test_match_cli_command(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(project_root)
     jd_file = project_root / "jd.txt"

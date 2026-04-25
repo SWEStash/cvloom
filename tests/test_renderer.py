@@ -138,6 +138,29 @@ def test_render_academic_template() -> None:
     assert "Uni" in html
 
 
+def test_render_sidebar_compact_template() -> None:
+    html = render_template("cv/sidebar-compact", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Acme" in html
+    assert "Languages" in html
+    assert "sidebar" in html
+
+
+def test_render_executive_dark_template() -> None:
+    html = render_template("cv/executive-dark", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Engineer" in html
+    assert "Acme" in html
+    assert "Executive Summary" in html
+
+
+def test_render_timeline_clean_template() -> None:
+    html = render_template("cv/timeline-clean", _FULL_CONTEXT)
+    assert "Jane" in html
+    assert "Acme" in html
+    assert "timeline" in html
+
+
 def test_render_standard_cover_letter() -> None:
     html = render_template("cover-letter/standard", _FULL_CONTEXT)
     assert "Jane" in html

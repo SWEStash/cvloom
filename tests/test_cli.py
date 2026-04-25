@@ -16,13 +16,18 @@ def project_root(tmp_path: Path) -> Path:
     data = tmp_path / "data"
     data.mkdir()
     (data / "basics.yaml").write_text(
-        'headline: "Test Engineer"\nsummary: "Experienced engineer with 5 years in backend."\n'
+        'headline: "Test Engineer"\n'
+        'summary: "Experienced backend engineer with 5 years building scalable distributed'
+        ' systems in Python and Go, delivering measurable reliability improvements and'
+        ' infrastructure cost reductions across high-traffic production services."\n'
     )
     (data / "work.yaml").write_text(
         '- company: Acme\n  title: Engineer\n  location: Remote\n'
         '  start_date: "2020-01"\n  end_date: Present\n'
         "  highlights:\n"
-        "    - Designed and implemented a distributed caching layer reducing latency by 40%.\n"
+        "    - Design and implement a distributed caching layer reducing latency by 40%.\n"
+        "    - Reduce infrastructure costs by 30% through automated provisioning with Terraform.\n"
+        "    - Mentor 4 junior engineers, with 2 reaching senior level within 18 months.\n"
         "  tags: [python]\n"
     )
     (data / "education.yaml").write_text(
@@ -31,7 +36,8 @@ def project_root(tmp_path: Path) -> Path:
         "  highlights:\n    - Graduated with honours and published 2 research papers.\n"
     )
     (data / "skills.yaml").write_text(
-        "- category: Languages\n  items: [Python, Go]\n"
+        "- category: Languages\n  items: [Python, Go, Rust, TypeScript]\n"
+        "- category: Tools\n  items: [Docker, Kubernetes, Terraform, Postgres]\n"
     )
 
     projects = data / "projects"
@@ -51,6 +57,7 @@ def project_root(tmp_path: Path) -> Path:
     private.mkdir()
     (private / "contact.yaml").write_text(
         'name: Test User\nemail: "test@example.com"\nlocation: "Test City"\n'
+        'linkedin: "https://linkedin.com/in/testuser"\n'
     )
 
     profiles = tmp_path / "profiles"
