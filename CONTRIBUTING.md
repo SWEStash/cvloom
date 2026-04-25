@@ -54,6 +54,14 @@ All four commands must pass cleanly before opening a PR.
    with minimal fixture data.
 4. Document the template in CHANGELOG.md under `[Unreleased]`.
 
+**Typography conventions:**
+
+- Use at most **2 font families** per template (body + headings). More families add visual noise and slow PDF render.
+- Prefer **Inter** or **Roboto** (sans-serif) for modern/professional templates; **Georgia** for academic templates.
+- Always include system font fallbacks in every `--font-body` stack (e.g. `Inter, Arial, Helvetica, sans-serif`). Web fonts load over HTTPS; fallbacks ensure output when offline.
+- Load web fonts via `{% block fonts %}` (defined in `base.html.j2`). Override it in your template with a Google Fonts `<link>` tag. Do not load more than 2 typefaces per template.
+- `ats-single` intentionally uses **no web fonts** — keep it system fonts only for ATS compatibility.
+
 **Template contract:**
 
 | Variable | Type | Notes |

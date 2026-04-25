@@ -1,10 +1,15 @@
 {% extends "base.html.j2" %}
 
+{% block fonts %}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+{% endblock %}
+
 {% block css_vars %}
 :root {
   --accent: #7c3aed;
   --accent-light: #ede9fe;
-  --font-body: Arial, Helvetica, sans-serif;
+  --font-body: Inter, Arial, Helvetica, sans-serif;
 }
 {% endblock %}
 

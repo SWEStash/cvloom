@@ -172,3 +172,44 @@ def test_render_strict_undefined_error(templates_dir: Path) -> None:
     (templates_dir / "cv" / "strict.html.j2").write_text("{{ nonexistent_var }}")
     with pytest.raises(Exception):  # UndefinedError
         render_template("cv/strict", {}, templates_dir=templates_dir)
+
+
+# ── Font embedding tests ─────────────────────────────────────────────
+
+_GOOGLE_FONTS_DOMAIN = "fonts.googleapis.com"
+
+
+def test_timeline_clean_has_inter_font_link() -> None:
+    html = render_template("cv/timeline-clean", _FULL_CONTEXT)
+    assert _GOOGLE_FONTS_DOMAIN in html
+    assert "Inter" in html
+
+
+def test_modern_single_has_inter_font_link() -> None:
+    html = render_template("cv/modern-single", _FULL_CONTEXT)
+    assert _GOOGLE_FONTS_DOMAIN in html
+    assert "Inter" in html
+
+
+def test_executive_dark_has_roboto_font_link() -> None:
+    html = render_template("cv/executive-dark", _FULL_CONTEXT)
+    assert _GOOGLE_FONTS_DOMAIN in html
+    assert "Roboto" in html
+
+
+def test_sidebar_compact_has_roboto_font_link() -> None:
+    html = render_template("cv/sidebar-compact", _FULL_CONTEXT)
+    assert _GOOGLE_FONTS_DOMAIN in html
+    assert "Roboto" in html
+
+
+def test_ats_single_has_no_google_fonts_link() -> None:
+    """ATS template must use system fonts only."""
+    html = render_template("cv/ats-single", _FULL_CONTEXT)
+    assert _GOOGLE_FONTS_DOMAIN not in html
+
+
+def test_academic_has_no_google_fonts_link() -> None:
+    """Academic template uses system serif fonts only."""
+    html = render_template("cv/academic", _FULL_CONTEXT)
+    assert _GOOGLE_FONTS_DOMAIN not in html

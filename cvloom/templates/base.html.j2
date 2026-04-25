@@ -6,6 +6,7 @@
   <meta name="author" content="{{ contact.name }}">
   <title>{% block title %}{{ contact.name }} — Resume{% endblock %}</title>
   {% block head_extra %}{% endblock %}
+  {% block fonts %}{% endblock %}
   <style>
     /* ---- Reset ---- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,7 +28,7 @@
     body {
       font-family: var(--font-body);
       font-size: 10pt;
-      line-height: 1.45;
+      line-height: 1.35;
       color: var(--text);
       background: var(--bg);
       max-width: var(--page-width);
@@ -35,7 +36,7 @@
       padding: 12mm 14mm;
     }
     h1 { font-size: 20pt; }
-    h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 2px; margin: 14px 0 6px; }
+    h2 { font-size: 12pt; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 2px; margin: 14px 0 6px; }
     h3 { font-size: 10pt; font-weight: 600; }
     a { color: var(--accent); text-decoration: none; }
     ul { padding-left: 1.2em; }
