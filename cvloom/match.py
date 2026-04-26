@@ -31,6 +31,7 @@ class MatchReport:
     cv_keywords_coverage: float
     top_jd_keywords: list[tuple[str, int]] = field(default_factory=list)
     suggestions: dict[str, str] = field(default_factory=dict)
+    reorder_hints: list[str] = field(default_factory=list)
 
 
 # ── Stop words ─────────────────────────────────────────────────────
@@ -128,6 +129,38 @@ def _suggest_section(keyword: str) -> str:
     return "work"
 
 
+# ── Reorder hints ─────────────────────────────────────────────────
+
+
+def _score_entry_jd(entry: dict[str, Any], jd_keywords: set[str]) -> int:
+    """Count JD keywords appearing in an entry's title, company, and highlights."""
+    parts: list[str] = [entry.get("title", ""), entry.get("company", "")]
+    for h in entry.get("highlights", []):
+        parts.append(h if isinstance(h, str) else h.get("text", ""))
+    text = " ".join(parts).lower()
+    return sum(1 for kw in jd_keywords if kw in text)
+
+
+def _build_reorder_hints(
+    work: list[dict[str, Any]],
+    jd_keywords: set[str],
+) -> list[str]:
+    if len(work) < 2:
+        return []
+    scores = [_score_entry_jd(e, jd_keywords) for e in work]
+    best_idx = scores.index(max(scores))
+    if best_idx == 0:
+        return []
+    best = work[best_idx]
+    current = work[0]
+    best_label = f"{best.get('title', '')} at {best.get('company', '')}"
+    current_label = f"{current.get('title', '')} at {current.get('company', '')}"
+    return [
+        f"Work: move '{best_label}' before '{current_label}' "
+        f"({scores[best_idx]} vs {scores[0]} JD keyword matches)"
+    ]
+
+
 # ── Public API ─────────────────────────────────────────────────────
 
 
@@ -170,6 +203,12 @@ def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
 
     suggestions = {gap: _suggest_section(gap) for gap in gaps}
 
+    work = resolved.data.get("work", [])
+    if not resolved.show_sections.get("work", True):
+        work = []
+    all_jd_kw = {kw for kw, _ in top_jd}
+    reorder_hints = _build_reorder_hints(work, all_jd_kw)
+
     return MatchReport(
         matched=matched,
         gaps=gaps,
@@ -177,4 +216,5 @@ def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
         cv_keywords_coverage=coverage,
         top_jd_keywords=top_jd,
         suggestions=suggestions,
+        reorder_hints=reorder_hints,
     )

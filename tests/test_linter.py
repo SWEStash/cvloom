@@ -572,3 +572,80 @@ def test_action_result_no_metric_no_finding():
     ])
     findings = lint(resolved, rule_ids=["ats-015"])
     assert len(findings) == 0
+
+
+# ── ats-016: readability ─────────────────────────────────────────────
+
+
+def test_readability_high_grade_flagged() -> None:
+    hl = (
+        "Architected microservices infrastructure incorporating"
+        " containerization orchestration technologies."
+    )
+    resolved = _make_resolved(work=[{"company": "Acme", "highlights": [hl]}])
+    findings = lint(resolved, rule_ids=["ats-016"])
+    assert any(f.rule_id == "ats-016" and "exceeds" in f.message for f in findings)
+
+
+def test_readability_low_grade_flagged() -> None:
+    resolved = _make_resolved(work=[{"company": "Acme", "highlights": ["Did work."]}])
+    findings = lint(resolved, rule_ids=["ats-016"])
+    assert any(f.rule_id == "ats-016" and "below" in f.message for f in findings)
+
+
+def test_readability_acceptable_no_finding() -> None:
+    hl = "Led backend team to deliver Python REST API serving 5k users daily."
+    resolved = _make_resolved(work=[{"company": "Acme", "highlights": [hl]}])
+    findings = lint(resolved, rule_ids=["ats-016"])
+    assert not findings
+
+
+def test_readability_projects_checked() -> None:
+    hl = (
+        "Architected microservices infrastructure incorporating"
+        " containerization orchestration technologies."
+    )
+    resolved = _make_resolved(projects=[
+        {"name": "P", "description": "", "tags": [], "highlights": [hl]},
+    ])
+    findings = lint(resolved, rule_ids=["ats-016"])
+    assert any(f.rule_id == "ats-016" for f in findings)
+
+
+# ── ats-017: tech-mentions-in-work ───────────────────────────────────
+
+
+def test_tech_mentions_missing_flagged() -> None:
+    resolved = _make_resolved(
+        work=[{"company": "Acme", "highlights": ["Led a team and delivered projects on time."]}],
+        skills=[{"category": "Languages", "items": ["Python", "Go"]}],
+    )
+    findings = lint(resolved, rule_ids=["ats-017"])
+    assert any(f.rule_id == "ats-017" for f in findings)
+
+
+def test_tech_mentions_present_no_finding() -> None:
+    resolved = _make_resolved(
+        work=[{"company": "Acme", "highlights": ["Built services in Python, cutting latency."]}],
+        skills=[{"category": "Languages", "items": ["Python", "Go"]}],
+    )
+    findings = lint(resolved, rule_ids=["ats-017"])
+    assert not findings
+
+
+def test_tech_mentions_no_skills_skipped() -> None:
+    resolved = _make_resolved(
+        work=[{"company": "Acme", "highlights": ["Led a team."]}],
+        skills=[],
+    )
+    findings = lint(resolved, rule_ids=["ats-017"])
+    assert not findings
+
+
+def test_tech_mentions_empty_highlights_skipped() -> None:
+    resolved = _make_resolved(
+        work=[{"company": "Acme", "highlights": []}],
+        skills=[{"category": "Languages", "items": ["Python"]}],
+    )
+    findings = lint(resolved, rule_ids=["ats-017"])
+    assert not findings

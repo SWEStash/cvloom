@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
-from cvloom.export import to_json_resume
+import dataclasses
+from pathlib import Path
+
+import pytest
+
+from cvloom.export import (
+    export_docx,
+    export_linkedin,
+    export_markdown,
+    to_json_resume,
+    to_linkedin,
+    to_markdown,
+)
 from cvloom.models import ResolvedProfile
 
 
@@ -146,3 +158,120 @@ def test_empty_sections():
     assert "education" not in result
     assert "skills" not in result
     assert "projects" not in result
+
+
+# ---------------------------------------------------------------------------
+# Markdown export
+# ---------------------------------------------------------------------------
+
+
+def test_markdown_contains_name() -> None:
+    md = to_markdown(_make_resolved())
+    assert "# Jane Doe" in md
+
+
+def test_markdown_section_headings() -> None:
+    md = to_markdown(_make_resolved())
+    assert "## Work Experience" in md
+    assert "## Education" in md
+    assert "## Skills" in md
+
+
+def test_markdown_entry_content() -> None:
+    md = to_markdown(_make_resolved())
+    assert "Senior Engineer at Acme Corp" in md
+    assert "- Built scalable systems." in md
+    assert "**Languages:**" in md
+    assert "Python" in md
+    assert "Go" in md
+
+
+def test_markdown_hidden_section_omitted() -> None:
+    r = dataclasses.replace(
+        _make_resolved(),
+        show_sections={"work": False, "education": True, "skills": True, "projects": True},
+    )
+    md = to_markdown(r)
+    assert "## Work Experience" not in md
+    assert "## Education" in md
+
+
+def test_markdown_section_order() -> None:
+    r = dataclasses.replace(
+        _make_resolved(),
+        section_order=["education", "skills", "work", "projects"],
+    )
+    md = to_markdown(r)
+    assert md.index("## Education") < md.index("## Skills") < md.index("## Work Experience")
+
+
+def test_export_markdown_writes_file(tmp_path: Path) -> None:
+    out = tmp_path / "cv.md"
+    export_markdown(_make_resolved(), out)
+    assert out.exists()
+    assert "# Jane Doe" in out.read_text()
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn export
+# ---------------------------------------------------------------------------
+
+
+def test_linkedin_contains_sections() -> None:
+    txt = to_linkedin(_make_resolved())
+    assert "ABOUT" in txt
+    assert "EXPERIENCE" in txt
+    assert "SKILLS" in txt
+
+
+def test_linkedin_entry_content() -> None:
+    txt = to_linkedin(_make_resolved())
+    assert "Senior Engineer at Acme Corp" in txt
+    assert "· Built scalable systems." in txt
+    assert "Python" in txt
+
+
+def test_linkedin_no_warning_under_limit(tmp_path: Path) -> None:
+    warnings = export_linkedin(_make_resolved(), tmp_path / "li.txt")
+    assert warnings == []
+
+
+def test_linkedin_warning_over_limit(tmp_path: Path) -> None:
+    long_summary = "x" * 2601
+    r = _make_resolved(basics={"headline": "Engineer", "summary": long_summary, "public_links": []})
+    warnings = export_linkedin(r, tmp_path / "li.txt")
+    assert len(warnings) == 1
+    assert "2601" in warnings[0]
+    assert "2600" in warnings[0]
+
+
+def test_export_linkedin_writes_file(tmp_path: Path) -> None:
+    out = tmp_path / "li.txt"
+    export_linkedin(_make_resolved(), out)
+    assert out.exists()
+    assert "ABOUT" in out.read_text()
+
+
+# ---------------------------------------------------------------------------
+# DOCX export
+# ---------------------------------------------------------------------------
+
+
+def test_export_docx_writes_file(tmp_path: Path) -> None:
+    docx = pytest.importorskip("docx")
+    out = tmp_path / "cv.docx"
+    export_docx(_make_resolved(), out)
+    assert out.exists()
+    doc = docx.Document(str(out))
+    texts = [p.text for p in doc.paragraphs]
+    assert any("Jane Doe" in t for t in texts)
+
+
+def test_export_docx_has_section_headings(tmp_path: Path) -> None:
+    docx = pytest.importorskip("docx")
+    out = tmp_path / "cv.docx"
+    export_docx(_make_resolved(), out)
+    doc = docx.Document(str(out))
+    styles = {p.style.name for p in doc.paragraphs}
+    assert "Heading 1" in styles
+    assert "List Bullet" in styles

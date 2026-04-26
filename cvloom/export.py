@@ -1,4 +1,4 @@
-"""Export CV data to external formats (JSON Resume)."""
+"""Export CV data to external formats (JSON Resume, Markdown, LinkedIn, DOCX)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,24 @@ from pathlib import Path
 from typing import Any
 
 from cvloom.models import ResolvedProfile
+
+_LINKEDIN_ABOUT_LIMIT = 2600
+
+_SECTION_HEADINGS: dict[str, str] = {
+    "work": "Work Experience",
+    "education": "Education",
+    "skills": "Skills",
+    "projects": "Projects",
+}
+
+
+def _hl(h: Any) -> str:
+    """Extract plain text from a highlight (str or dict with 'text' key)."""
+    return h if isinstance(h, str) else h.get("text", "")
+
+
+def _skill_name(item: Any) -> str:
+    return item if isinstance(item, str) else item.get("name", "")
 
 
 def _map_profiles(contact: dict[str, Any]) -> list[dict[str, str]]:
@@ -173,3 +191,288 @@ def export_json_resume(resolved: ResolvedProfile, output_path: Path) -> None:
     resume = to_json_resume(resolved)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(resume, indent=2, ensure_ascii=False) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Markdown
+# ---------------------------------------------------------------------------
+
+
+def to_markdown(resolved: ResolvedProfile) -> str:
+    """Return the CV formatted as a Markdown string."""
+    data = resolved.data
+    contact = data.get("contact", {})
+    basics = data.get("basics", {})
+
+    lines: list[str] = [f"# {contact.get('name', '')}", ""]
+
+    parts: list[str] = []
+    if basics.get("headline"):
+        parts.append(f"**{basics['headline']}**")
+    for field in ["email", "phone", "location", "website"]:
+        if contact.get(field):
+            parts.append(str(contact[field]))
+    if contact.get("linkedin"):
+        parts.append(f"https://linkedin.com/in/{contact['linkedin']}")
+    if contact.get("github"):
+        parts.append(f"https://github.com/{contact['github']}")
+    if parts:
+        lines += [" | ".join(parts), ""]
+
+    if basics.get("summary"):
+        lines += ["---", "", "## Summary", "", str(basics["summary"]), ""]
+
+    for section in resolved.section_order:
+        if not resolved.show_sections.get(section, False):
+            continue
+        heading = _SECTION_HEADINGS.get(section)
+        if heading is None:
+            continue
+
+        lines += ["---", "", f"## {heading}", ""]
+
+        if section == "skills":
+            for group in data.get("skills", []):
+                cat = group.get("category", "")
+                items = [_skill_name(i) for i in group.get("items", [])]
+                lines.append(f"**{cat}:** {', '.join(items)}")
+            lines.append("")
+
+        elif section == "work":
+            for entry in data.get("work", []):
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                location = entry.get("location", "")
+                date_str = f"{start} – {end}" if end else start
+                meta = f"{date_str} | {location}" if location else date_str
+                lines.append(f"### {entry.get('title', '')} at {entry.get('company', '')}")
+                lines += [f"*{meta}*", ""]
+                for h in entry.get("highlights", []):
+                    lines.append(f"- {_hl(h)}")
+                lines.append("")
+
+        elif section == "education":
+            for entry in data.get("education", []):
+                degree = entry.get("degree", "")
+                field = entry.get("field", "")
+                institution = entry.get("institution", "")
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                location = entry.get("location", "")
+                degree_str = f"{degree} in {field}" if field else degree
+                date_str = f"{start} – {end}" if end else start
+                meta = f"{date_str} | {location}" if location else date_str
+                lines.append(f"### {degree_str} — {institution}")
+                lines += [f"*{meta}*", ""]
+                for h in entry.get("highlights", []):
+                    lines.append(f"- {_hl(h)}")
+                lines.append("")
+
+        elif section == "projects":
+            for entry in data.get("projects", []):
+                name = entry.get("name", "")
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                description = entry.get("description", "")
+                lines.append(f"### {name}")
+                if start:
+                    date_str = f"{start} – {end}" if end else start
+                    lines += [f"*{date_str}*", ""]
+                else:
+                    lines.append("")
+                if description:
+                    lines += [description, ""]
+                for h in entry.get("highlights", []):
+                    lines.append(f"- {_hl(h)}")
+                lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def export_markdown(resolved: ResolvedProfile, output_path: Path) -> None:
+    """Write Markdown CV to output_path."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(to_markdown(resolved), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn plain text
+# ---------------------------------------------------------------------------
+
+
+def to_linkedin(resolved: ResolvedProfile) -> str:
+    """Return the CV as LinkedIn-pasteable plain text."""
+    data = resolved.data
+    basics = data.get("basics", {})
+
+    sections: list[str] = []
+
+    summary = basics.get("summary", "")
+    if summary:
+        sections.append(f"ABOUT\n-----\n{summary}")
+
+    for section in resolved.section_order:
+        if not resolved.show_sections.get(section, False):
+            continue
+
+        if section == "work":
+            entries = data.get("work", [])
+            if not entries:
+                continue
+            block: list[str] = ["EXPERIENCE", "----------"]
+            for entry in entries:
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                location = entry.get("location", "")
+                date_str = f"{start} – {end}" if end else start
+                block.append(f"{entry.get('title', '')} at {entry.get('company', '')}")
+                block.append(f"{date_str} | {location}" if location else date_str)
+                block.append("")
+                for h in entry.get("highlights", []):
+                    block.append(f"· {_hl(h)}")
+                block.append("")
+            sections.append("\n".join(block).rstrip())
+
+        elif section == "education":
+            entries = data.get("education", [])
+            if not entries:
+                continue
+            block = ["EDUCATION", "---------"]
+            for entry in entries:
+                degree = entry.get("degree", "")
+                field = entry.get("field", "")
+                institution = entry.get("institution", "")
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                degree_str = f"{degree} in {field}" if field else degree
+                block.append(f"{degree_str}, {institution}")
+                if start:
+                    block.append(f"{start} – {end}" if end else start)
+                block.append("")
+            sections.append("\n".join(block).rstrip())
+
+        elif section == "skills":
+            groups = data.get("skills", [])
+            if not groups:
+                continue
+            all_skills = [_skill_name(i) for g in groups for i in g.get("items", [])]
+            if all_skills:
+                sections.append(f"SKILLS\n------\n{' · '.join(all_skills)}")
+
+    return "\n\n\n".join(sections) + "\n"
+
+
+def export_linkedin(resolved: ResolvedProfile, output_path: Path) -> list[str]:
+    """Write LinkedIn plain text to file. Returns list of warning strings."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(to_linkedin(resolved), encoding="utf-8")
+
+    warnings: list[str] = []
+    summary = resolved.data.get("basics", {}).get("summary", "")
+    if len(summary) > _LINKEDIN_ABOUT_LIMIT:
+        warnings.append(
+            f"About section is {len(summary)} chars "
+            f"(LinkedIn limit: {_LINKEDIN_ABOUT_LIMIT})"
+        )
+    return warnings
+
+
+# ---------------------------------------------------------------------------
+# DOCX
+# ---------------------------------------------------------------------------
+
+
+def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
+    """Write a .docx file using python-docx (optional dependency)."""
+    try:
+        import docx
+    except ImportError:
+        raise SystemExit(
+            "python-docx is not installed. Install it with: uv pip install python-docx"
+        )
+
+    data = resolved.data
+    contact = data.get("contact", {})
+    basics = data.get("basics", {})
+
+    doc = docx.Document()
+    doc.add_paragraph(contact.get("name", ""), style="Title")
+
+    parts: list[str] = []
+    if basics.get("headline"):
+        parts.append(str(basics["headline"]))
+    for field in ["email", "phone", "location", "website"]:
+        if contact.get(field):
+            parts.append(str(contact[field]))
+    if contact.get("linkedin"):
+        parts.append(f"linkedin.com/in/{contact['linkedin']}")
+    if contact.get("github"):
+        parts.append(f"github.com/{contact['github']}")
+    if parts:
+        doc.add_paragraph(" | ".join(parts), style="Subtitle")
+
+    if basics.get("summary"):
+        doc.add_heading("Summary", level=1)
+        doc.add_paragraph(str(basics["summary"]), style="Body Text")
+
+    for section in resolved.section_order:
+        if not resolved.show_sections.get(section, False):
+            continue
+        heading = _SECTION_HEADINGS.get(section)
+        if heading is None:
+            continue
+
+        doc.add_heading(heading, level=1)
+
+        if section == "work":
+            for entry in data.get("work", []):
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                location = entry.get("location", "")
+                date_str = f"{start} – {end}" if end else start
+                meta = f"{date_str} | {location}" if location else date_str
+                doc.add_heading(f"{entry.get('title', '')} at {entry.get('company', '')}", level=2)
+                if meta:
+                    p = doc.add_paragraph(meta, style="Body Text")
+                    p.runs[0].italic = True
+                for h in entry.get("highlights", []):
+                    doc.add_paragraph(_hl(h), style="List Bullet")
+
+        elif section == "education":
+            for entry in data.get("education", []):
+                degree = entry.get("degree", "")
+                field = entry.get("field", "")
+                institution = entry.get("institution", "")
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                degree_str = f"{degree} in {field}" if field else degree
+                doc.add_heading(f"{degree_str} — {institution}", level=2)
+                if start:
+                    p = doc.add_paragraph(f"{start} – {end}" if end else start, style="Body Text")
+                    p.runs[0].italic = True
+                for h in entry.get("highlights", []):
+                    doc.add_paragraph(_hl(h), style="List Bullet")
+
+        elif section == "skills":
+            for group in data.get("skills", []):
+                cat = group.get("category", "")
+                items = [_skill_name(i) for i in group.get("items", [])]
+                doc.add_paragraph(f"{cat}: {', '.join(items)}", style="Body Text")
+
+        elif section == "projects":
+            for entry in data.get("projects", []):
+                name = entry.get("name", "")
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                description = entry.get("description", "")
+                doc.add_heading(name, level=2)
+                if start:
+                    p = doc.add_paragraph(f"{start} – {end}" if end else start, style="Body Text")
+                    p.runs[0].italic = True
+                if description:
+                    doc.add_paragraph(description, style="Body Text")
+                for h in entry.get("highlights", []):
+                    doc.add_paragraph(_hl(h), style="List Bullet")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(output_path))

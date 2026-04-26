@@ -136,6 +136,27 @@ _METRIC_RE = re.compile(
 _MIN_SUMMARY_WORDS = 20
 _MAX_SUMMARY_WORDS = 80
 
+_VOWEL_RE = re.compile(r"[aeiouy]+")
+_WORD_ALPHA_RE = re.compile(r"\b[a-zA-Z]+\b")
+_FK_MIN_GRADE = 6
+_FK_MAX_GRADE = 12
+
+
+def _count_syllables(word: str) -> int:
+    w = word.lower()
+    if len(w) > 2 and w.endswith("e") and w[-2] not in "aeiouy":
+        w = w[:-1]
+    return max(1, len(_VOWEL_RE.findall(w)))
+
+
+def _fk_grade(text: str) -> float:
+    """Flesch-Kincaid Grade Level for a single-sentence highlight."""
+    words = _WORD_ALPHA_RE.findall(text)
+    if not words:
+        return 0.0
+    syllables = sum(_count_syllables(w) for w in words)
+    return 0.39 * len(words) + 11.8 * (syllables / len(words)) - 15.59
+
 
 def _entry_label(section: str, entry: dict[str, Any]) -> str:
     """Return a human-readable label for an entry."""
@@ -636,6 +657,78 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
     return []
 
 
+def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
+    """ats-016: Flag highlights with Flesch-Kincaid grade level outside 6–12."""
+
+    def test(text: str, idx: int) -> LintFinding | None:
+        grade = _fk_grade(text)
+        if grade > _FK_MAX_GRADE:
+            return LintFinding(
+                rule_id="ats-016", severity="suggestion",
+                section="", entry="", bullet_index=idx, bullet_text=text,
+                message=(
+                    f"Readability grade {grade:.1f} exceeds target (≤{_FK_MAX_GRADE});"
+                    " simplify sentence structure."
+                ),
+                fix_hint=(
+                    "Break into shorter phrases or replace multi-syllable words"
+                    " with simpler alternatives."
+                ),
+            )
+        if grade < _FK_MIN_GRADE:
+            return LintFinding(
+                rule_id="ats-016", severity="suggestion",
+                section="", entry="", bullet_index=idx, bullet_text=text,
+                message=(
+                    f"Readability grade {grade:.1f} is below target (≥{_FK_MIN_GRADE});"
+                    " add context or detail."
+                ),
+                fix_hint=(
+                    "Expand the highlight with a result, metric, or scope to increase substance."
+                ),
+            )
+        return None
+
+    findings: list[LintFinding] = []
+    for section in ("work", "projects"):
+        findings.extend(_check_highlights(resolved, section, "ats-016", test))
+    return findings
+
+
+def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]:
+    """ats-017: Flag work entries whose highlights mention no skill item."""
+    skill_names: set[str] = set()
+    for group in resolved.data.get("skills", []):
+        for item in group.get("items", []):
+            name = item if isinstance(item, str) else item.get("name", "")
+            if name:
+                skill_names.add(name.lower())
+
+    if not skill_names:
+        return []
+
+    findings: list[LintFinding] = []
+    for entry in resolved.data.get("work", []):
+        highlights = entry.get("highlights", [])
+        if not highlights:
+            continue
+        hl_text = " ".join(
+            h if isinstance(h, str) else h.get("text", "")
+            for h in highlights
+        ).lower()
+        if not any(skill in hl_text for skill in skill_names):
+            findings.append(LintFinding(
+                rule_id="ats-017", severity="suggestion",
+                section="work", entry=entry.get("company", ""),
+                bullet_index=None, bullet_text=None,
+                message="No skill items mentioned in this role's highlights.",
+                fix_hint=(
+                    "Reference at least one tool, language, or framework from your skills section."
+                ),
+            ))
+    return findings
+
+
 # ── Rule registry ───────────────────────────────────────────────────
 
 RULES: list[LintRule] = [
@@ -698,6 +791,15 @@ RULES: list[LintRule] = [
     LintRule(
         "ats-011", "page-count",
         "Warn if estimated page count exceeds 2", _check_page_count,
+    ),
+    LintRule(
+        "ats-016", "readability",
+        "Flesch-Kincaid grade level per highlight (target 6–12)", _check_readability,
+    ),
+    LintRule(
+        "ats-017", "tech-mentions-in-work",
+        "Flag work entries with no skill items mentioned in highlights",
+        _check_tech_mentions_in_work,
     ),
 ]
 

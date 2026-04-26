@@ -95,13 +95,27 @@ cvloom check [OPTIONS]
 
 ### ATS Rules
 
-| Rule | What it catches |
-|---|---|
-| `ats-001` | Passive voice in highlights |
-| `ats-002` | Missing quantification (no numbers/metrics) |
-| `ats-003` | Noise skills (too vague to be useful) |
-| `ats-004` | Weak action verbs |
-| `ats-005` | Highlight length outside 8-25 word range |
+17 built-in rules (see [ats-linter-rules.md](ats-linter-rules.md) for full details):
+
+| Rule | Severity | What it catches |
+|---|---|---|
+| `ats-001` | warning | Passive voice in highlights |
+| `ats-002` | warning | Missing quantification (no numbers/metrics) |
+| `ats-003` | warning | Noise skills (commodity office tools) |
+| `ats-004` | warning | Weak action verbs |
+| `ats-005` | warning | Highlight length outside 8-25 word range |
+| `ats-006` | warning | Too few or too many highlights per work entry |
+| `ats-007` | warning | First-person pronouns (I/my/me) |
+| `ats-008` | warning | Vague buzzwords (motivated, proactive, …) |
+| `ats-009` | warning | Fewer than 8 or more than 25 total skills |
+| `ats-010` | warning | No LinkedIn or GitHub link present |
+| `ats-011` | warning | Estimated page count exceeds 2 |
+| `ats-012` | warning | Mixed YYYY-MM / YYYY date formats |
+| `ats-013` | warning | Wrong tense for current vs past roles |
+| `ats-014` | warning | Summary shorter than 20 or longer than 80 words |
+| `ats-015` | suggestion | Metric present but no result-framing phrase |
+| `ats-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
+| `ats-017` | suggestion | Work entry mentions no skill item in highlights |
 
 ### Examples
 
@@ -261,9 +275,12 @@ JD keyword count: 84
   └────────────────┴─────────┴───────┴───────────────┘
 
 Gaps (7):
-  ✗ kubernetes
-  ✗ terraform
-  ✗ grafana
+  ✗ kubernetes  → add to skills
+  ✗ terraform   → add to skills
+  ✗ grafana     → add to work
+
+Reorder Suggestions
+  ↕  Work: move 'SRE at Stripe' before 'Engineer at Initech' (5 vs 1 JD keyword matches)
 ```
 
 ### How it works
@@ -273,6 +290,7 @@ Gaps (7):
 3. CV content from all visible sections is tokenised
 4. Keywords are classified as matched (in CV) or gap (missing)
 5. Results are sorted by JD frequency — most important gaps first
+6. Reorder suggestions compare work entry keyword overlap and recommend moving the most JD-relevant role to the top
 
 ---
 
@@ -289,8 +307,17 @@ cvloom export [OPTIONS]
 | Flag | Short | Default | Description |
 |---|---|---|---|
 | `--profile` | `-p` | `general` | Profile name (without `.yaml` extension) |
-| `--format` | | *(required)* | Export format (currently: `json-resume`) |
-| `--output` | `-o` | `dist/<profile>.resume.json` | Output file path |
+| `--format` | | *(required)* | Export format: `json-resume`, `markdown`, `linkedin`, `docx` |
+| `--output` | `-o` | *(inferred)* | Output file path (inferred from profile and format if omitted) |
+
+### Default output paths
+
+| Format | Default path |
+|---|---|
+| `json-resume` | `dist/<profile>.resume.json` |
+| `markdown` | `dist/<profile>.resume.md` |
+| `linkedin` | `dist/<profile>.linkedin.txt` |
+| `docx` | `dist/<profile>.resume.docx` |
 
 ### Examples
 
@@ -298,14 +325,17 @@ cvloom export [OPTIONS]
 # Export default profile to JSON Resume
 cvloom export --format json-resume
 
-# Export a specific profile to a custom path
-cvloom export --profile backend-role --format json-resume --output resume.json
-```
+# Export as Markdown
+cvloom export --format markdown
 
-### Sample Output
+# Export LinkedIn-pasteable plain text (warns if About > 2600 chars)
+cvloom export --format linkedin
 
-```
-Exported backend-role → dist/backend-role.resume.json (JSON Resume v1.0.0)
+# Export as Word document (requires python-docx: uv pip install python-docx)
+cvloom export --format docx
+
+# Specific profile to a custom path
+cvloom export --profile backend-role --format markdown --output resume.md
 ```
 
 ---

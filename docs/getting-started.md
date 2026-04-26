@@ -19,7 +19,7 @@ This tutorial walks you through every feature, step by step. By the end you will
 7. [Scenario 6: Match Against a Job Description](#scenario-6-match-against-a-job-description)
 8. [Scenario 7: Create a Tailored Profile](#scenario-7-create-a-tailored-profile)
 9. [Scenario 8: Compare Profiles](#scenario-8-compare-profiles)
-10. [Scenario 9: Export to JSON Resume](#scenario-9-export-to-json-resume)
+10. [Scenario 9: Export Formats](#scenario-9-export-formats)
 11. [Scenario 10: Cover Letters](#scenario-10-cover-letters)
 12. [Scenario 11: MCP Server](#scenario-11-mcp-server)
 13. [Scenario 12: PII Safety and GitHub Pages](#scenario-12-pii-safety-and-github-pages)
@@ -362,6 +362,29 @@ Run the linter again — it should pass cleanly now. Remove the temporary bullet
 
 For the full rule reference, see [ATS Linter Rules](ats-linter-rules.md).
 
+### 4.2 Readability and tech-mention suggestions
+
+Two additional rules fire as `suggestion` (lower severity than `warning`):
+
+**ats-016 — readability:** Each highlight is scored using the Flesch-Kincaid Grade Level
+formula. The target range is grade 6–12. Highlights with too many polysyllabic words (>12)
+or that are too bare (<6) are flagged:
+
+```
+ats-016  work  Acme  Readability grade 14.2 exceeds target (≤12); simplify sentence structure.
+         Fix:  Break into shorter phrases or replace multi-syllable words with simpler alternatives.
+```
+
+**ats-017 — tech-mentions-in-work:** If a work entry's highlights mention none of your
+listed skill items, the rule fires:
+
+```
+ats-017  work  Acme  No skill items mentioned in this role's highlights.
+         Fix:  Reference at least one tool, language, or framework from your skills section.
+```
+
+Both rules appear in the same `cvloom check` output and count toward the `--check` score.
+
 ---
 
 ## Scenario 5: Trim Analysis
@@ -476,7 +499,22 @@ The report shows:
 - **Top JD Keywords** — the most frequent JD terms and whether your CV contains them
 - **Gaps** — keywords present in the JD but missing from your CV
 
-### 6.4 Act on the gaps
+### 6.4 Reorder suggestions
+
+If your work entries are not in the optimal order for the target role, the match report will
+add a **Reorder Suggestions** section:
+
+```
+Reorder Suggestions
+  ↕  Work: move 'Backend Engineer at Stripe' before 'Analyst at Initech'
+         (5 vs 1 JD keyword matches)
+```
+
+This means the second work entry has more JD keyword overlap than the first. Reorder them
+in your `data/work.yaml` (or use a profile overlay) so recruiters and ATS systems see your
+most relevant experience first.
+
+### 6.5 Act on the gaps
 
 Use the gaps to improve your CV before applying:
 1. Add missing keywords to your highlights where they truthfully apply.
@@ -643,27 +681,68 @@ This helps you see at a glance how much content differs and whether you have tri
 
 ---
 
-## Scenario 9: Export to JSON Resume
+## Scenario 9: Export Formats
 
-Export your CV to the [JSON Resume](https://jsonresume.org) standard for uploading to job boards:
+Four export formats are available: JSON Resume, Markdown, LinkedIn plain text, and DOCX.
+
+### 9.1 JSON Resume
+
+Export to the [JSON Resume](https://jsonresume.org) standard for job boards and tools:
 
 ```bash
 uv run cvloom export --format json-resume
+uv run cvloom export --profile backend-role --format json-resume --output resume.json
 ```
 
-This exports the default (`general`) profile. To export a specific profile:
+Output: `dist/<profile>.resume.json`
+
+### 9.2 Markdown
+
+Export as a clean Markdown document (useful for pasting into READMEs or markdown-based job sites):
 
 ```bash
-uv run cvloom export --profile backend-role --format json-resume
+uv run cvloom export --format markdown
 ```
 
-To specify a custom output path:
+Output: `dist/<profile>.resume.md`
+
+Sections are ordered by your profile's `section_order`. Sections with `show: false` are omitted.
+
+### 9.3 LinkedIn plain text
+
+Generate copy-paste-ready plain text structured for LinkedIn sections (About, Experience, Skills):
 
 ```bash
-uv run cvloom export --format json-resume --output resume.json
+uv run cvloom export --format linkedin
 ```
 
-The exported file follows JSON Resume v1.0.0 and can be used with any tool or service that supports the format.
+Output: `dist/<profile>.linkedin.txt`
+
+If your summary exceeds LinkedIn's 2600-character About limit, a warning is printed:
+
+```
+✓ LinkedIn → dist/general.linkedin.txt
+⚠  About section is 2743 chars (LinkedIn limit: 2600)
+```
+
+Paste the file into LinkedIn's About, Experience, and Skills sections individually.
+
+### 9.4 DOCX (Word document)
+
+Export as a `.docx` file using Word styles (Heading 1/2, List Bullet, Body Text):
+
+```bash
+# Install the optional dependency first
+uv pip install python-docx
+# or if you have the docx extra:
+uv sync --extra docx
+
+uv run cvloom export --format docx
+```
+
+Output: `dist/<profile>.resume.docx`
+
+Open in Word or LibreOffice to verify heading styles and adjust formatting as needed.
 
 ---
 

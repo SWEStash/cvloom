@@ -190,3 +190,38 @@ def test_match_cli_command(project_root: Path, monkeypatch: pytest.MonkeyPatch) 
     result = runner.invoke(cli, ["match", "--jd", str(jd_file)])
     assert result.exit_code == 0
     assert "Coverage" in result.output
+
+
+# ── reorder_hints ──────────────────────────────────────────────────
+
+
+def test_reorder_hints_suggests_better_order() -> None:
+    r = _make_resolved(work=[
+        {"company": "A", "title": "Engineer", "start_date": "2020-01",
+         "highlights": ["Built pipelines."]},
+        {"company": "B", "title": "Python Developer", "start_date": "2022-01",
+         "highlights": ["Built Python microservices with FastAPI and PostgreSQL."]},
+    ])
+    report = analyze_match(r, "Python FastAPI PostgreSQL microservices developer")
+    assert len(report.reorder_hints) == 1
+    assert "Python Developer at B" in report.reorder_hints[0]
+
+
+def test_reorder_hints_empty_when_already_optimal() -> None:
+    r = _make_resolved(work=[
+        {"company": "A", "title": "Python Developer", "start_date": "2022-01",
+         "highlights": ["Built Python microservices."]},
+        {"company": "B", "title": "Engineer", "start_date": "2020-01",
+         "highlights": ["Did general work."]},
+    ])
+    report = analyze_match(r, "Python microservices developer")
+    assert report.reorder_hints == []
+
+
+def test_reorder_hints_empty_single_work_entry() -> None:
+    r = _make_resolved(work=[
+        {"company": "A", "title": "Engineer", "start_date": "2020-01",
+         "highlights": ["Built things."]},
+    ])
+    report = analyze_match(r, "Python developer")
+    assert report.reorder_hints == []

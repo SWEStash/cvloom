@@ -25,9 +25,9 @@ def project_root(tmp_path: Path) -> Path:
         '- company: Acme\n  title: Engineer\n  location: Remote\n'
         '  start_date: "2020-01"\n  end_date: Present\n'
         "  highlights:\n"
-        "    - Design and implement a distributed caching layer reducing latency by 40%.\n"
-        "    - Reduce infrastructure costs by 30% through automated provisioning with Terraform.\n"
-        "    - Mentor 4 junior engineers, with 2 reaching senior level within 18 months.\n"
+        "    - Reduce API latency by 40 percent by adding a Redis cache to five endpoints.\n"
+        "    - Save 30 percent on cloud costs by right-sizing Docker containers.\n"
+        "    - Mentor 4 junior engineers and help them reach senior level in 18 months.\n"
         "  tags: [python]\n"
     )
     (data / "education.yaml").write_text(
@@ -45,12 +45,12 @@ def project_root(tmp_path: Path) -> Path:
     (projects / "alpha.yaml").write_text(
         "name: alpha\ndescription: First project.\ntags: [python, cli]\n"
         'url: "https://example.com/alpha"\nstart_date: "2023-01"\n'
-        "highlights:\n  - Built a CLI tool used by 500 developers daily.\n"
+        "highlights:\n  - Built a CLI tool in Python used by over 500 developers every day.\n"
     )
     (projects / "beta.yaml").write_text(
         "name: beta\ndescription: Second project.\ntags: [rust]\n"
         'url: "https://example.com/beta"\nstart_date: "2024-01"\n'
-        "highlights:\n  - Implemented a high-performance parser reducing build times by 30%.\n"
+        "highlights:\n  - Wrote a Rust parser cutting build times by 30 percent on all pipelines.\n"
     )
 
     private = tmp_path / "private"

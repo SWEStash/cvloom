@@ -288,12 +288,13 @@ def diff(profile_a: str, profile_b: str) -> None:
     show_default=True, help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--format", "fmt", type=click.Choice(["json-resume"]),
+    "--format", "fmt",
+    type=click.Choice(["json-resume", "markdown", "linkedin", "docx"]),
     required=True, help="Export format.",
 )
 @click.option(
     "--output", "-o", default=None,
-    help="Output file path (defaults to dist/<profile>.resume.json).",
+    help="Output file path (inferred from profile and format if omitted).",
 )
 def export_cmd(profile: str, fmt: str, output: str | None) -> None:
     """Export CV data to an external format."""
@@ -309,6 +310,20 @@ def export_cmd(profile: str, fmt: str, output: str | None) -> None:
         out_path = Path(output) if output else root / "dist" / f"{profile}.resume.json"
         export.export_json_resume(resolved, out_path)
         _console.print(f"[green]✓[/green] JSON Resume → {out_path}")
+    elif fmt == "markdown":
+        out_path = Path(output) if output else root / "dist" / f"{profile}.resume.md"
+        export.export_markdown(resolved, out_path)
+        _console.print(f"[green]✓[/green] Markdown → {out_path}")
+    elif fmt == "linkedin":
+        out_path = Path(output) if output else root / "dist" / f"{profile}.linkedin.txt"
+        warnings = export.export_linkedin(resolved, out_path)
+        _console.print(f"[green]✓[/green] LinkedIn → {out_path}")
+        for w in warnings:
+            _console.print(f"[yellow]⚠[/yellow]  {w}")
+    elif fmt == "docx":
+        out_path = Path(output) if output else root / "dist" / f"{profile}.resume.docx"
+        export.export_docx(resolved, out_path)
+        _console.print(f"[green]✓[/green] DOCX → {out_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +388,12 @@ def match(profile: str, jd: str) -> None:
             _console.print(f"  [red]✗[/red] {gap}{suffix}")
         if len(report.gaps) > 30:
             _console.print(f"  ... and {len(report.gaps) - 30} more")
+
+    if report.reorder_hints:
+        _console.print()
+        _console.print("[bold]Reorder Suggestions[/bold]")
+        for hint in report.reorder_hints:
+            _console.print(f"  [cyan]↕[/cyan]  {hint}")
 
 
 # ---------------------------------------------------------------------------

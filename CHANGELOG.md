@@ -7,6 +7,45 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+---
+
+## [0.4.0] — 2026-04-25
+
+### Added
+- Linter rule ats-016: Readability — flags highlights with Flesch-Kincaid grade level >12 (too complex) or <6 (too simple); suggestion severity.
+- Linter rule ats-017: Tech mentions in work — flags work entries whose highlights contain no skill item name; suggestion severity.
+- `MatchReport.reorder_hints`: when `match --jd` is used, suggests moving the most JD-relevant work entry to the top; shown in `cvloom match` output.
+- Linter rule ats-006: Bullet count per role — warns if a work entry has fewer than 3 or more than 8 highlights.
+- Linter rule ats-007: First-person pronouns — flags `I/my/me/mine/myself` in highlights and summary.
+- Linter rule ats-008: Vague buzzwords — detects terms like "motivated", "proactive", "passionate", etc.
+- Linter rule ats-009: Skill count — warns if total skills listed is below 8 or above 25.
+- Linter rule ats-010: Profile links presence — warns if no LinkedIn or GitHub link is found in contact or public_links.
+- Linter rule ats-011: Page count estimate — warns if estimated page count exceeds 2 (skipped for academic templates).
+- Linter rule ats-012: Date format consistency — flags mixed YYYY-MM / YYYY within a section.
+- Linter rule ats-013: Tense consistency — past tense for past roles, present for current.
+- Linter rule ats-014: Summary length — warns if summary is <20 or >80 words.
+- Linter rule ats-015: Action→result — flags highlights with a metric but no result framing (suggestion severity).
+- `MatchReport.suggestions`: for each gap keyword, recommends the section to add it to; shown in `cvloom match` output.
+- Smart PDF filename: defaults to `FirstName_LastName_Resume.pdf` derived from `contact.name`; customisable via `pdf_filename_format` in profile YAML.
+- PDF metadata: `<meta name="author">` added to base template; `<title>` updated to `{name} — Resume`.
+- Skill-level bar CSS: `.skill-level-1` through `.skill-level-4` styles added to `base.html.j2` (the `skill_level_bar` filter now renders visually).
+- `cvloom build --check`: runs ATS linter post-build and prints a 0–100 score.
+- `cvloom build --strict N`: exits non-zero if ATS score is below N (implies `--check`).
+- Grayscale print safety: `sidebar-compact` forces light sidebar background + dark text in `@media print`; `executive-dark` forces dark heading colours for B&W printing.
+- `cvloom export --format markdown`: exports CV as a Markdown file (`dist/<profile>.resume.md`).
+- `cvloom export --format linkedin`: exports CV as LinkedIn-pasteable plain text (`dist/<profile>.linkedin.txt`); warns when About section exceeds LinkedIn's 2600-character limit.
+- `cvloom export --format docx`: exports CV as a `.docx` file via `python-docx` (optional dependency: `uv pip install python-docx` or `uv sync --extra docx`).
+
+### Changed
+- **Typography (Phase 4):** Added `{% block fonts %}` to `base.html.j2`; `timeline-clean`, `modern-single`, `executive-dark`, and `sidebar-compact` now load Google Fonts (Inter or Roboto) via HTTPS `<link>` tags. `ats-single` and `academic` remain system-fonts-only by design.
+- `h2` base font size increased `11pt` → `12pt` for improved section heading legibility.
+- Body `line-height` tightened `1.45` → `1.35` to improve print density while preserving readability.
+- `modern-single`, `executive-dark`, and `sidebar-compact` font stacks updated to lead with their respective web font (Inter / Roboto).
+
+---
+
 ## [0.3.0] — Phase 3 — 2026-03-26
 
 ### Added
