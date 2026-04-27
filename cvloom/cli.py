@@ -506,6 +506,40 @@ def list_profiles() -> None:
     _console.print(f"\n[dim]{len(files)} profile(s)  ·  run: cvloom build --profile NAME[/dim]")
 
 
+# ---------------------------------------------------------------------------
+# ai
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def ai() -> None:
+    """AI-powered CV analysis features (requires AI provider configuration)."""
+
+
+@ai.command("config")
+def ai_config() -> None:
+    """Show current AI provider configuration and setup instructions."""
+    from cvloom.ai.provider import get_config
+
+    cfg = get_config()
+    if cfg["configured"]:
+        _console.print("[green]AI provider: configured[/green]")
+        _console.print(f"  Base URL:  {cfg['base_url']}")
+        _console.print(f"  Model:     {cfg['model']}")
+        _console.print(f"  API key:   {'***set***' if cfg['api_key_set'] else '[yellow]not set[/yellow]'}")
+    else:
+        _console.print("[yellow]AI provider: not configured[/yellow]")
+        _console.print()
+        _console.print("Set the following environment variables to enable AI features:")
+        _console.print("  [bold]CVLOOM_AI_BASE_URL[/bold]  e.g. http://localhost:11434/v1  (Ollama)")
+        _console.print("  [bold]CVLOOM_AI_API_KEY[/bold]   your API key (use \"ollama\" for local Ollama)")
+        _console.print("  [bold]CVLOOM_AI_MODEL[/bold]     e.g. gemma3:27b, gpt-4o, claude-sonnet-4-6")
+        _console.print()
+        _console.print("[dim]Quickstart options:[/dim]")
+        _console.print("  [dim]• Local (Ollama):    https://ollama.ai[/dim]")
+        _console.print("  [dim]• Cloud proxy:       https://litellm.vercel.app/docs/proxy/quick_start[/dim]")
+
+
 def _init_gitignore(root: Path, force: bool) -> None:
     gi = root / ".gitignore"
     private_line = "private/"
