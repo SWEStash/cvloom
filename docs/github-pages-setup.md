@@ -9,13 +9,15 @@ Publish a public version of your CV (with placeholder contact) automatically on 
 
 ## Setup steps
 
-1. Go to **Settings → Pages → Source** and select **GitHub Actions**.
+1. Go to **Settings → Variables → Actions** and add a repository variable `DEPLOY_PAGES` with value `true`.
 
-2. The workflow at `.github/workflows/build.yml` runs `cvloom build --public` on every push to `main`.
+2. Go to **Settings → Pages → Source** and select **GitHub Actions**.
 
-3. The built `dist/` directory is deployed to the `gh-pages` branch.
+3. The workflow at `.github/workflows/build.yml` runs `cvloom build --public` on every push to `main`.
 
-4. Your CV will be available at `https://<username>.github.io/<repo>/`.
+4. The built `dist/` directory is deployed to the `gh-pages` branch.
+
+5. Your CV will be available at `https://<username>.github.io/<repo>/`.
 
 ## What gets published
 
