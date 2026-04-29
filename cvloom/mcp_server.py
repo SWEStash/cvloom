@@ -366,6 +366,49 @@ def match_jd(
         return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
 
 
+@mcp.tool()
+def ai_review_cv(profile: str = "general", project_root: str | None = None) -> str:
+    """AI-powered scoring and feedback for each CV section.
+
+    Requires CVLOOM_AI_BASE_URL environment variable.
+    Returns JSON with overall_score, per-section scores, and top_priorities.
+    """
+    from cvloom.ai import get_client, get_model, is_configured
+    from cvloom.ai.analyzer import review
+
+    if not is_configured():
+        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
+
+    root = _root(project_root)
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        client = get_client()
+        result = review(resolved, client, get_model())
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+    return json.dumps({
+        "overall_score": result.overall_score,
+        "sections": [
+            {
+                "section": s.section,
+                "score": s.score,
+                "strengths": s.strengths,
+                "weaknesses": s.weaknesses,
+                "suggestions": s.suggestions,
+            }
+            for s in result.sections
+        ],
+        "top_priorities": result.top_priorities,
+    }, indent=2)
+
+
 def main() -> None:
     """Entry point for the MCP server."""
     mcp.run()

@@ -540,6 +540,59 @@ def ai_config() -> None:
         _console.print("  [dim]• Cloud proxy:       https://litellm.vercel.app/docs/proxy/quick_start[/dim]")
 
 
+@ai.command("review")
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+def ai_review(profile: str) -> None:
+    """Score each CV section with AI-powered feedback."""
+    from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
+    from cvloom.ai.analyzer import review
+
+    if not is_configured():
+        _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
+        raise SystemExit(1)
+
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        client = get_client()
+        result = review(resolved, client, get_model())
+    except AINotConfiguredError as exc:
+        _console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1)
+    except RuntimeError as exc:
+        _console.print(f"[red]AI error:[/red] {exc}")
+        raise SystemExit(1)
+
+    score_color = "green" if result.overall_score >= 7 else "yellow" if result.overall_score >= 5 else "red"
+    _console.print(f"\n[bold]CV Review[/bold]  profile: {profile}")
+    _console.print(f"Overall score: [{score_color}]{result.overall_score:.1f}/10[/{score_color}]\n")
+
+    for sec in result.sections:
+        color = "green" if sec.score >= 7 else "yellow" if sec.score >= 5 else "red"
+        _console.print(f"[bold]{sec.section}[/bold]  [{color}]{sec.score:.1f}/10[/{color}]")
+        for s in sec.strengths:
+            _console.print(f"  [green]+[/green] {s}")
+        for w in sec.weaknesses:
+            _console.print(f"  [red]–[/red] {w}")
+        for sg in sec.suggestions:
+            _console.print(f"  [dim]→[/dim] {sg}")
+        _console.print()
+
+    if result.top_priorities:
+        _console.print("[bold]Top priorities:[/bold]")
+        for i, p in enumerate(result.top_priorities, 1):
+            _console.print(f"  {i}. {p}")
+
+
 def _init_gitignore(root: Path, force: bool) -> None:
     gi = root / ".gitignore"
     private_line = "private/"
