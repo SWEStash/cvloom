@@ -409,6 +409,41 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
     }, indent=2)
 
 
+@mcp.tool()
+def ai_generate_cover(profile: str = "general", jd_text: str = "", project_root: str | None = None) -> str:
+    """Generate a tailored cover letter from the CV and a job description.
+
+    Requires CVLOOM_AI_BASE_URL environment variable.
+    Pass the full job description text as jd_text.
+    Returns JSON with letter, word_count, and key_alignments.
+    """
+    from cvloom.ai import get_client, get_model, is_configured
+    from cvloom.ai.cover import generate_cover
+
+    if not is_configured():
+        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
+
+    root = _root(project_root)
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        client = get_client()
+        result = generate_cover(resolved, jd_text, client, get_model())
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+    return json.dumps({
+        "letter": result.letter,
+        "word_count": result.word_count,
+        "key_alignments": result.key_alignments,
+    }, indent=2)
+
+
 def main() -> None:
     """Entry point for the MCP server."""
     mcp.run()

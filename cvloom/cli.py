@@ -593,6 +593,60 @@ def ai_review(profile: str) -> None:
             _console.print(f"  {i}. {p}")
 
 
+@ai.command("cover")
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+@click.option(
+    "--jd", "jd_file", required=True, type=click.Path(exists=True),
+    help="Path to job description file.",
+)
+@click.option(
+    "--output", "-o", type=click.Path(), default=None,
+    help="Write cover letter to this file instead of printing.",
+)
+def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
+    """Generate a tailored cover letter from your CV and a job description."""
+    from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
+    from cvloom.ai.cover import generate_cover
+
+    if not is_configured():
+        _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
+        raise SystemExit(1)
+
+    jd_text = Path(jd_file).read_text(encoding="utf-8")
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        client = get_client()
+        result = generate_cover(resolved, jd_text, client, get_model())
+    except AINotConfiguredError as exc:
+        _console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1)
+    except RuntimeError as exc:
+        _console.print(f"[red]AI error:[/red] {exc}")
+        raise SystemExit(1)
+
+    if output:
+        Path(output).write_text(result.letter, encoding="utf-8")
+        _console.print(f"[green]✓[/green] Cover letter written to {output}  ({result.word_count} words)")
+    else:
+        _console.print(f"\n[bold]Cover Letter[/bold]  profile: {profile}\n")
+        _console.print(result.letter)
+        _console.print(f"\n[dim]{result.word_count} words[/dim]")
+        if result.key_alignments:
+            _console.print("\n[bold]Key alignments:[/bold]")
+            for a in result.key_alignments:
+                _console.print(f"  • {a}")
+
+
 def _init_gitignore(root: Path, force: bool) -> None:
     gi = root / ".gitignore"
     private_line = "private/"

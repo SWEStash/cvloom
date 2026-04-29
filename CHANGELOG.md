@@ -10,6 +10,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `cvloom ai cover` — AI-generated cover letter from CV + job description file (`--jd FILE`), with optional `--output FILE` to write to disk
+- `ai_generate_cover` MCP tool for LLM-driven cover letter generation
 - `cvloom ai review` — AI-powered section scoring (1–10) with strengths, weaknesses, and improvement suggestions per section plus top-3 priorities across the whole CV
 - `ai_review_cv` MCP tool for LLM-driven CV scoring
 - `docs/ai-features.md` — installation, configuration, and backend quickstart guide for AI features (Ollama, LiteLLM, OpenAI)

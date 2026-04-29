@@ -19,3 +19,10 @@ class ReviewResult:
     overall_score: float
     sections: list[SectionScore] = field(default_factory=list)
     top_priorities: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CoverResult:
+    letter: str
+    word_count: int
+    key_alignments: list[str] = field(default_factory=list)
