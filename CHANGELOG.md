@@ -10,6 +10,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `cvloom ai align` — qualitative AI analysis of CV-to-JD alignment: narrative summary, repositioning actions, tone gaps, and strengths; combines rules-based keyword analysis with AI qualitative insight
+- `ai_align_to_jd` MCP tool for LLM-driven CV-to-JD alignment analysis
 - `cvloom ai suggest` — AI-generated improvement ideas (new bullets, skill additions, rewordings) for a target role; `--role` option or falls back to `job_context.role` from the profile
 - `ai_suggest_improvements` MCP tool for LLM-driven CV improvement suggestions
 - `cvloom ai cover` — AI-generated cover letter from CV + job description file (`--jd FILE`), with optional `--output FILE` to write to disk

@@ -712,6 +712,63 @@ def ai_suggest(profile: str, role_context: str) -> None:
             _console.print(f"  [yellow]•[/yellow] {skill}")
 
 
+@ai.command("align")
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+@click.option(
+    "--jd", "jd_file", required=True, type=click.Path(exists=True),
+    help="Path to job description file.",
+)
+def ai_align(profile: str, jd_file: str) -> None:
+    """Qualitative AI analysis of how well your CV aligns with a job description."""
+    from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
+    from cvloom.ai.align import align
+
+    if not is_configured():
+        _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
+        raise SystemExit(1)
+
+    jd_text = Path(jd_file).read_text(encoding="utf-8")
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        client = get_client()
+        result = align(resolved, jd_text, client, get_model())
+    except AINotConfiguredError as exc:
+        _console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1)
+    except RuntimeError as exc:
+        _console.print(f"[red]AI error:[/red] {exc}")
+        raise SystemExit(1)
+
+    score = result.alignment_score
+    score_colour = "green" if score >= 7 else ("yellow" if score >= 5 else "red")
+    _console.print(f"\n[bold]JD Alignment[/bold]  profile: {profile}\n")
+    _console.print(f"[bold]Alignment Score:[/bold] [{score_colour}]{score:.1f}/10[/{score_colour}]")
+    _console.print()
+    _console.print(result.narrative)
+    if result.strengths:
+        _console.print("\n[bold]Strengths:[/bold]")
+        for s in result.strengths:
+            _console.print(f"  [green]✓[/green] {s}")
+    if result.tone_gaps:
+        _console.print("\n[bold]Tone & Framing Gaps:[/bold]")
+        for g in result.tone_gaps:
+            _console.print(f"  [yellow]⚠[/yellow] {g}")
+    if result.repositioning:
+        _console.print("\n[bold]Repositioning Actions:[/bold]")
+        for i, r in enumerate(result.repositioning, 1):
+            _console.print(f"  {i}. {r}")
+
+
 def _init_gitignore(root: Path, force: bool) -> None:
     gi = root / ".gitignore"
     private_line = "private/"

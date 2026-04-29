@@ -481,6 +481,42 @@ def ai_suggest_improvements(
     return json.dumps(dataclasses.asdict(result), indent=2)
 
 
+@mcp.tool()
+def ai_align_to_jd(
+    profile: str = "general",
+    jd_text: str = "",
+    project_root: str | None = None,
+) -> str:
+    """Qualitative AI analysis of how well the CV aligns to a job description.
+
+    Requires CVLOOM_AI_BASE_URL environment variable.
+    jd_text is the full text of the job description.
+    Returns JSON with alignment_score, narrative, repositioning, tone_gaps, strengths.
+    """
+    import dataclasses
+
+    from cvloom.ai import get_client, get_model, is_configured
+    from cvloom.ai.align import align
+
+    if not is_configured():
+        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
+
+    root = _root(project_root)
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        result = align(resolved, jd_text, get_client(), get_model())
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+    return json.dumps(dataclasses.asdict(result), indent=2)
+
+
 def main() -> None:
     """Entry point for the MCP server."""
     mcp.run()

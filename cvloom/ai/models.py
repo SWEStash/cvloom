@@ -43,3 +43,12 @@ class SuggestResult:
     suggestions: list[Suggestion] = field(default_factory=list)
     missing_skills: list[str] = field(default_factory=list)
     summary: str = ""
+
+
+@dataclass
+class AlignResult:
+    alignment_score: float
+    narrative: str
+    repositioning: list[str] = field(default_factory=list)
+    tone_gaps: list[str] = field(default_factory=list)
+    strengths: list[str] = field(default_factory=list)
