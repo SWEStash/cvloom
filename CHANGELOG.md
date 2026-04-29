@@ -7,7 +7,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.5.0] — 2026-04-29
 
 ### Added
 - `cvloom ai align` — qualitative AI analysis of CV-to-JD alignment: narrative summary, repositioning actions, tone gaps, and strengths; combines rules-based keyword analysis with AI qualitative insight

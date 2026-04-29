@@ -106,12 +106,90 @@ Top priorities:
   3. Tighten the professional summary to under 60 words
 ```
 
-## MCP tool
+### `ai cover`
 
-If you use the [MCP server](./mcp-server.md), `ai_review_cv` exposes the same scoring logic as a typed tool for LLM assistants:
+Generates a tailored cover letter from your CV and a job description file. Optionally writes to a file.
 
-```python
-ai_review_cv(profile="general", project_root="/path/to/project")
+```bash
+cvloom ai cover --profile backend-role --jd stripe-infra.txt
+cvloom ai cover --profile backend-role --jd stripe-infra.txt --output cover.md
 ```
 
-Returns a JSON object with `overall_score`, `sections` (per-section scores and feedback), and `top_priorities`.
+If `job_context` is set in the profile (`company`, `role`, `hiring_manager`), the prompt is personalised automatically.
+
+### `ai suggest`
+
+Suggests specific content improvements for a target role: new bullet points, skill additions, rewordings, and items to remove. Suggestions are non-destructive — they are ideas to apply manually.
+
+```bash
+cvloom ai suggest --profile backend-role --role "Senior Platform Engineer"
+cvloom ai suggest --profile backend-role   # uses job_context.role from profile if set
+```
+
+Example output:
+
+```
+Improvement Suggestions  profile: backend-role  target role: Senior Platform Engineer
+
+Focus on infrastructure ownership and quantified reliability metrics.
+
+  [bullet] work / Acme Corp
+    Reduced P99 API latency from 800ms to 120ms by migrating to async workers,
+    improving throughput for 50k daily active users
+    Adds measurable impact with scale context
+
+  [skill] skills
+    Kubernetes
+    Widely required for senior platform roles; currently absent
+
+Missing skills worth adding:
+  • Kubernetes
+  • Terraform
+  • Prometheus
+```
+
+### `ai align`
+
+Qualitative AI analysis of how well your CV is *positioned* for a specific job description — tone, framing, narrative gaps — beyond keyword coverage. Internally runs `cvloom match` first and passes the keyword analysis as context so the AI focuses on qualitative insights.
+
+```bash
+cvloom ai align --profile backend-role --jd stripe-infra.txt
+```
+
+Example output:
+
+```
+JD Alignment  profile: backend-role
+
+Alignment Score: 6.8/10
+
+The CV demonstrates solid backend experience but is framed around individual
+feature delivery rather than the infrastructure ownership and reliability
+engineering that Stripe emphasises throughout the JD...
+
+Strengths:
+  ✓ Python and distributed systems experience directly matches core requirements
+  ✓ Quantified metrics throughout work history signal data-driven mindset
+
+Tone & Framing Gaps:
+  ⚠ JD uses "own" and "operate" repeatedly; CV uses "built" and "developed"
+  ⚠ JD emphasises on-call and incident response; CV has no reliability framing
+
+Repositioning Actions:
+  1. Lead with distributed systems and reliability experience, not feature delivery
+  2. Reframe highlights from delivery ("built X") to ownership ("owned and operated X")
+  3. Surface on-call, SLO, and incident work that is currently absent
+```
+
+## MCP tools
+
+If you use the [MCP server](./mcp-server.md), all four AI commands are available as typed tools:
+
+| Tool | What it does |
+|---|---|
+| `ai_review_cv(profile, project_root)` | Section scoring and feedback |
+| `ai_generate_cover(profile, jd_text, project_root)` | Cover letter generation |
+| `ai_suggest_improvements(profile, role, project_root)` | Content improvement suggestions |
+| `ai_align_to_jd(profile, jd_text, project_root)` | Qualitative JD alignment analysis |
+
+All tools return JSON and require `CVLOOM_AI_BASE_URL` to be set. If not configured, they return `{"error": "..."}` rather than raising.
