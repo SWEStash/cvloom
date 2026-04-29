@@ -647,6 +647,71 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
                 _console.print(f"  • {a}")
 
 
+@ai.command("suggest")
+@click.option(
+    "--profile", "-p", default="general",
+    show_default=True, help="Profile name (without .yaml extension).",
+)
+@click.option(
+    "--role", "role_context", default="",
+    help="Target role description (e.g. 'Senior Backend Engineer').",
+)
+def ai_suggest(profile: str, role_context: str) -> None:
+    """Suggest content improvements: new bullets, skills, rewordings for a target role."""
+    from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
+    from cvloom.ai.suggest import suggest
+
+    if not is_configured():
+        _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
+        raise SystemExit(1)
+
+    root = _root()
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+
+    effective_role = role_context or (resolved.profile.get("job_context") or {}).get("role", "")
+
+    try:
+        client = get_client()
+        result = suggest(resolved, client, get_model(), role_context=effective_role)
+    except AINotConfiguredError as exc:
+        _console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1)
+    except RuntimeError as exc:
+        _console.print(f"[red]AI error:[/red] {exc}")
+        raise SystemExit(1)
+
+    role_label = f"  target role: {effective_role}" if effective_role else ""
+    _console.print(f"\n[bold]Improvement Suggestions[/bold]  profile: {profile}{role_label}\n")
+
+    if result.summary:
+        _console.print(result.summary)
+        _console.print()
+
+    _TYPE_COLOUR = {"bullet": "cyan", "skill": "green", "reword": "yellow", "remove": "red"}
+
+    for s in result.suggestions:
+        colour = _TYPE_COLOUR.get(s.type, "white")
+        badge = f"[{colour}][{s.type}][/{colour}]"
+        context = s.section + (f" / {s.entry}" if s.entry else "")
+        _console.print(f"  {badge} [dim]{context}[/dim]")
+        if s.current:
+            _console.print(f"    [dim]before:[/dim] {s.current}")
+        _console.print(f"    [green]{s.suggested}[/green]")
+        _console.print(f"    [dim]{s.rationale}[/dim]")
+        _console.print()
+
+    if result.missing_skills:
+        _console.print("[bold]Missing skills worth adding:[/bold]")
+        for skill in result.missing_skills:
+            _console.print(f"  [yellow]•[/yellow] {skill}")
+
+
 def _init_gitignore(root: Path, force: bool) -> None:
     gi = root / ".gitignore"
     private_line = "private/"

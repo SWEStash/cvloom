@@ -444,6 +444,43 @@ def ai_generate_cover(profile: str = "general", jd_text: str = "", project_root:
     }, indent=2)
 
 
+@mcp.tool()
+def ai_suggest_improvements(
+    profile: str = "general",
+    role: str = "",
+    project_root: str | None = None,
+) -> str:
+    """Suggest content improvements for the CV: new bullets, skills, rewordings.
+
+    Requires CVLOOM_AI_BASE_URL environment variable.
+    Pass role to target suggestions for a specific position.
+    Returns JSON with suggestions, missing_skills, and summary.
+    """
+    import dataclasses
+
+    from cvloom.ai import get_client, get_model, is_configured
+    from cvloom.ai.suggest import suggest
+
+    if not is_configured():
+        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
+
+    root = _root(project_root)
+    resolved = builder.resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile,
+        public=True,
+    )
+    try:
+        client = get_client()
+        result = suggest(resolved, client, get_model(), role_context=role)
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+    return json.dumps(dataclasses.asdict(result), indent=2)
+
+
 def main() -> None:
     """Entry point for the MCP server."""
     mcp.run()

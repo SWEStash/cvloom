@@ -10,6 +10,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `cvloom ai suggest` — AI-generated improvement ideas (new bullets, skill additions, rewordings) for a target role; `--role` option or falls back to `job_context.role` from the profile
+- `ai_suggest_improvements` MCP tool for LLM-driven CV improvement suggestions
 - `cvloom ai cover` — AI-generated cover letter from CV + job description file (`--jd FILE`), with optional `--output FILE` to write to disk
 - `ai_generate_cover` MCP tool for LLM-driven cover letter generation
 - `cvloom ai review` — AI-powered section scoring (1–10) with strengths, weaknesses, and improvement suggestions per section plus top-3 priorities across the whole CV

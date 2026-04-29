@@ -26,3 +26,20 @@ class CoverResult:
     letter: str
     word_count: int
     key_alignments: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Suggestion:
+    section: str
+    entry: str | None
+    type: str
+    current: str | None
+    suggested: str
+    rationale: str
+
+
+@dataclass
+class SuggestResult:
+    suggestions: list[Suggestion] = field(default_factory=list)
+    missing_skills: list[str] = field(default_factory=list)
+    summary: str = ""
