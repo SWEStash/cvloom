@@ -1,6 +1,6 @@
 # AI-Powered Features
 
-[Back to README](../README.md)
+[Back to README](../../README.md)
 
 cvloom includes optional AI-powered analysis that works with any OpenAI-compatible backend — local models via Ollama, cloud routing via LiteLLM, or OpenAI directly. All existing commands continue to work unchanged when AI is not configured.
 
@@ -183,7 +183,7 @@ Repositioning Actions:
 
 ## MCP tools
 
-If you use the [MCP server](./mcp-server.md), all four AI commands are available as typed tools:
+If you use the [MCP server](../reference/mcp-server.md), all four AI commands are available as typed tools:
 
 | Tool | What it does |
 |---|---|

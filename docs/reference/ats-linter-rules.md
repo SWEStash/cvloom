@@ -1,6 +1,6 @@
 # ATS Linter Rules Reference
 
-[Back to README](../README.md)
+[Back to README](../../README.md)
 
 ## Overview
 

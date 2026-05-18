@@ -1,10 +1,10 @@
 # CLI Command Reference
 
-[Back to README](../README.md)
+[Back to README](../../README.md)
 
 This document covers every `cvloom` command, its options, and realistic usage examples.
 
-All commands assume you are in a cvloom project directory (one created by `cvloom init` or following the expected [directory structure](../README.md#directory-structure)).
+All commands assume you are in a cvloom project directory (one created by `cvloom init` or following the expected [directory structure](../../README.md#directory-structure)).
 
 ---
 
@@ -19,6 +19,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [init](#init)
 - [list-projects](#list-projects)
 - [list-profiles](#list-profiles)
+- [ai](#ai)
 
 ---
 
@@ -39,6 +40,8 @@ cvloom build [OPTIONS]
 | `--output-dir` | `-o` | `dist` | Output directory for generated files |
 | `--public` | | off | Use placeholder contact data (safe for CI / GitHub Pages) |
 | `--skip-pdf` | | off | Skip PDF generation; produce HTML only |
+| `--check` | | off | Run ATS linter after build and print a 0–100 score |
+| `--strict N` | | off | Exit non-zero if ATS score is below N (implies `--check`) |
 
 ### Examples
 
@@ -57,6 +60,12 @@ cvloom build --profile backend-role --template cv/modern-single
 
 # Write output to a custom directory
 cvloom build --profile backend-role --output-dir out/
+
+# Build and show ATS score inline
+cvloom build --profile backend-role --check
+
+# Build and fail CI if ATS score falls below 70
+cvloom build --profile backend-role --strict 70
 ```
 
 ### Sample Output
@@ -95,7 +104,7 @@ cvloom check [OPTIONS]
 
 ### ATS Rules
 
-17 built-in rules (see [ats-linter-rules.md](ats-linter-rules.md) for full details):
+17 built-in rules (see [ats-linter-rules.md](../reference/ats-linter-rules.md) for full details):
 
 | Rule | Severity | What it catches |
 |---|---|---|
@@ -256,6 +265,7 @@ cvloom match --jd jd.txt --profile backend-role
 - **Coverage percentage** — ratio of JD keywords found in the CV
 - **Top JD Keywords table** — most frequent keywords with CV presence and sections
 - **Gaps list** — keywords from the JD not found anywhere in the CV
+- **Reorder suggestions** — recommends moving the most JD-relevant work entry to the top
 
 ### Example
 
@@ -435,12 +445,6 @@ cvloom list-profiles
 
 This command takes no options.
 
-### Example
-
-```bash
-cvloom list-profiles
-```
-
 ### Sample Output
 
 ```
@@ -451,3 +455,19 @@ backend-role    cv/ats-single           jane-smith-backend  python, kafka      A
 academic        cv/academic             academic-cv         research           —
 cover-letter    cover-letter/standard   cover-letter        —                  Acme Corp / Staff Engineer
 ```
+
+---
+
+## `ai`
+
+AI-powered analysis commands. Require `uv sync --extra ai` and `CVLOOM_AI_BASE_URL` to be set.
+
+```bash
+cvloom ai config                                              # check provider status
+cvloom ai review --profile NAME                              # score CV sections
+cvloom ai cover --profile NAME --jd FILE [--output FILE]     # generate cover letter
+cvloom ai suggest --profile NAME [--role "Role Title"]       # improvement suggestions
+cvloom ai align --profile NAME --jd FILE                     # qualitative JD alignment
+```
+
+See [AI Features](ai-features.md) for setup, backends, and command details.

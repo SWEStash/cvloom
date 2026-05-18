@@ -59,7 +59,7 @@ $ cvloom ai align --profile backend-role --jd stripe-infra.txt
 | **Export** | JSON Resume, Markdown, LinkedIn text, DOCX | `cvloom export` |
 | **Inspect** | List projects with tag filtering | `cvloom list-projects` |
 | | List all build profiles | `cvloom list-profiles` |
-| **Integrate** | MCP server — 13 tools for LLM-driven CV management | `cvloom-mcp` |
+| **Integrate** | MCP server — 16 tools for LLM-driven CV management | `cvloom-mcp` |
 | | GitHub Pages deployment | Built-in CI workflow |
 | **Safety** | PII compartmentalisation + pre-commit scanner | `private/` + hook |
 
@@ -120,7 +120,7 @@ cvloom build --public --skip-pdf      # HTML only, placeholder contact
 cvloom build --profile NAME --check   # build + ATS score
 ```
 
-Outputs land in `dist/`. See [docs/usage.md](docs/usage.md) for the full command reference.
+Outputs land in `dist/`. See [docs/user/cli-reference.md](docs/user/cli-reference.md) for the full command reference.
 
 ---
 
@@ -166,7 +166,7 @@ cvloom ai suggest --profile backend-role --role "Senior Platform Engineer"
 cvloom ai align --profile backend-role --jd stripe-infra.txt
 ```
 
-See [docs/ai-features.md](docs/ai-features.md) for backend quickstarts (Ollama, LiteLLM, OpenAI) and all configuration options.
+See [docs/user/ai-features.md](docs/user/ai-features.md) for backend quickstarts (Ollama, LiteLLM, OpenAI) and all configuration options.
 
 ---
 
@@ -218,13 +218,13 @@ overlays:
     include_categories: [Languages, Cloud]
 ```
 
-See [docs/profiles-and-overlays.md](docs/profiles-and-overlays.md) for the full overlay reference.
+See [docs/reference/profiles-and-overlays.md](docs/reference/profiles-and-overlays.md) for the full overlay reference.
 
 ---
 
 ## MCP Server
 
-cvloom includes an MCP server exposing 13 tools for LLM-driven CV management. Data stays local — nothing leaves your machine.
+cvloom includes an MCP server exposing 16 tools for LLM-driven CV management. Data stays local — nothing leaves your machine.
 
 ```bash
 uv sync --extra mcp
@@ -241,7 +241,7 @@ cvloom-mcp
 | `upsert_project` | Create or update a project |
 | `validate_data` | Run schema validation |
 | `export_json_resume` | Export as JSON Resume |
-| `lint_cv` | Run ATS linter, return findings |
+| `check_cv` | Run ATS linter, return findings |
 | `match_jd` | Keyword gap analysis against a JD |
 | `ai_review_cv` | AI section scoring and feedback |
 | `ai_generate_cover` | AI cover letter from CV + JD text |
@@ -250,7 +250,7 @@ cvloom-mcp
 
 > AI tools require the `ai` extra and `CVLOOM_AI_BASE_URL` to be set.
 
-See [docs/mcp-server.md](docs/mcp-server.md) for setup with Claude Desktop, Claude Code, and example workflows.
+See [docs/reference/mcp-server.md](docs/reference/mcp-server.md) for setup with Claude Desktop, Claude Code, and example workflows.
 
 ---
 
@@ -271,16 +271,32 @@ my-cv/
 
 ## Documentation
 
+### User Guides
+
 | Guide | What's covered |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Installation, init, first build |
-| [Command Reference](docs/usage.md) | All CLI commands with flags and examples |
-| [Profiles and Overlays](docs/profiles-and-overlays.md) | Profile system and per-job data patches |
-| [AI Features](docs/ai-features.md) | Setup, backends, all AI commands |
-| [ATS Linter Rules](docs/ats-linter-rules.md) | What each rule checks and how to fix findings |
-| [MCP Server](docs/mcp-server.md) | Setup, tool reference, example workflows |
-| [PII Safety](docs/pii-safety.md) | Two-layer protection model |
-| [GitHub Pages Setup](docs/github-pages-setup.md) | Automatic deployment |
+| [Getting Started](docs/user/getting-started.md) | Installation, init, and all features via step-by-step scenarios |
+| [CLI Reference](docs/user/cli-reference.md) | Every command with flags, options, and examples |
+| [User Guide](docs/user/user-guide.md) | Complete config and features manual — data files, templates, exports, env vars |
+| [AI Features](docs/user/ai-features.md) | Setup, backends, and all AI commands |
+| [PII Safety](docs/user/pii-safety.md) | Two-layer protection model |
+| [GitHub Pages Setup](docs/user/github-pages-setup.md) | Automatic public CV deployment |
+
+### Reference
+
+| Guide | What's covered |
+|---|---|
+| [ATS Linter Rules](docs/reference/ats-linter-rules.md) | All 17 rules with examples and fix hints |
+| [MCP Server](docs/reference/mcp-server.md) | Setup, all 16 tools, and example workflows |
+| [Profiles and Overlays](docs/reference/profiles-and-overlays.md) | Full overlay system reference |
+
+### Developer Guides
+
+| Guide | What's covered |
+|---|---|
+| [Architecture](docs/dev/architecture.md) | Build pipeline, module responsibilities, data flow |
+| [Custom Templates](docs/dev/custom-templates.md) | Writing Jinja2 templates, available blocks and filters |
+| [Contributing](docs/dev/contributing.md) | Dev setup, testing, adding linter rules, PR checklist |
 
 ---
 

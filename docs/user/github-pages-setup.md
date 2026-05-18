@@ -1,5 +1,7 @@
 # GitHub Pages Setup
 
+[Back to README](../../README.md)
+
 Publish a public version of your CV (with placeholder contact) automatically on push.
 
 ## Prerequisites

@@ -1,10 +1,10 @@
 # Getting Started with cvloom
 
-[Back to README](../README.md)
+[Back to README](../../README.md)
 
 cvloom is a CLI tool that manages your CV/resume as structured YAML data and generates tailored PDF and HTML outputs for each job application. You write your experience once, then create **profiles** that filter, reorder, and customize the content for different roles — all without duplicating files.
 
-This tutorial walks you through every feature, step by step. By the end you will have built multiple CV variants, a cover letter, run the linter, and explored the full toolset.
+This tutorial walks you through every feature, step by step. By the end you will have built multiple CV variants, a cover letter, run the linter, used AI analysis, and explored the full toolset.
 
 ---
 
@@ -23,8 +23,9 @@ This tutorial walks you through every feature, step by step. By the end you will
 11. [Scenario 10: Cover Letters](#scenario-10-cover-letters)
 12. [Scenario 11: MCP Server](#scenario-11-mcp-server)
 13. [Scenario 12: PII Safety and GitHub Pages](#scenario-12-pii-safety-and-github-pages)
-14. [Upgrading cvloom](#upgrading-cvloom)
-15. [Next Steps](#next-steps)
+14. [Scenario 13: AI-Powered Analysis](#scenario-13-ai-powered-analysis)
+15. [Upgrading cvloom](#upgrading-cvloom)
+16. [Next Steps](#next-steps)
 
 ---
 
@@ -274,17 +275,35 @@ Open `dist/cv.html` in your browser to review the result.
 Override the template at build time without changing the profile:
 
 ```bash
-# Modern single-column design with accent colors
+# ATS-optimized, single-column (no web fonts)
+uv run cvloom build --template cv/ats-single
+
+# Modern single-column with accent colors and skill tags
 uv run cvloom build --template cv/modern-single
+
+# Timeline-style work history
+uv run cvloom build --template cv/timeline-clean
+
+# Dark headings, bold typographic hierarchy
+uv run cvloom build --template cv/executive-dark
+
+# Two-column with sidebar — compact for dense CVs
+uv run cvloom build --template cv/sidebar-compact
 
 # Academic layout (education-first, serif font)
 uv run cvloom build --template cv/academic
 ```
 
 Available CV templates:
-- `cv/ats-single` — ATS-optimized, clean, single-column
-- `cv/modern-single` — Visual hierarchy with accent color and skill tags
-- `cv/academic` — Education-first, serif font, suited for longer CVs
+
+| Template | Use case |
+|---|---|
+| `cv/ats-single` | ATS-optimised, clean, single-column |
+| `cv/modern-single` | Visual hierarchy with accent color and skill tags |
+| `cv/timeline-clean` | Timeline-style work history |
+| `cv/executive-dark` | Bold typographic hierarchy with dark headings |
+| `cv/sidebar-compact` | Two-column sidebar layout for dense CVs |
+| `cv/academic` | Education-first, serif font, suited for longer CVs |
 
 ### 3.3 Public build (no real contact data)
 
@@ -306,15 +325,27 @@ uv run cvloom build --output-dir out/
 
 ## Scenario 4: Lint Your CV
 
-The ATS linter checks your bullet points for common quality issues. It runs 5 rules:
+The ATS linter checks your bullet points and CV structure for common quality issues. It runs 17 built-in rules:
 
-| Rule | What it catches |
-|------|----------------|
-| `ats-001` | Passive voice ("was built", "is designed") |
-| `ats-002` | Missing metrics (no numbers in a bullet) |
-| `ats-003` | Noise skills (MS Word, Google Docs) |
-| `ats-004` | Weak verbs ("helped", "assisted", "worked on") |
-| `ats-005` | Bullet too short (<8 words) or too long (>25 words) |
+| Rule | Severity | What it catches |
+|------|:--------:|----------------|
+| `ats-001` | warning | Passive voice ("was built", "is designed") |
+| `ats-002` | warning | Missing metrics (no numbers in a bullet) |
+| `ats-003` | warning | Noise skills (MS Word, Google Docs) |
+| `ats-004` | warning | Weak verbs ("helped", "assisted", "worked on") |
+| `ats-005` | warning | Bullet too short (<8 words) or too long (>25 words) |
+| `ats-006` | warning | Too few (<3) or too many (>8) bullets per work entry |
+| `ats-007` | warning | First-person pronouns (I/my/me) |
+| `ats-008` | warning | Vague buzzwords (motivated, passionate, proactive, …) |
+| `ats-009` | warning | Fewer than 8 or more than 25 total skills |
+| `ats-010` | warning | No LinkedIn or GitHub link in contact |
+| `ats-011` | warning | Estimated page count exceeds 2 |
+| `ats-012` | warning | Mixed date formats (YYYY-MM vs YYYY) |
+| `ats-013` | warning | Wrong verb tense for current vs past roles |
+| `ats-014` | warning | Summary shorter than 20 or longer than 80 words |
+| `ats-015` | suggestion | Metric present but no result-framing phrase |
+| `ats-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
+| `ats-017` | suggestion | Work entry highlights mention no skill item |
 
 ### 4.1 Run the linter
 
@@ -360,30 +391,21 @@ The exit code is `1` when issues are found — useful for CI.
 
 Run the linter again — it should pass cleanly now. Remove the temporary bullets when done.
 
-For the full rule reference, see [ATS Linter Rules](ats-linter-rules.md).
+For the full rule reference, see [ATS Linter Rules](../reference/ats-linter-rules.md).
 
-### 4.2 Readability and tech-mention suggestions
+### 4.2 Build with inline ATS score
 
-Two additional rules fire as `suggestion` (lower severity than `warning`):
+Run the linter automatically after every build with `--check`:
 
-**ats-016 — readability:** Each highlight is scored using the Flesch-Kincaid Grade Level
-formula. The target range is grade 6–12. Highlights with too many polysyllabic words (>12)
-or that are too bare (<6) are flagged:
-
-```
-ats-016  work  Acme  Readability grade 14.2 exceeds target (≤12); simplify sentence structure.
-         Fix:  Break into shorter phrases or replace multi-syllable words with simpler alternatives.
+```bash
+uv run cvloom build --profile backend-role --check
 ```
 
-**ats-017 — tech-mentions-in-work:** If a work entry's highlights mention none of your
-listed skill items, the rule fires:
+To fail CI if the score drops below a threshold, use `--strict`:
 
+```bash
+uv run cvloom build --profile backend-role --strict 70
 ```
-ats-017  work  Acme  No skill items mentioned in this role's highlights.
-         Fix:  Reference at least one tool, language, or framework from your skills section.
-```
-
-Both rules appear in the same `cvloom check` output and count toward the `--check` score.
 
 ---
 
@@ -494,15 +516,9 @@ Gaps (5):
   ✗ ci/cd
 ```
 
-The report shows:
-- **Coverage** — percentage of JD keywords found in your CV
-- **Top JD Keywords** — the most frequent JD terms and whether your CV contains them
-- **Gaps** — keywords present in the JD but missing from your CV
-
 ### 6.4 Reorder suggestions
 
-If your work entries are not in the optimal order for the target role, the match report will
-add a **Reorder Suggestions** section:
+If your work entries are not in the optimal order for the target role, the match report will add a **Reorder Suggestions** section:
 
 ```
 Reorder Suggestions
@@ -510,9 +526,7 @@ Reorder Suggestions
          (5 vs 1 JD keyword matches)
 ```
 
-This means the second work entry has more JD keyword overlap than the first. Reorder them
-in your `data/work.yaml` (or use a profile overlay) so recruiters and ATS systems see your
-most relevant experience first.
+This means the second work entry has more JD keyword overlap than the first. Reorder them in your `data/work.yaml` (or use a profile overlay) so recruiters and ATS systems see your most relevant experience first.
 
 ### 6.5 Act on the gaps
 
@@ -641,7 +655,7 @@ overlays:
         exclude_items: [Go, Rust]            # Remove specific items
 ```
 
-For the full overlay reference, see [Profiles and Overlays](profiles-and-overlays.md).
+For the full overlay reference, see [Profiles and Overlays](../reference/profiles-and-overlays.md).
 
 ---
 
@@ -822,9 +836,9 @@ claude mcp add cvloom -- cvloom-mcp
 }
 ```
 
-The MCP server exposes 12 tools: `list_profiles`, `list_projects`, `get_section`, `build_cv`, `create_profile`, `upsert_project`, `validate_data`, `export_json_resume`, `check_cv`, `trim_report`, `diff_profiles`, and `match_jd`.
+The MCP server exposes 16 tools: 12 core tools (`list_profiles`, `list_projects`, `get_section`, `build_cv`, `create_profile`, `upsert_project`, `validate_data`, `export_json_resume`, `check_cv`, `trim_report`, `diff_profiles`, `match_jd`) plus 4 AI tools (`ai_review_cv`, `ai_generate_cover`, `ai_suggest_improvements`, `ai_align_to_jd`) that require `--extra ai`.
 
-For the full tool reference and example workflows, see [MCP Server](mcp-server.md).
+For the full tool reference and example workflows, see [MCP Server](../reference/mcp-server.md).
 
 ---
 
@@ -852,6 +866,74 @@ You can publish a public CV (with placeholder contact) automatically:
 3. Your CV is available at `https://<username>.github.io/<repo>/`.
 
 For full setup instructions, see [GitHub Pages Setup](github-pages-setup.md) and [PII Safety](pii-safety.md).
+
+---
+
+## Scenario 13: AI-Powered Analysis
+
+> **Optional** — requires installing the `ai` extra and configuring an AI provider.
+
+cvloom includes four AI-powered commands that go beyond the rules-based tools: section scoring, cover letter generation, content improvement suggestions, and qualitative JD alignment.
+
+### 13.1 Install and configure
+
+```bash
+uv sync --extra ai
+```
+
+Set your provider environment variables — only `CVLOOM_AI_BASE_URL` is required:
+
+```bash
+# Local model via Ollama (free, no internet required for inference)
+export CVLOOM_AI_BASE_URL=http://localhost:11434/v1
+export CVLOOM_AI_API_KEY=ollama
+export CVLOOM_AI_MODEL=gemma3:27b
+
+# Or OpenAI
+export CVLOOM_AI_BASE_URL=https://api.openai.com/v1
+export CVLOOM_AI_API_KEY=sk-...
+export CVLOOM_AI_MODEL=gpt-4o
+```
+
+Verify your setup:
+
+```bash
+uv run cvloom ai config
+```
+
+### 13.2 Score your CV sections
+
+```bash
+uv run cvloom ai review --profile general
+```
+
+Each visible section gets a 1–10 score with specific strengths, weaknesses, and improvement suggestions. The overall score and top-3 highest-impact priorities are shown at the end.
+
+### 13.3 Get improvement suggestions
+
+```bash
+uv run cvloom ai suggest --profile backend-role --role "Senior Platform Engineer"
+```
+
+Returns specific bullets to add, skills to include, and rewordings to consider for the target role. Suggestions are ideas — apply them manually to your YAML files.
+
+### 13.4 Generate a cover letter
+
+```bash
+uv run cvloom ai cover --profile backend-role --jd jd-backend.txt --output cover.md
+```
+
+Generates a tailored cover letter using your CV content and the job description. If `job_context` is set in the profile (company, role, hiring_manager), the letter is personalised automatically.
+
+### 13.5 Analyse JD alignment
+
+```bash
+uv run cvloom ai align --profile backend-role --jd jd-backend.txt
+```
+
+Goes beyond keyword coverage to assess how your CV is *positioned* for the role — tone, framing, and narrative gaps. Shows strengths, tone gaps, and concrete repositioning actions.
+
+For full backend setup (Ollama, LiteLLM, OpenAI), configuration options, and detailed command output examples, see [AI Features](ai-features.md).
 
 ---
 
@@ -894,7 +976,7 @@ All existing files are skipped:
 |------|---------------|-------------|
 | `data/`, `profiles/`, `private/` | Always — init skips them | Never |
 | Pre-commit hook | Refresh with `cvloom init` | Every upgrade |
-| YAML schema changes | Check [CHANGELOG](../CHANGELOG.md) | Only if `[breaking]` tag appears |
+| YAML schema changes | Check [CHANGELOG](../../CHANGELOG.md) | Only if `[breaking]` tag appears |
 
 If the CHANGELOG lists a breaking schema change (e.g. a field was renamed), update the affected files in `data/` or `profiles/` manually before running a build.
 
@@ -906,16 +988,18 @@ You have now used every major feature of cvloom. Here are some things to explore
 
 - **Create more profiles** for different roles — each one takes minutes once your base data is complete.
 - **Add more projects** in `data/projects/` — one YAML file per project.
-- **Customize templates** — put custom Jinja2 templates in `templates/` at your project root.
+- **Customize templates** — put custom Jinja2 templates in `templates/` at your project root. See [Custom Templates](../dev/custom-templates.md).
 - **Automate with CI** — use `--public --skip-pdf` for fast HTML-only builds in GitHub Actions.
 
 ### Reference Documentation
 
 | Document | Description |
 |----------|-------------|
-| [CLI Command Reference](usage.md) | Every command, flag, and option |
-| [Profiles and Overlays](profiles-and-overlays.md) | Deep dive into the profile and overlay system |
-| [ATS Linter Rules](ats-linter-rules.md) | Full rule reference with examples |
-| [MCP Server](mcp-server.md) | MCP tool reference and workflow examples |
+| [CLI Reference](cli-reference.md) | Every command, flag, and option |
+| [User Guide](user-guide.md) | Complete config and features manual |
+| [Profiles and Overlays](../reference/profiles-and-overlays.md) | Deep dive into the profile and overlay system |
+| [ATS Linter Rules](../reference/ats-linter-rules.md) | Full rule reference with examples |
+| [MCP Server](../reference/mcp-server.md) | MCP tool reference and workflow examples |
+| [AI Features](ai-features.md) | Full AI command and backend guide |
 | [PII Safety](pii-safety.md) | How contact data is protected |
 | [GitHub Pages Setup](github-pages-setup.md) | Automated public CV deployment |

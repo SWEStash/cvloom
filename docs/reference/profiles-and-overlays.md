@@ -1,6 +1,6 @@
 # Profiles and Overlays
 
-[Back to README](../README.md)
+[Back to README](../../README.md)
 
 cvloom uses **profiles** to produce multiple tailored versions of your CV from a single
 set of base data. Each profile controls which sections appear, which entries are included,
@@ -63,16 +63,17 @@ sections:
 
 ### Profile Keys Reference
 
-| Key               | Required | Default              | Description                                      |
-|-------------------|----------|----------------------|--------------------------------------------------|
-| `template`        | Yes      | —                    | Template path (e.g. `cv/ats-single`)             |
-| `output_filename` | No       | Profile name         | Base name for output files (`.html`, `.pdf`)      |
-| `sections`        | No       | All `true`           | Toggle sections on or off                        |
-| `include_tags`    | No       | `[]` (include all)   | Only include entries with at least one matching tag |
-| `include_entries` | No       | —                    | Force-include entries excluded by tag filtering  |
-| `section_order`   | No       | `[skills, work, education, projects]` | Override the rendering order of sections |
-| `job_context`     | No       | —                    | Metadata passed to cover letter templates        |
-| `overlays`        | No       | —                    | Per-job data patches (see below)                 |
+| Key                 | Required | Default                                 | Description                                                           |
+|---------------------|----------|-----------------------------------------|-----------------------------------------------------------------------|
+| `template`          | Yes      | —                                       | Template path (e.g. `cv/ats-single`)                                  |
+| `output_filename`   | No       | Profile name                            | Base name for output files (`.html`, `.pdf`)                          |
+| `pdf_filename_format` | No     | `{first}_{last}_Resume.pdf`             | Override the PDF filename; `{first}` and `{last}` are derived from contact name |
+| `sections`          | No       | All `true`                              | Toggle sections on or off                                             |
+| `include_tags`      | No       | `[]` (include all)                      | Only include entries with at least one matching tag                   |
+| `include_entries`   | No       | —                                       | Force-include entries excluded by tag filtering                       |
+| `section_order`     | No       | `[skills, work, education, projects]`   | Override the rendering order of sections                              |
+| `job_context`       | No       | —                                       | Metadata passed to cover letter templates and AI commands             |
+| `overlays`          | No       | —                                       | Per-job data patches (see below)                                      |
 
 ---
 
@@ -132,9 +133,9 @@ actually rendered, regardless of their position in `section_order`.
 
 ## Job Context
 
-The `job_context` key provides metadata that cover letter templates can reference.
-It has no effect on CV templates but is available in the Jinja2 render context as
-`job_context`.
+The `job_context` key provides metadata that cover letter templates and AI commands can
+reference. It has no effect on CV templates but is available in the Jinja2 render context
+as `job_context`.
 
 ```yaml
 job_context:
@@ -354,7 +355,7 @@ include_entries:
   work:
     - match: {company: "Acme Corp"}
 
-# ── Job context (for cover letter templates) ───────────────────────
+# ── Job context (for cover letter templates and AI commands) ───────
 job_context:
   company: Stripe
   role: Senior Infrastructure Engineer

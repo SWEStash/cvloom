@@ -1,5 +1,7 @@
 # PII Safety Guide
 
+[Back to README](../../README.md)
+
 cvloom is designed so that your name, email, phone number, and address **never enter version control**.
 
 ## How it works
