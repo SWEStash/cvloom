@@ -9,6 +9,10 @@ import pytest
 
 from cvloom.mcp_server import (
     _slugify,
+    ai_align_to_jd,
+    ai_generate_cover,
+    ai_review_cv,
+    ai_suggest_improvements,
     build_cv,
     check_cv,
     create_profile,
@@ -22,6 +26,7 @@ from cvloom.mcp_server import (
     upsert_project,
     validate_data,
 )
+from tests.ai_fakes import FakeClient
 
 
 @pytest.fixture
@@ -29,11 +34,9 @@ def project_dir(tmp_path: Path) -> str:
     """Create a minimal project structure for MCP tests."""
     data = tmp_path / "data"
     data.mkdir()
-    (data / "basics.yaml").write_text(
-        'headline: "Test Engineer"\nsummary: "A test summary."\n'
-    )
+    (data / "basics.yaml").write_text('headline: "Test Engineer"\nsummary: "A test summary."\n')
     (data / "work.yaml").write_text(
-        '- company: Acme\n  title: Engineer\n  location: Remote\n'
+        "- company: Acme\n  title: Engineer\n  location: Remote\n"
         '  start_date: "2020-01"\n  end_date: Present\n'
         "  highlights:\n    - Designed and built a distributed system handling 10k requests.\n"
         "  tags: [python]\n"
@@ -43,9 +46,7 @@ def project_dir(tmp_path: Path) -> str:
         '  start_date: "2016"\n  end_date: "2020"\n'
         "  highlights:\n    - Graduated with honours in computer science program.\n"
     )
-    (data / "skills.yaml").write_text(
-        "- category: Languages\n  items: [Python]\n"
-    )
+    (data / "skills.yaml").write_text("- category: Languages\n  items: [Python]\n")
     projects = data / "projects"
     projects.mkdir()
     (projects / "alpha.yaml").write_text(
@@ -69,12 +70,9 @@ def project_dir(tmp_path: Path) -> str:
 
     profiles = tmp_path / "profiles"
     profiles.mkdir()
-    (profiles / "general.yaml").write_text(
-        "template: cv/ats-single\noutput_filename: cv\n"
-    )
+    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
     (profiles / "backend.yaml").write_text(
-        "template: cv/modern-single\noutput_filename: backend-cv\n"
-        "include_tags: [python]\n"
+        "template: cv/modern-single\noutput_filename: backend-cv\ninclude_tags: [python]\n"
     )
 
     return str(tmp_path)
@@ -224,9 +222,7 @@ def test_check_cv_returns_findings(project_dir: str) -> None:
 
 
 def test_check_cv_with_rule_filter(project_dir: str) -> None:
-    result = json.loads(
-        check_cv(profile="general", rule_ids=["ats-001"], project_root=project_dir)
-    )
+    result = json.loads(check_cv(profile="general", rule_ids=["ats-001"], project_root=project_dir))
     assert isinstance(result, list)
     for finding in result:
         assert finding["rule_id"] == "ats-001"
@@ -266,3 +262,149 @@ def test_match_jd_returns_coverage(project_dir: str) -> None:
     assert "matched" in result
     assert "gaps" in result
     assert isinstance(result["matched"], list)
+
+
+# ── AI tool tests (fake client, no backend) ───────────────────────
+
+
+@pytest.fixture
+def ai_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://localhost:9999/v1")
+    monkeypatch.setenv("CVLOOM_AI_MODEL", "test-model")
+
+
+def _patch_client(monkeypatch: pytest.MonkeyPatch, content: str) -> FakeClient:
+    client = FakeClient(content)
+    monkeypatch.setattr("cvloom.ai.get_client", lambda: client)
+    return client
+
+
+def test_ai_tools_error_when_not_configured(
+    project_dir: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
+    for tool in (ai_review_cv, ai_generate_cover, ai_suggest_improvements, ai_align_to_jd):
+        result = json.loads(tool(project_root=project_dir))
+        assert "not configured" in result["error"]
+
+
+def test_ai_review_cv_success(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(
+        monkeypatch,
+        json.dumps(
+            {
+                "overall_score": 8.0,
+                "sections": [
+                    {"section": "work", "score": 8.5, "strengths": ["clear"], "weaknesses": []}
+                ],
+                "top_priorities": ["add metrics"],
+            }
+        ),
+    )
+    result = json.loads(ai_review_cv(profile="general", project_root=project_dir))
+    assert result["overall_score"] == 8.0
+    assert result["sections"][0]["section"] == "work"
+    assert result["top_priorities"] == ["add metrics"]
+
+
+def test_ai_review_cv_malformed_response_returns_error(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(monkeypatch, "not { json")
+    result = json.loads(ai_review_cv(profile="general", project_root=project_dir))
+    assert "invalid JSON" in result["error"]
+
+
+def test_ai_generate_cover_success(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(
+        monkeypatch,
+        json.dumps({"letter": "Dear team, hello.", "word_count": 3, "key_alignments": ["python"]}),
+    )
+    result = json.loads(
+        ai_generate_cover(profile="general", jd_text="Python role", project_root=project_dir)
+    )
+    assert result["letter"] == "Dear team, hello."
+    assert result["word_count"] == 3
+
+
+def test_ai_generate_cover_malformed_response_returns_error(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(monkeypatch, "<oops>")
+    result = json.loads(
+        ai_generate_cover(profile="general", jd_text="Python role", project_root=project_dir)
+    )
+    assert "invalid JSON" in result["error"]
+
+
+def test_ai_suggest_improvements_success(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(
+        monkeypatch,
+        json.dumps(
+            {
+                "suggestions": [
+                    {
+                        "section": "work",
+                        "entry": "Acme",
+                        "type": "bullet",
+                        "current": None,
+                        "suggested": "Cut costs by 20%.",
+                        "rationale": "metric",
+                    }
+                ],
+                "missing_skills": ["Docker"],
+                "summary": "ok",
+            }
+        ),
+    )
+    result = json.loads(
+        ai_suggest_improvements(profile="general", role="Backend", project_root=project_dir)
+    )
+    assert result["suggestions"][0]["suggested"] == "Cut costs by 20%."
+    assert result["missing_skills"] == ["Docker"]
+
+
+def test_ai_suggest_improvements_malformed_response_returns_error(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(monkeypatch, "nope")
+    result = json.loads(ai_suggest_improvements(profile="general", project_root=project_dir))
+    assert "invalid JSON" in result["error"]
+
+
+def test_ai_align_to_jd_success(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(
+        monkeypatch,
+        json.dumps(
+            {
+                "alignment_score": 7.0,
+                "narrative": "Good fit.",
+                "repositioning": ["Lead with Python."],
+                "tone_gaps": [],
+                "strengths": ["python"],
+            }
+        ),
+    )
+    result = json.loads(
+        ai_align_to_jd(profile="general", jd_text="Python role", project_root=project_dir)
+    )
+    assert result["alignment_score"] == 7.0
+    assert result["repositioning"] == ["Lead with Python."]
+
+
+def test_ai_align_to_jd_malformed_response_returns_error(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_client(monkeypatch, "{{bad")
+    result = json.loads(
+        ai_align_to_jd(profile="general", jd_text="Python role", project_root=project_dir)
+    )
+    assert "invalid JSON" in result["error"]
