@@ -14,27 +14,30 @@ diffable and reviewable.
 
 ---
 
+Every command below is runnable in [`examples/`](examples/):
+
 ```
-$ cvloom build --profile backend-role    # one dataset → a tailored CV…
-  ✓ PDF   → dist/backend-role.pdf
+$ cvloom build --profile general          # your full CV, from one dataset
+  ✓ HTML  → dist/cv.html
+  ✓ PDF   → dist/Your_Name_Resume.pdf
 
-$ cvloom build --profile data-role       # …and another, from the SAME data
-  ✓ PDF   → dist/data-role.pdf
+$ cvloom build --profile example-job      # …same data, tailored for a specific role
+  ✓ HTML  → dist/example-job-cv.html
 
-$ cvloom diff backend-role data-role     # tailoring is declarative + diffable
-  Words: 128 vs 131 (+3)
-  Highlights: 4 vs 4
+$ cvloom diff general example-job         # tailoring is declarative + diffable
+  Words: 195 vs 184 (-11)
+  Highlights: 12 vs 12
 
-$ cvloom check --profile backend-role    # writing lint — no fake "ATS score"
-  wl-001  writing  work  Acme Corp  Passive voice: "was built"  Use an active verb.
+$ cvloom check --profile example-job      # writing lint — no fake "ATS score"
+  wl-002  writing  projects  cvloom  No quantification found  Add metrics.
 
-$ cvloom match --jd stripe.txt -p backend-role   # keyword gap vs a job description
-  Coverage: 72% (18 of 25 JD keywords found)
+$ cvloom match --jd stripe-infra-jd.txt --profile example-job
+  Coverage: 41% (27 of 66 JD keywords found)
 ```
 
 Change a fact once in `data/` and every profile that uses it updates on the next build. See the
 worked [one dataset, N applications](docs/reference/profiles-and-overlays.md#one-dataset-n-applications--a-worked-example)
-example, or try the runnable demo in [`examples/`](examples/).
+example.
 
 ---
 

@@ -1,0 +1,19 @@
+Senior Infrastructure Engineer
+
+We are looking for a senior infrastructure engineer to help scale our distributed
+systems. You will design and operate high-throughput services, own reliability, and
+improve developer productivity across the platform.
+
+Responsibilities:
+- Design and operate distributed systems handling millions of events per second
+- Build and maintain event-driven pipelines with Kafka
+- Own reliability, on-call, and incident response for core services
+- Improve CI/CD and deployment tooling for engineering teams
+- Mentor engineers and drive technical standards
+
+Requirements:
+- Strong experience with Python and Go
+- Deep experience with Kafka, distributed systems, and microservices
+- Hands-on with AWS, Kubernetes, Terraform, and Docker
+- Experience with observability: metrics, tracing, and structured logging
+- Track record of improving reliability and developer experience at scale

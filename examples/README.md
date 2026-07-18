@@ -12,12 +12,15 @@ project elsewhere with `cvloom init`.
 
 ```bash
 cd examples
-cvloom build --profile general --public          # HTML + PDF, placeholder contact
-cvloom build --profile modern --public --skip-pdf
-cvloom check --profile general                    # writing lint
+cvloom build --profile general --public              # full CV: HTML + PDF, placeholder contact
+cvloom build --profile example-job --public          # same data, tailored for a role via overlays
+cvloom diff general example-job                       # see how the two variants differ
+cvloom check --profile example-job                   # writing lint
+cvloom match --jd stripe-infra-jd.txt -p example-job # keyword gap vs a sample job description
 ```
 
-Outputs land in `examples/dist/` (gitignored).
+Outputs land in `examples/dist/` (gitignored). `stripe-infra-jd.txt` is a sample job description
+for the `match` command.
 
 ## Layout
 
