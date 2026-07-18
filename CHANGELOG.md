@@ -10,6 +10,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `SECURITY.md` — private vulnerability disclosure process (GitHub Security Advisories) and a note that any real-contact-data leak (tracked file, `--public` build, Pages artifact, or MCP response) is treated as a security issue
+- `cvloom sync` — refresh cvloom-managed scaffold files (the pre-commit hook and the Pages publish workflow) to the installed package's versions after `uv tool upgrade cvloom`. Reports `up to date` / `out of date` / `missing` by default and writes nothing; `--force` applies. `init` and `sync` now share one managed-file registry. New guide: [keeping your instance updated](docs/user/keeping-updated.md)
+- Reusable **GitHub Pages publish workflow**: `cvloom init` now scaffolds `.github/workflows/publish-cv.yml`, which builds your CV in public mode (email/phone stripped) and deploys to Pages — gated behind a `DEPLOY_PAGES=true` repo variable so nothing publishes until you opt in. An optional `CONTACT_YAML` secret adds your real name/links. The tool's own repo uses the same pattern to publish `examples/`
 - `cvloom import --format json-resume <file>` — import a [JSON Resume](https://jsonresume.org/) document into cvloom's layout (the inverse of `export`), with a PII-aware split that routes contact details to `private/contact.yaml` and everything else to `data/`. Supports `--dry-run` and `--force`; imported data is schema-validated before any file is written
 - `docs/reference/ats-readiness.md` — explains the three honest, measurable axes of ATS-readiness (writing quality, JD keyword coverage, parseability) and why a single "ATS score 0–100" is not honestly achievable
 - Lint findings now carry a `category` (`writing` / `structure` / `ats-parse`), surfaced in `cvloom check`, `build --check`, and the `check_cv` MCP tool
@@ -19,6 +22,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - CI quality gates: `ruff check`, `ruff format --check`, and strict `mypy` now run in the test job, across Python 3.11, 3.12, and 3.13
 
 ### Changed
+- **Documentation sweep** for gaps/drift: refreshed a stale `CLAUDE.md` (pre-rename `simple_cv` paths, "ATS linter with 5 rules", a non-existent `--private` flag, missing `import`/`sync`); normalized end-user docs to `cvloom` (from `uv run cvloom`); replaced the old "re-run `init` to refresh the hook" upgrade step with `cvloom sync`. All internal doc links verified
+- `LICENSE` copyright holder set to **SWEStash**
+- **README repositioned** to lead with the differentiators — declarative per-job overlays (one dataset → N tailored, diffable CVs), the agent-safe MCP data layer, and PII compartmentalisation — with the AI commands demoted to a supporting section
+- **Repo restructure:** the sample CV data moved from root `data/`/`profiles/` into [`examples/`](examples/); the repository root is now unambiguously the tool. Contributors and the CI Pages demo build from `examples/` (`cd examples && cvloom build`); end users scaffold their own project with `cvloom init`. The removed stale `simple_cv/` leftover directory is gone
 - **Breaking:** lint rule IDs renamed from `ats-NNN` to `wl-NNN` (writing-lint), reflecting that most rules measure writing quality, not ATS parsing. Update any scripts or overlays that filter by rule ID
 - **Breaking:** dropped the single "ATS score 0–100" from `build --check`; it now prints a per-axis findings breakdown. `--strict N` now fails when there are *more than N findings* (a lint budget) instead of when a score is below N
 - `__version__` is now read from package metadata (`pyproject.toml` is the single source of truth)

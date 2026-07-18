@@ -53,7 +53,7 @@ Create a fresh project directory and initialize it:
 ```bash
 mkdir my-cv
 cd my-cv
-uv run cvloom init
+cvloom init
 ```
 
 This creates the following structure:
@@ -89,8 +89,8 @@ my-cv/
 Verify the scaffold worked:
 
 ```bash
-uv run cvloom list-profiles
-uv run cvloom list-projects
+cvloom list-profiles
+cvloom list-projects
 ```
 
 You should see the `general` and `cover-letter` profiles, plus the example project.
@@ -242,7 +242,7 @@ tags: [python, fastapi, open-source]
 Verify your data is valid:
 
 ```bash
-uv run cvloom list-projects
+cvloom list-projects
 ```
 
 You should see your project listed with its tags.
@@ -254,7 +254,7 @@ You should see your project listed with its tags.
 ### 3.1 Build the default profile
 
 ```bash
-uv run cvloom build
+cvloom build
 ```
 
 This builds `profiles/general.yaml` using your real contact info from `private/contact.yaml`. The output tells you:
@@ -276,22 +276,22 @@ Override the template at build time without changing the profile:
 
 ```bash
 # ATS-optimized, single-column (no web fonts)
-uv run cvloom build --template cv/ats-single
+cvloom build --template cv/ats-single
 
 # Modern single-column with accent colors and skill tags
-uv run cvloom build --template cv/modern-single
+cvloom build --template cv/modern-single
 
 # Timeline-style work history
-uv run cvloom build --template cv/timeline-clean
+cvloom build --template cv/timeline-clean
 
 # Dark headings, bold typographic hierarchy
-uv run cvloom build --template cv/executive-dark
+cvloom build --template cv/executive-dark
 
 # Two-column with sidebar — compact for dense CVs
-uv run cvloom build --template cv/sidebar-compact
+cvloom build --template cv/sidebar-compact
 
 # Academic layout (education-first, serif font)
-uv run cvloom build --template cv/academic
+cvloom build --template cv/academic
 ```
 
 Available CV templates:
@@ -310,7 +310,7 @@ Available CV templates:
 For sharing publicly or in CI, use placeholder contact info:
 
 ```bash
-uv run cvloom build --public --skip-pdf
+cvloom build --public --skip-pdf
 ```
 
 This replaces your real name/email/phone with safe placeholders. The `--skip-pdf` flag skips WeasyPrint, producing HTML only (useful if you haven't installed the system dependencies).
@@ -318,7 +318,7 @@ This replaces your real name/email/phone with safe placeholders. The `--skip-pdf
 ### 3.4 Custom output directory
 
 ```bash
-uv run cvloom build --output-dir out/
+cvloom build --output-dir out/
 ```
 
 ---
@@ -350,7 +350,7 @@ The writing lint checks your bullet points and CV structure for common quality i
 ### 4.1 Run the linter
 
 ```bash
-uv run cvloom check
+cvloom check
 ```
 
 If all your bullets are strong, you will see a clean pass. To see the linter in action, temporarily add some weak content to `data/work.yaml`:
@@ -365,7 +365,7 @@ If all your bullets are strong, you will see a clean pass. To see the linter in 
 Now run the linter again:
 
 ```bash
-uv run cvloom check
+cvloom check
 ```
 
 You will see findings like:
@@ -398,13 +398,13 @@ For the full rule reference, see [ATS Linter Rules](../reference/ats-linter-rule
 Run the linter automatically after every build with `--check`:
 
 ```bash
-uv run cvloom build --profile backend-role --check
+cvloom build --profile backend-role --check
 ```
 
 To fail CI if there are more than N lint findings, use `--strict`:
 
 ```bash
-uv run cvloom build --profile backend-role --strict 10
+cvloom build --profile backend-role --strict 10
 ```
 
 ---
@@ -416,7 +416,7 @@ The trim command analyzes word counts per section and recommends cuts to fit a p
 ### 5.1 Run the analysis
 
 ```bash
-uv run cvloom trim
+cvloom trim
 ```
 
 Sample output:
@@ -444,7 +444,7 @@ Recommendations:
 For an academic CV where 2 pages is acceptable:
 
 ```bash
-uv run cvloom trim --target-pages 2
+cvloom trim --target-pages 2
 ```
 
 ### 5.3 Iterate
@@ -452,8 +452,8 @@ uv run cvloom trim --target-pages 2
 Act on the recommendations — tighten your longest bullets or remove low-impact ones. Then rebuild and re-trim to verify:
 
 ```bash
-uv run cvloom build
-uv run cvloom trim
+cvloom build
+cvloom trim
 ```
 
 ---
@@ -481,13 +481,13 @@ EOF
 ### 6.2 Run the match
 
 ```bash
-uv run cvloom match --jd jd-backend.txt
+cvloom match --jd jd-backend.txt
 ```
 
 By default this uses the `general` profile. To match against a specific profile:
 
 ```bash
-uv run cvloom match --jd jd-backend.txt --profile backend-role
+cvloom match --jd jd-backend.txt --profile backend-role
 ```
 
 ### 6.3 Read the report
@@ -608,7 +608,7 @@ overlays:
 ### 7.2 Build the tailored profile
 
 ```bash
-uv run cvloom build --profile backend-role
+cvloom build --profile backend-role
 ```
 
 Open `dist/backend-role-cv.html` and compare it to your general CV. Notice:
@@ -664,7 +664,7 @@ For the full overlay reference, see [Profiles and Overlays](../reference/profile
 The diff command shows what changed between two profiles:
 
 ```bash
-uv run cvloom diff general backend-role
+cvloom diff general backend-role
 ```
 
 Sample output:
@@ -704,8 +704,8 @@ Four export formats are available: JSON Resume, Markdown, LinkedIn plain text, a
 Export to the [JSON Resume](https://jsonresume.org) standard for job boards and tools:
 
 ```bash
-uv run cvloom export --format json-resume
-uv run cvloom export --profile backend-role --format json-resume --output resume.json
+cvloom export --format json-resume
+cvloom export --profile backend-role --format json-resume --output resume.json
 ```
 
 Output: `dist/<profile>.resume.json`
@@ -715,7 +715,7 @@ Output: `dist/<profile>.resume.json`
 Export as a clean Markdown document (useful for pasting into READMEs or markdown-based job sites):
 
 ```bash
-uv run cvloom export --format markdown
+cvloom export --format markdown
 ```
 
 Output: `dist/<profile>.resume.md`
@@ -727,7 +727,7 @@ Sections are ordered by your profile's `section_order`. Sections with `show: fal
 Generate copy-paste-ready plain text structured for LinkedIn sections (About, Experience, Skills):
 
 ```bash
-uv run cvloom export --format linkedin
+cvloom export --format linkedin
 ```
 
 Output: `dist/<profile>.linkedin.txt`
@@ -751,7 +751,7 @@ uv pip install python-docx
 # or if you have the docx extra:
 uv sync --extra docx
 
-uv run cvloom export --format docx
+cvloom export --format docx
 ```
 
 Output: `dist/<profile>.resume.docx`
@@ -794,7 +794,7 @@ job_context:
 ### 10.2 Build the cover letter
 
 ```bash
-uv run cvloom build --profile datastream-letter
+cvloom build --profile datastream-letter
 ```
 
 Open `dist/datastream-cover-letter.html` to review. The cover letter template uses your contact info and the `job_context` fields to produce a formatted letter.
@@ -898,13 +898,13 @@ export CVLOOM_AI_MODEL=gpt-4o
 Verify your setup:
 
 ```bash
-uv run cvloom ai config
+cvloom ai config
 ```
 
 ### 13.2 Score your CV sections
 
 ```bash
-uv run cvloom ai review --profile general
+cvloom ai review --profile general
 ```
 
 Each visible section gets a 1–10 score with specific strengths, weaknesses, and improvement suggestions. The overall score and top-3 highest-impact priorities are shown at the end.
@@ -912,7 +912,7 @@ Each visible section gets a 1–10 score with specific strengths, weaknesses, an
 ### 13.3 Get improvement suggestions
 
 ```bash
-uv run cvloom ai suggest --profile backend-role --role "Senior Platform Engineer"
+cvloom ai suggest --profile backend-role --role "Senior Platform Engineer"
 ```
 
 Returns specific bullets to add, skills to include, and rewordings to consider for the target role. Suggestions are ideas — apply them manually to your YAML files.
@@ -920,7 +920,7 @@ Returns specific bullets to add, skills to include, and rewordings to consider f
 ### 13.4 Generate a cover letter
 
 ```bash
-uv run cvloom ai cover --profile backend-role --jd jd-backend.txt --output cover.md
+cvloom ai cover --profile backend-role --jd jd-backend.txt --output cover.md
 ```
 
 Generates a tailored cover letter using your CV content and the job description. If `job_context` is set in the profile (company, role, hiring_manager), the letter is personalised automatically.
@@ -928,7 +928,7 @@ Generates a tailored cover letter using your CV content and the job description.
 ### 13.5 Analyse JD alignment
 
 ```bash
-uv run cvloom ai align --profile backend-role --jd jd-backend.txt
+cvloom ai align --profile backend-role --jd jd-backend.txt
 ```
 
 Goes beyond keyword coverage to assess how your CV is *positioned* for the role — tone, framing, and narrative gaps. Shows strengths, tone gaps, and concrete repositioning actions.
@@ -951,31 +951,27 @@ uv tool upgrade cvloom
 uv lock --upgrade-package cvloom && uv sync
 ```
 
-### Step 2 — Refresh the pre-commit hook
+### Step 2 — Refresh scaffolded files with `cvloom sync`
 
-The pre-commit hook is the only file that `cvloom init` always rewrites. Run `init` from your project directory to pick up any changes to it:
+`cvloom init` scaffolds a couple of files into your project — the pre-commit PII hook and the
+GitHub Pages publish workflow. A tool upgrade doesn't change those copies, so refresh them with
+`cvloom sync`:
 
 ```bash
 cd my-cv
-cvloom init
+cvloom sync            # reports which scaffolded files are out of date (writes nothing)
+cvloom sync --force    # overwrite the out-of-date / missing ones
 ```
 
-All existing files are skipped:
-
-```
-  data/basics.yaml already exists, skipping
-  data/work.yaml already exists, skipping
-  ...
-  private/contact.yaml already exists, skipping
-✓ Pre-commit hook installed
-```
+Your `data/`, `profiles/`, and `private/` content is never touched. See
+[Keeping your instance updated](keeping-updated.md) for the full flow.
 
 ### What is safe and what to check
 
 | What | Safe to ignore | When to act |
 |------|---------------|-------------|
-| `data/`, `profiles/`, `private/` | Always — init skips them | Never |
-| Pre-commit hook | Refresh with `cvloom init` | Every upgrade |
+| `data/`, `profiles/`, `private/` | Always — never overwritten | Never |
+| Scaffolded files (hook, publish workflow) | — | Refresh with `cvloom sync --force` |
 | YAML schema changes | Check [CHANGELOG](../../CHANGELOG.md) | Only if `[breaking]` tag appears |
 
 If the CHANGELOG lists a breaking schema change (e.g. a field was renamed), update the affected files in `data/` or `profiles/` manually before running a build.
