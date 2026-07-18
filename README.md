@@ -1,8 +1,12 @@
 # cvloom
 
-**YAML-driven CV builder with per-job tailoring, ATS linting, and optional AI analysis.**
+**Manage your CV as one YAML dataset and generate any number of per-job-tailored PDFs from it — deterministically, with an agent-safe MCP layer and PII kept out of git.**
 
-Keep your CV as structured data. Generate tailored PDF and HTML outputs per job application. PII stays out of version control.
+Per-job **overlays** let you tailor a CV for each application by declarative config, not by
+copying files — so twenty variants stay consistent with one source of truth, and every variant is
+diffable and reviewable.
+
+> RenderCV renders one CV beautifully; cvloom manages twenty tailored variants of one dataset — with an agent-safe MCP layer.
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
@@ -11,30 +15,26 @@ Keep your CV as structured data. Generate tailored PDF and HTML outputs per job 
 ---
 
 ```
-$ cvloom build --profile backend-role
-  ✓ HTML  → dist/backend-role.html
+$ cvloom build --profile backend-role    # one dataset → a tailored CV…
   ✓ PDF   → dist/backend-role.pdf
-  450 words · ~1 page(s)  [work×3  edu×1  skills×4  projects×2]
 
-$ cvloom check --profile backend-role
-  wl-001  work  Acme Corp  Passive voice detected: "was built"  Rewrite using an active verb.
-  wl-002  work  Old Inc    No quantification found.              Add metrics: percentages, counts.
+$ cvloom build --profile data-role       # …and another, from the SAME data
+  ✓ PDF   → dist/data-role.pdf
 
-$ cvloom match --jd stripe-infra.txt --profile backend-role
+$ cvloom diff backend-role data-role     # tailoring is declarative + diffable
+  Words: 128 vs 131 (+3)
+  Highlights: 4 vs 4
+
+$ cvloom check --profile backend-role    # writing lint — no fake "ATS score"
+  wl-001  writing  work  Acme Corp  Passive voice: "was built"  Use an active verb.
+
+$ cvloom match --jd stripe.txt -p backend-role   # keyword gap vs a job description
   Coverage: 72% (18 of 25 JD keywords found)
-  Gaps (7): kubernetes, terraform, grafana, ...
-
-$ cvloom ai align --profile backend-role --jd stripe-infra.txt
-  Alignment Score: 6.8/10
-
-  The CV demonstrates solid backend experience but is framed around individual
-  delivery rather than the infrastructure ownership Stripe emphasises...
-
-  Repositioning Actions:
-    1. Lead with distributed systems experience, not feature delivery
-    2. Surface on-call and reliability work that is currently buried
-    3. Replace "built" with ownership framing: "owned", "operated", "scaled"
 ```
+
+Change a fact once in `data/` and every profile that uses it updates on the next build. See the
+worked [one dataset, N applications](docs/reference/profiles-and-overlays.md#one-dataset-n-applications--a-worked-example)
+example, or try the runnable demo in [`examples/`](examples/).
 
 ---
 
@@ -59,9 +59,9 @@ $ cvloom ai align --profile backend-role --jd stripe-infra.txt
 | **Export** | JSON Resume, Markdown, LinkedIn text, DOCX | `cvloom export` |
 | **Inspect** | List projects with tag filtering | `cvloom list-projects` |
 | | List all build profiles | `cvloom list-profiles` |
-| **Integrate** | MCP server — 16 tools for LLM-driven CV management | `cvloom-mcp` |
-| | GitHub Pages deployment | Built-in CI workflow |
-| **Safety** | PII compartmentalisation + pre-commit scanner | `private/` + hook |
+| **Integrate** | Agent-safe MCP server — 16 tools over a schema-validated, PII-fenced data model | `cvloom-mcp` |
+| | Publish to GitHub Pages — reusable, opt-in workflow scaffolded by `init` | `publish-cv.yml` |
+| **Safety** | PII compartmentalisation + pre-commit scanner + `--public` builds | `private/` + hook |
 
 ---
 
@@ -79,6 +79,9 @@ cd cvloom
 uv sync --all-extras
 ```
 
+The repo root is the tool itself; a runnable demo CV lives in [`examples/`](examples/)
+(`cd examples && cvloom build --profile general --public`).
+
 ### Initialise a new CV project
 
 ```bash
@@ -92,10 +95,11 @@ Scaffolds the directory structure, creates sample YAML files, and installs the p
 
 ```bash
 uv tool upgrade cvloom
-cvloom init   # refreshes the pre-commit hook; existing files are untouched
+cvloom sync   # refresh scaffolded files (hook, publish workflow); reports first, --force applies
 ```
 
-Check the [CHANGELOG](CHANGELOG.md) for any schema changes before upgrading.
+See [Keeping your instance updated](docs/user/keeping-updated.md); check the
+[CHANGELOG](CHANGELOG.md) for breaking changes before a major upgrade.
 
 ### Edit your content
 

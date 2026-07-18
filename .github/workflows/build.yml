@@ -50,7 +50,8 @@ jobs:
         run: uv sync
       - name: Install WeasyPrint system deps
         run: sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libffi-dev
-      - name: Build all profiles (public mode)
+      - name: Build all example profiles (public mode)
+        working-directory: examples
         run: |
           for profile in profiles/*.yaml; do
             name=$(basename "$profile" .yaml)
@@ -60,7 +61,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/
+          path: examples/dist/
 
   deploy:
     name: Deploy to GitHub Pages
