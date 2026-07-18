@@ -17,8 +17,8 @@ $ cvloom build --profile backend-role
   450 words · ~1 page(s)  [work×3  edu×1  skills×4  projects×2]
 
 $ cvloom check --profile backend-role
-  ats-001  work  Acme Corp  Passive voice detected: "was built"  Rewrite using an active verb.
-  ats-002  work  Old Inc    No quantification found.              Add metrics: percentages, counts.
+  wl-001  work  Acme Corp  Passive voice detected: "was built"  Rewrite using an active verb.
+  wl-002  work  Old Inc    No quantification found.              Add metrics: percentages, counts.
 
 $ cvloom match --jd stripe-infra.txt --profile backend-role
   Coverage: 72% (18 of 25 JD keywords found)
@@ -47,8 +47,8 @@ $ cvloom ai align --profile backend-role --jd stripe-infra.txt
 | | Per-job overlays — patch highlights without duplicating data | `overlays:` in profile |
 | | Section reordering and force-include per profile | `section_order:` |
 | | Public mode with placeholder contact data | `--public` |
-| **Analyse** | ATS linter — 17 rules with per-bullet feedback | `cvloom check` |
-| | ATS score (0–100) inline after build | `--check` / `--strict N` |
+| **Analyse** | Writing lint — 17 rules across writing / structure / ats-parse axes | `cvloom check` |
+| | Per-axis lint breakdown inline after build (no fake "ATS score") | `--check` / `--strict N` |
 | | Per-section word breakdown and trim guidance | `cvloom trim` |
 | | Side-by-side profile comparison | `cvloom diff A B` |
 | **Match** | Keyword gap analysis from job description | `cvloom match --jd FILE` |
@@ -117,7 +117,7 @@ private/
 cvloom build                          # default profile, HTML + PDF
 cvloom build --profile backend-role   # specific profile
 cvloom build --public --skip-pdf      # HTML only, placeholder contact
-cvloom build --profile NAME --check   # build + ATS score
+cvloom build --profile NAME --check   # build + writing-lint breakdown
 ```
 
 Outputs land in `dist/`. See [docs/user/cli-reference.md](docs/user/cli-reference.md) for the full command reference.
@@ -218,7 +218,7 @@ overlays:
     include_categories: [Languages, Cloud]
 ```
 
-See [docs/reference/profiles-and-overlays.md](docs/reference/profiles-and-overlays.md) for the full overlay reference.
+Because tailoring is declarative config, two variants are **diffable** (`cvloom diff A B`) and always consistent — update a fact once in `data/` and every profile that uses it updates on the next build. See the worked [one dataset, N applications example](docs/reference/profiles-and-overlays.md#one-dataset-n-applications--a-worked-example), or the [full overlay reference](docs/reference/profiles-and-overlays.md).
 
 ---
 
@@ -241,7 +241,7 @@ cvloom-mcp
 | `upsert_project` | Create or update a project |
 | `validate_data` | Run schema validation |
 | `export_json_resume` | Export as JSON Resume |
-| `check_cv` | Run ATS linter, return findings |
+| `check_cv` | Run writing lint, return categorized findings |
 | `trim_report` | Per-section word counts and trim recommendations |
 | `diff_profiles` | Compare two profiles side by side |
 | `match_jd` | Keyword gap analysis against a JD |
@@ -288,7 +288,8 @@ my-cv/
 
 | Guide | What's covered |
 |---|---|
-| [ATS Linter Rules](docs/reference/ats-linter-rules.md) | All 17 rules with examples and fix hints |
+| [Writing Lint Rules](docs/reference/ats-linter-rules.md) | All 17 rules with categories, examples, and fix hints |
+| [ATS-readiness model](docs/reference/ats-readiness.md) | The three honest axes, and why there is no single "ATS score" |
 | [MCP Server](docs/reference/mcp-server.md) | Setup, all 16 tools, and example workflows |
 | [Profiles and Overlays](docs/reference/profiles-and-overlays.md) | Full overlay system reference |
 

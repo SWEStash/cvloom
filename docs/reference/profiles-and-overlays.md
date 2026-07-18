@@ -23,7 +23,8 @@ This guide starts with simple profiles and progressively introduces the overlay 
    - [Basics Overlay](#basics-overlay)
    - [Array Section Overlays](#array-section-overlays-work-education-projects)
    - [Skills Overlay](#skills-overlay)
-8. [Full Annotated Example](#full-annotated-example)
+8. [One Dataset, N Applications — A Worked Example](#one-dataset-n-applications--a-worked-example)
+9. [Full Annotated Example](#full-annotated-example)
 
 ---
 
@@ -319,6 +320,139 @@ overlays:
 
 Skill items can be plain strings or `{name, level}` dicts. The `exclude_items` list
 matches against the item name in either case.
+
+---
+
+## One Dataset, N Applications — A Worked Example
+
+This is the idea cvloom is built around: **write each fact about your career once, then
+produce any number of tailored CVs from it — deterministically, and diffable.** No
+copy-pasted `resume_backend_final_v2.docx` files drifting out of sync.
+
+### The single source of truth
+
+You maintain one work entry. Each highlight has a stable `id` so overlays can address it:
+
+```yaml
+# data/work.yaml  (the ONLY place these facts live)
+- company: DataCo
+  title: Software Engineer
+  location: Remote
+  start_date: "2021-01"
+  end_date: Present
+  highlights:
+    - id: api
+      text: "Built a FastAPI service handling 20k req/s for the billing platform."
+    - id: kafka
+      text: "Designed a Kafka pipeline ingesting 2M events/day into the warehouse."
+    - id: dbt
+      text: "Modeled 40+ dbt marts powering exec dashboards, cutting report latency 60%."
+    - id: mentoring
+      text: "Mentored 3 engineers and ran the team's code-review guild."
+  tags: [python, fastapi, kafka, dbt, sql]
+```
+
+```yaml
+# data/skills.yaml
+- category: Languages
+  items: [Python, SQL, Go]
+- category: Backend
+  items: [FastAPI, PostgreSQL, Redis]
+- category: Data
+  items: [Kafka, dbt, Snowflake, Airflow]
+```
+
+### Two applications, two profiles — same data
+
+**Application A — a backend role.** Emphasize the API and streaming work; show backend skills:
+
+```yaml
+# profiles/backend-role.yaml
+template: cv/ats-single
+output_filename: backend-cv
+job_context: { company: Acme, role: Senior Backend Engineer }
+overlays:
+  basics:
+    headline: "Senior Backend Engineer — Python & APIs"
+  work:
+    - match: { company: DataCo }
+      title: "Senior Backend Engineer"
+      highlights:
+        mode: pick
+        items: [api, kafka, mentoring]   # the 'dbt' bullet is dropped
+  skills:
+    include_categories: [Languages, Backend]
+```
+
+**Application B — an analytics-engineering role.** Emphasize the warehouse and dbt work;
+show data skills — *from the exact same base data*:
+
+```yaml
+# profiles/data-role.yaml
+template: cv/ats-single
+output_filename: data-cv
+job_context: { company: Globex, role: Analytics Engineer }
+overlays:
+  basics:
+    headline: "Analytics Engineer — dbt & Warehousing"
+  work:
+    - match: { company: DataCo }
+      title: "Analytics Engineer"
+      highlights:
+        mode: pick
+        items: [dbt, kafka, mentoring]   # the 'api' bullet is dropped
+  skills:
+    include_categories: [Languages, Data]
+```
+
+The `kafka` and `mentoring` bullets appear in both; `api` is backend-only; `dbt` is
+data-only. Neither profile copies a single line of your base data. (The example shows only
+the files that change — you also need your usual `data/basics.yaml` and
+`data/education.yaml`.)
+
+### Build both
+
+```bash
+uv run cvloom build --profile backend-role --public --skip-pdf
+uv run cvloom build --profile data-role --public --skip-pdf
+```
+
+The two CVs now carry different work bullets from the same source:
+
+| Bullet | `backend-cv` | `data-cv` |
+|---|:---:|:---:|
+| `api` — FastAPI billing service | ✓ | — |
+| `kafka` — streaming pipeline | ✓ | ✓ |
+| `dbt` — warehouse marts | — | ✓ |
+| `mentoring` — code-review guild | ✓ | ✓ |
+
+### The tailoring is reviewable and diffable
+
+Because tailoring is *declarative config*, not hand-editing, it is reviewable two ways.
+First, the profiles themselves diff cleanly in git — a reviewer sees exactly which bullets
+and skill categories each application selected. Second, `cvloom diff` gives a quick
+content-size comparison of the two resolved profiles:
+
+```bash
+uv run cvloom diff backend-role data-role
+```
+
+```
+Words: 81 vs 80 (-1)
+Highlights: 4 vs 4
+```
+
+(Both variants keep the same DataCo entry and the same sections, so they are the same size;
+the *difference is which bullets and skills each one selected* — visible in the table above
+and in the rendered output.)
+
+### Why this matters
+
+Update a fact **once** — say the Kafka pipeline now handles 5M events/day — in
+`data/work.yaml`, and **every** profile that includes that bullet updates on the next build.
+There is no find-and-replace across a folder of Word documents, and no risk that your
+"backend" CV quietly disagrees with your "data" CV about what you actually did. One dataset,
+N applications, always consistent.
 
 ---
 

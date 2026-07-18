@@ -10,11 +10,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `cvloom import --format json-resume <file>` — import a [JSON Resume](https://jsonresume.org/) document into cvloom's layout (the inverse of `export`), with a PII-aware split that routes contact details to `private/contact.yaml` and everything else to `data/`. Supports `--dry-run` and `--force`; imported data is schema-validated before any file is written
+- `docs/reference/ats-readiness.md` — explains the three honest, measurable axes of ATS-readiness (writing quality, JD keyword coverage, parseability) and why a single "ATS score 0–100" is not honestly achievable
+- Lint findings now carry a `category` (`writing` / `structure` / `ats-parse`), surfaced in `cvloom check`, `build --check`, and the `check_cv` MCP tool
+- MCP agent-safety hardening: documented and tested guarantees that mutating tools reject malformed writes with a structured `{"error", "details"}` (no partial write), and that read/analysis tools never surface contact email/phone. The `export_json_resume` MCP tool now defaults to `public=true` (PII fenced); pass `public=false` to opt into real contact details
 - MIT `LICENSE` file (the license was previously declared but not shipped)
 - Fake-client tests for all four AI orchestrators (`review`, `generate_cover`, `suggest`, `align`) and all four AI MCP tools, including malformed-response cases — AI orchestration modules now at 100% coverage
 - CI quality gates: `ruff check`, `ruff format --check`, and strict `mypy` now run in the test job, across Python 3.11, 3.12, and 3.13
 
 ### Changed
+- **Breaking:** lint rule IDs renamed from `ats-NNN` to `wl-NNN` (writing-lint), reflecting that most rules measure writing quality, not ATS parsing. Update any scripts or overlays that filter by rule ID
+- **Breaking:** dropped the single "ATS score 0–100" from `build --check`; it now prints a per-axis findings breakdown. `--strict N` now fails when there are *more than N findings* (a lint budget) instead of when a score is below N
 - `__version__` is now read from package metadata (`pyproject.toml` is the single source of truth)
 - Codebase formatted with `ruff format`; formatting is now enforced in CI
 - Root `CONTRIBUTING.md` is the canonical contributing guide; `docs/dev/contributing.md` now points to it
