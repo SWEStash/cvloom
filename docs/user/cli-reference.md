@@ -18,6 +18,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [export](#export)
 - [import](#import)
 - [init](#init)
+- [sync](#sync)
 - [list-projects](#list-projects)
 - [list-profiles](#list-profiles)
 - [ai](#ai)
@@ -431,11 +432,16 @@ cvloom init [OPTIONS]
 ├── profiles/
 │   ├── general.yaml
 │   └── cover-letter.yaml
-└── private/
-    └── contact.yaml
+├── private/
+│   └── contact.yaml
+└── .github/
+    └── workflows/
+        └── publish-cv.yml
 ```
 
-It also installs the pre-commit PII hook (see [PII Safety](pii-safety.md)).
+It also installs the pre-commit PII hook (see [PII Safety](pii-safety.md)) and scaffolds the
+GitHub Pages [publish workflow](github-pages-setup.md). Both are *managed files* — refresh them
+after a tool upgrade with [`cvloom sync`](#sync).
 
 ### Examples
 
@@ -446,6 +452,35 @@ cvloom init
 
 # Re-scaffold, overwriting existing files
 cvloom init --force
+```
+
+---
+
+## `sync`
+
+Refresh cvloom-managed scaffold files (the pre-commit hook and the Pages publish workflow) to the
+versions shipped in the installed package. Run it after `uv tool upgrade cvloom`. See
+[Keeping your instance updated](keeping-updated.md).
+
+```bash
+cvloom sync [OPTIONS]
+```
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--force` | off | Overwrite out-of-date / missing managed files (otherwise only reports status) |
+
+### Behaviour
+
+Without `--force`, `sync` byte-compares each managed file against the packaged version and reports
+`up to date` / `out of date` / `missing`, writing nothing. With `--force` it overwrites the
+out-of-date and missing ones. Review the result with `git diff` after a forced sync.
+
+```bash
+cvloom sync            # report status only
+cvloom sync --force    # apply updates
 ```
 
 ---

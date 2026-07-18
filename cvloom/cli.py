@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -524,12 +525,64 @@ def init(force: bool) -> None:
     _init_data_files(root, force)
     _init_profile(root, force)
     _init_private(root, force)
-    _install_hook(root)
+    for mf in _MANAGED_FILES:
+        _scaffold_managed(mf, root, force)
     _console.print("\n[bold green]✓ cvloom project initialised.[/bold green]")
     _console.print("  Next steps:")
     _console.print("  1. Edit files in [bold]data/[/bold] with your CV content.")
     _console.print("  2. Add your contact details to [bold]private/contact.yaml[/bold].")
     _console.print("  3. Run [bold]cvloom build[/bold].")
+    _console.print(
+        "  4. To publish to GitHub Pages: Settings → Pages → Source"
+        " [bold]GitHub Actions[/bold], then add the repo variable"
+        " [bold]DEPLOY_PAGES=true[/bold] (see .github/workflows/publish-cv.yml)."
+    )
+
+
+# ---------------------------------------------------------------------------
+# sync
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.option(
+    "--force", is_flag=True, help="Overwrite out-of-date/missing files with the packaged versions."
+)
+def sync(force: bool) -> None:
+    """Refresh cvloom-managed scaffold files (pre-commit hook, publish workflow).
+
+    After `uv tool upgrade cvloom`, run this to bring the scaffolded files up to
+    the installed version. Without --force it only reports status.
+    """
+    root = _root()
+    _status_style = {
+        "current": ("green", "up to date"),
+        "outdated": ("yellow", "out of date"),
+        "missing": ("yellow", "missing"),
+        "unavailable": ("dim", "unavailable (not a git repo?)"),
+    }
+    stale: list[_ManagedFile] = []
+    for mf in _MANAGED_FILES:
+        status = _managed_status(mf, root)
+        color, text = _status_style[status]
+        _console.print(f"[{color}]•[/{color}] {mf.dest_rel} — {text}")
+        if status in ("outdated", "missing"):
+            stale.append(mf)
+
+    if not stale:
+        _console.print("\n[green]✓ All managed files are up to date.[/green]")
+        return
+
+    if not force:
+        _console.print(
+            f"\n[yellow]{len(stale)} file(s) need updating.[/yellow]"
+            " Re-run with [bold]--force[/bold] to overwrite them."
+        )
+        return
+
+    for mf in stale:
+        _write_managed(mf, root)
+        _console.print(f"[green]✓[/green] Updated {mf.dest_rel}")
 
 
 # ---------------------------------------------------------------------------
@@ -988,23 +1041,79 @@ def _init_private(root: Path, force: bool) -> None:
         gitignore_private.write_text("*\n")
 
 
-def _install_hook(root: Path) -> None:
-    hooks_src = Path(__file__).parent / "hooks" / "pre-commit"
-    git_hooks = root / ".git" / "hooks"
-    if not git_hooks.exists():
-        _console.print(
-            "[yellow]Warning:[/yellow] .git/hooks directory not found"
-            " — is this a git repo? Skipping hook installation."
-        )
-        return
+# ---------------------------------------------------------------------------
+# Managed scaffold files (shared by `init` and `sync`)
+# ---------------------------------------------------------------------------
 
-    dst = git_hooks / "pre-commit"
-    if hooks_src.exists():
-        shutil.copy2(hooks_src, dst)
-        dst.chmod(0o755)
-        _console.print("[green]✓[/green] Installed pre-commit PII scanner hook")
-    else:
-        _console.print("[yellow]Warning:[/yellow] hooks/pre-commit source not found, skipping.")
+
+@dataclass(frozen=True)
+class _ManagedFile:
+    """A file cvloom scaffolds into a project and can later re-sync."""
+
+    label: str
+    src: Path  # source inside the installed package
+    dest_rel: str  # destination relative to the project root
+    executable: bool = False
+    requires_git_dir: bool = False  # dest lives under .git/ (per-clone; needs a git repo)
+
+
+_PKG_DIR = Path(__file__).parent
+
+_MANAGED_FILES: list[_ManagedFile] = [
+    _ManagedFile(
+        "pre-commit PII scanner hook",
+        _PKG_DIR / "hooks" / "pre-commit",
+        ".git/hooks/pre-commit",
+        executable=True,
+        requires_git_dir=True,
+    ),
+    _ManagedFile(
+        "GitHub Pages publish workflow",
+        _PKG_DIR / "scaffold" / "workflows" / "publish-cv.yml",
+        ".github/workflows/publish-cv.yml",
+    ),
+]
+
+
+def _managed_status(mf: _ManagedFile, root: Path) -> str:
+    """Status of a managed file: unavailable / missing / current / outdated."""
+    if not mf.src.exists():
+        return "unavailable"
+    if mf.requires_git_dir and not (root / ".git" / "hooks").exists():
+        return "unavailable"
+    dest = root / mf.dest_rel
+    if not dest.exists():
+        return "missing"
+    if dest.read_bytes() == mf.src.read_bytes():
+        return "current"
+    return "outdated"
+
+
+def _write_managed(mf: _ManagedFile, root: Path) -> None:
+    dest = root / mf.dest_rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(mf.src, dest)
+    if mf.executable:
+        dest.chmod(0o755)
+
+
+def _scaffold_managed(mf: _ManagedFile, root: Path, force: bool) -> None:
+    """Write a managed file during `init` (create-if-absent; overwrite on --force)."""
+    status = _managed_status(mf, root)
+    if status == "unavailable":
+        if mf.requires_git_dir:
+            _console.print(
+                f"[yellow]Warning:[/yellow] .git/hooks not found — skipping {mf.label}"
+                " (not a git repo?)."
+            )
+        else:
+            _console.print(f"[yellow]Warning:[/yellow] {mf.label} source not found, skipping.")
+        return
+    if status in ("current", "outdated") and not force:
+        _console.print(f"[dim]  {mf.dest_rel} already exists, skipping[/dim]")
+        return
+    _write_managed(mf, root)
+    _console.print(f"[green]✓[/green] Created {mf.dest_rel}")
 
 
 # ---------------------------------------------------------------------------

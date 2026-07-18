@@ -261,6 +261,11 @@ def test_init_creates_structure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert (init_dir / "data").is_dir()
     assert (init_dir / "profiles").is_dir()
     assert (init_dir / "private").is_dir()
+    # Scaffolds the reusable GitHub Pages publish workflow.
+    workflow = init_dir / ".github" / "workflows" / "publish-cv.yml"
+    assert workflow.is_file()
+    assert "DEPLOY_PAGES" in workflow.read_text()
+    assert "DEPLOY_PAGES" in result.output
 
 
 def test_init_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -272,3 +277,62 @@ def test_init_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     runner.invoke(cli, ["init"])
     result = runner.invoke(cli, ["init", "--force"])
     assert result.exit_code == 0
+
+
+# ── sync command ───────────────────────────────────────────────────
+
+
+def _init_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / ".git" / "hooks").mkdir(parents=True)
+    monkeypatch.chdir(proj)
+    CliRunner().invoke(cli, ["init"])
+    return proj
+
+
+def test_sync_reports_up_to_date(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _init_project(tmp_path, monkeypatch)
+    result = CliRunner().invoke(cli, ["sync"])
+    assert result.exit_code == 0
+    assert "up to date" in result.output
+
+
+def test_sync_detects_outdated_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proj = _init_project(tmp_path, monkeypatch)
+    workflow = proj / ".github" / "workflows" / "publish-cv.yml"
+    workflow.write_text(workflow.read_text() + "\n# local edit\n")
+
+    result = CliRunner().invoke(cli, ["sync"])
+    assert result.exit_code == 0
+    assert "out of date" in result.output
+    assert "--force" in result.output
+    # Without --force the file is untouched.
+    assert "# local edit" in workflow.read_text()
+
+
+def test_sync_force_restores_managed_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    proj = _init_project(tmp_path, monkeypatch)
+    workflow = proj / ".github" / "workflows" / "publish-cv.yml"
+    workflow.write_text("garbage\n")
+
+    result = CliRunner().invoke(cli, ["sync", "--force"])
+    assert result.exit_code == 0
+    assert "Updated" in result.output
+    restored = workflow.read_text()
+    assert "garbage" not in restored
+    assert "DEPLOY_PAGES" in restored
+
+
+def test_sync_reports_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    proj = _init_project(tmp_path, monkeypatch)
+    (proj / ".github" / "workflows" / "publish-cv.yml").unlink()
+
+    result = CliRunner().invoke(cli, ["sync"])
+    assert result.exit_code == 0
+    assert "missing" in result.output
+    # --force writes the missing file back.
+    CliRunner().invoke(cli, ["sync", "--force"])
+    assert (proj / ".github" / "workflows" / "publish-cv.yml").is_file()

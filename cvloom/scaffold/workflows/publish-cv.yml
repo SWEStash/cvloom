@@ -1,0 +1,75 @@
+# Publish your CV to GitHub Pages with cvloom.
+#
+# This workflow is scaffolded by `cvloom init`. It builds your CV in PUBLIC mode
+# (email and phone are stripped) and deploys the HTML to GitHub Pages.
+#
+# To enable it:
+#   1. Settings → Pages → Build and deployment → Source: "GitHub Actions".
+#   2. Settings → Secrets and variables → Actions → Variables:
+#        add a repository variable  DEPLOY_PAGES = true
+#      (until this is set, the workflow builds but does NOT deploy.)
+#   3. (Optional) to show your real name/links, add a repository SECRET
+#        CONTACT_YAML = the full contents of your private/contact.yaml
+#      Email and phone are still stripped by --public before publishing.
+#
+# Change PROFILE below to the profile you want to publish.
+
+name: Publish CV to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROFILE: general
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install cvloom
+        run: uv tool install cvloom
+      - name: Install WeasyPrint system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libffi-dev
+      - name: Provide public contact (optional)
+        env:
+          CONTACT_YAML: ${{ secrets.CONTACT_YAML }}
+        run: |
+          if [ -n "$CONTACT_YAML" ]; then
+            mkdir -p private
+            printf '%s' "$CONTACT_YAML" > private/contact.yaml
+          fi
+      - name: Build (public mode — email/phone stripped)
+        run: cvloom build --profile "$PROFILE" --public
+      - name: Upload Pages artifact
+        if: ${{ vars.DEPLOY_PAGES == 'true' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+  deploy:
+    needs: build
+    if: ${{ vars.DEPLOY_PAGES == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

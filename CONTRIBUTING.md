@@ -33,6 +33,14 @@ uv run pytest               # run all tests
 uv run cvloom --help     # smoke test
 ```
 
+To try the tool against the sample CV, build from [`examples/`](examples/)
+(`cd examples && uv run cvloom build --profile general --public`).
+
+> **Contributing vs. using cvloom for your own CV.** The fork + `upstream` remote pattern in this
+> section is for working on cvloom itself. If you just want to maintain *your own* CV, don't fork —
+> install the tool (`uv tool install cvloom`) and keep your data in its own repo; see
+> [Keeping your instance updated](docs/user/keeping-updated.md).
+
 ## Development workflow
 
 ```bash

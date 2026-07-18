@@ -1,42 +1,54 @@
-# GitHub Pages Setup
+# Publish your CV to GitHub Pages
 
 [Back to README](../../README.md)
 
-Publish a public version of your CV (with placeholder contact) automatically on push.
+`cvloom init` scaffolds a ready-to-use workflow at `.github/workflows/publish-cv.yml` that
+builds your CV in **public mode** (email and phone stripped) and deploys the HTML to GitHub
+Pages. It's the same mechanism cvloom uses to publish its own [`examples/`](../../examples/)
+demo — pointed at your data instead.
 
 ## Prerequisites
 
-- Your repo is public (or Pages is enabled on a private repo)
-- GitHub Actions is enabled
+- A GitHub repository containing your cvloom project (created by `cvloom init`)
+- GitHub Actions enabled
 
 ## Setup steps
 
-1. Go to **Settings → Variables → Actions** and add a repository variable `DEPLOY_PAGES` with value `true`.
+1. **Settings → Pages → Build and deployment → Source:** select **GitHub Actions**.
+2. **Settings → Secrets and variables → Actions → Variables:** add a repository variable
+   `DEPLOY_PAGES` with value `true`.
+   Until this variable is set, the workflow **builds but does not deploy** — a safety gate so
+   nothing is published by accident.
+3. Push to `main` (or run the workflow manually from the Actions tab).
+4. Your CV appears at `https://<username>.github.io/<repo>/`.
 
-2. Go to **Settings → Pages → Source** and select **GitHub Actions**.
-
-3. The workflow at `.github/workflows/build.yml` runs `cvloom build --public` on every push to `main`.
-
-4. The built `dist/` directory is deployed to the `gh-pages` branch.
-
-5. Your CV will be available at `https://<username>.github.io/<repo>/`.
+By default the workflow publishes the `general` profile — change the `PROFILE:` value at the top
+of `.github/workflows/publish-cv.yml` to publish a different one.
 
 ## What gets published
 
-Only files built with `--public` mode — placeholder contact data, never your real PII.
+The workflow builds with `--public`, so **email and phone are always stripped** before anything
+reaches Pages. With no contact configured, the name shows as a placeholder.
 
-## Private builds in CI (advanced)
+## Showing your real name and links (optional)
 
-If you need real contact data in CI (e.g. for a private Pages instance):
+To put your real name, location, and LinkedIn/GitHub links on the published page (still without
+email/phone):
 
-1. Add your `private/contact.yaml` content as a GitHub Actions secret `CONTACT_YAML`.
-2. In the workflow, write it to `private/contact.yaml` before building:
-   ```yaml
-   - name: Write private contact
-     run: |
-       mkdir -p private
-       echo "${{ secrets.CONTACT_YAML }}" > private/contact.yaml
-   ```
-3. Change the build step to `cvloom build --private`.
+1. **Settings → Secrets and variables → Actions → Secrets:** add a secret `CONTACT_YAML` whose
+   value is the full contents of your `private/contact.yaml`.
+2. The scaffolded workflow writes it to `private/contact.yaml` at build time, then builds with
+   `--public` — so email and phone are stripped even if present in the secret.
 
-Keep the `--public` fallback for the public Pages deployment.
+`private/contact.yaml` stays gitignored; the secret is the only way your contact reaches CI.
+
+## Keeping the workflow up to date
+
+The workflow file is a scaffolded copy. When a new cvloom release ships an improved workflow,
+refresh it with [`cvloom sync`](keeping-updated.md).
+
+## The tool's own demo
+
+cvloom's repository publishes its `examples/` demo with the same pattern via
+`.github/workflows/build.yml` (which also runs the test suite). That job builds every example
+profile from `examples/` and deploys when `DEPLOY_PAGES=true`.
