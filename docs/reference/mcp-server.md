@@ -79,8 +79,8 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 | `create_profile` | `name` (string), `config` (object), `project_root?` | `{created: path}` or `{error, details}` | Validates `config` against the profile schema and writes it to `profiles/{name}.yaml`. |
 | `upsert_project` | `project` (object), `project_root?` | `{written: path}` or `{error, details}` | Validates `project` against the project schema and writes it to `data/projects/{slug}.yaml`. Creates or overwrites. |
 | `validate_data` | `project_root?` | `{valid: true}` or `{valid: false, errors: [...]}` | Runs schema validation against all data files in the project. |
-| `export_json_resume` | `profile?` (default `"general"`), `project_root?` | Full JSON Resume object | Resolves the given profile and exports it in [JSON Resume](https://jsonresume.org) format. |
-| `check_cv` | `profile?` (default `"general"`), `rule_ids?` (string array), `project_root?` | Array of finding objects (`rule_id`, `severity`, `section`, `entry`, `message`, `fix_hint`) | Runs the ATS linter on the resolved profile. Optionally filter by rule IDs. |
+| `export_json_resume` | `profile?` (default `"general"`), `public?` (bool, default **true**), `project_root?` | Full JSON Resume object | Resolves the given profile and exports it in [JSON Resume](https://jsonresume.org) format. **PII fence:** `public` defaults to `true` (email/phone stripped); pass `public=false` to include real contact PII. |
+| `check_cv` | `profile?` (default `"general"`), `rule_ids?` (string array), `project_root?` | Array of finding objects (`rule_id`, `category`, `severity`, `section`, `entry`, `message`, `fix_hint`) | Runs the writing lint on the resolved profile; each finding carries a `category` (`writing`/`structure`/`ats-parse`). Optionally filter by rule IDs. |
 | `trim_report` | `profile?` (default `"general"`), `target_pages?` (int, default 1), `project_root?` | `{total_words, estimated_pages, words_to_cut, sections: [...], recommendations: [...]}` | Per-section word count breakdown with actionable trim recommendations. |
 | `diff_profiles` | `profile_a` (string), `profile_b` (string), `project_root?` | `{template_a, template_b, sections_only_in_a, sections_only_in_b, entries_only_in_a, entries_only_in_b, word_count_a, word_count_b, highlight_count_a, highlight_count_b}` | Compares two profiles: sections, entries, word counts, and highlight counts. |
 | `match_jd` | `jd_text` (string), `profile?` (default `"general"`), `project_root?` | `{coverage, jd_word_count, matched: [...], gaps: [...], top_jd_keywords: [...]}` | Keyword gap analysis comparing CV content against a job description. |
@@ -119,3 +119,10 @@ Throughout this workflow, the LLM reads your data, validates changes, and builds
 ## Data privacy
 
 The MCP server runs entirely on your local machine. Your CV data, private contact information, and build outputs never leave your computer. The server communicates only with the connected MCP client over local stdio -- there are no network calls, no telemetry, and no cloud dependencies.
+
+### Agent-safety guarantees
+
+The server is designed to be a *safe data layer for LLM agents*, with two explicit guarantees:
+
+- **Schema-validated writes.** The mutating tools (`create_profile`, `upsert_project`) validate their input against the JSON Schema **before** writing anything. On failure they return a structured `{"error": "Validation failed", "details": [...]}` and write nothing — a malformed write never lands a partial file.
+- **PII fence.** Read/analysis tools (`check_cv`, `trim_report`, `diff_profiles`, `match_jd`, `export_json_resume`, and the `ai_*` tools) resolve in **public mode**, so the agent never sees your email or phone. The only ways to surface real contact PII are `get_section("contact")` — a deliberate, named read — and `export_json_resume(public=false)` — an explicit opt-out. Both require the caller to ask for it on purpose.

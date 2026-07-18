@@ -213,6 +213,63 @@ def test_export_json_resume_missing_profile(project_dir: str) -> None:
         export_json_resume(profile="nonexistent", project_root=project_dir)
 
 
+# ── agent-safety: PII fence ────────────────────────────────────────
+
+# Read/analysis tools that must never surface real contact PII in agent context.
+_FENCED_READ_TOOLS = [
+    lambda root: check_cv(profile="general", project_root=root),
+    lambda root: trim_report(profile="general", project_root=root),
+    lambda root: diff_profiles("general", "backend", project_root=root),
+    lambda root: match_jd("python engineer", profile="general", project_root=root),
+    lambda root: export_json_resume(profile="general", project_root=root),
+]
+
+
+def test_export_json_resume_fences_pii_by_default(project_dir: str) -> None:
+    raw = export_json_resume(profile="general", project_root=project_dir)
+    assert "test@example.com" not in raw
+    assert "(555)" not in raw
+    # Non-sensitive fields still export.
+    assert json.loads(raw)["basics"]["name"] == "Test"
+
+
+def test_export_json_resume_public_false_includes_pii(project_dir: str) -> None:
+    raw = export_json_resume(profile="general", public=False, project_root=project_dir)
+    assert "test@example.com" in raw
+
+
+@pytest.mark.parametrize("call", _FENCED_READ_TOOLS)
+def test_read_tools_do_not_leak_email_or_phone(project_dir: str, call) -> None:
+    raw = call(project_dir)
+    assert "test@example.com" not in raw
+    assert "(555)" not in raw
+
+
+def test_get_section_contact_is_explicit_pii_read(project_dir: str) -> None:
+    # get_section("contact") is the deliberate, named way to read PII.
+    raw = get_section("contact", project_root=project_dir)
+    assert "test@example.com" in raw
+
+
+# ── agent-safety: schema-validated writes ──────────────────────────
+
+
+def test_create_profile_invalid_returns_structured_error(project_dir: str) -> None:
+    result = json.loads(create_profile("bad", {"invalid_key": True}, project_root=project_dir))
+    assert result["error"] == "Validation failed"
+    assert isinstance(result["details"], list) and result["details"]
+    # No partial file written.
+    assert not (Path(project_dir) / "profiles" / "bad.yaml").exists()
+
+
+def test_upsert_project_invalid_returns_structured_error(project_dir: str) -> None:
+    # Missing required 'description' and 'tags'.
+    result = json.loads(upsert_project({"name": "oops"}, project_root=project_dir))
+    assert result["error"] == "Validation failed"
+    assert isinstance(result["details"], list) and result["details"]
+    assert not (Path(project_dir) / "data" / "projects" / "oops.yaml").exists()
+
+
 # ── check_cv tests ────────────────────────────────────────────────
 
 
@@ -222,10 +279,10 @@ def test_check_cv_returns_findings(project_dir: str) -> None:
 
 
 def test_check_cv_with_rule_filter(project_dir: str) -> None:
-    result = json.loads(check_cv(profile="general", rule_ids=["ats-001"], project_root=project_dir))
+    result = json.loads(check_cv(profile="general", rule_ids=["wl-001"], project_root=project_dir))
     assert isinstance(result, list)
     for finding in result:
-        assert finding["rule_id"] == "ats-001"
+        assert finding["rule_id"] == "wl-001"
 
 
 # ── trim_report tests ─────────────────────────────────────────────

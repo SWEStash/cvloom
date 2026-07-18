@@ -1,4 +1,18 @@
-"""MCP server — expose cvloom's build pipeline as typed tools for LLMs."""
+"""MCP server — expose cvloom's build pipeline as typed tools for LLMs.
+
+Agent-safety guarantees (see docs/reference/mcp-server.md):
+
+- **Schema-validated writes.** Every mutating tool (``create_profile``,
+  ``upsert_project``) validates its input against the JSON Schema *before*
+  writing anything and returns a structured ``{"error", "details"}`` on failure —
+  so a malformed write never lands a partial file.
+- **PII fence.** Read/analysis tools resolve in *public* mode (placeholder
+  contact; email and phone stripped) so agent context never sees the most
+  sensitive contact fields. The only tools that can surface real contact PII are
+  ``get_section("contact")`` — an explicit, named request — and
+  ``export_json_resume(public=False)`` — an explicit opt-out. Both require the
+  caller to ask for it deliberately.
+"""
 
 from __future__ import annotations
 
@@ -211,9 +225,15 @@ def validate_data(project_root: str | None = None) -> str:
 @mcp.tool()
 def export_json_resume(
     profile: str = "general",
+    public: bool = True,
     project_root: str | None = None,
 ) -> str:
-    """Export CV data as JSON Resume format."""
+    """Export CV data as JSON Resume format.
+
+    PII fence: ``public`` defaults to True, so email and phone are stripped from
+    the returned document. Pass ``public=False`` to include real contact PII —
+    an explicit opt-out only.
+    """
     root = _root(project_root)
     try:
         resolved = builder.resolve(
@@ -221,6 +241,7 @@ def export_json_resume(
             private_dir=root / "private",
             profiles_dir=root / "profiles",
             profile_name=profile,
+            public=public,
         )
         resume = to_json_resume(resolved)
         return json.dumps(resume, indent=2, ensure_ascii=False)
@@ -234,7 +255,11 @@ def check_cv(
     rule_ids: list[str] | None = None,
     project_root: str | None = None,
 ) -> str:
-    """Run ATS linter on a profile. Returns lint findings as JSON."""
+    """Run the writing lint on a profile. Returns lint findings as JSON.
+
+    Each finding carries a ``category`` (writing / structure / ats-parse); there
+    is no single "ATS score". See docs/reference/ats-readiness.md.
+    """
     root = _root(project_root)
     try:
         resolved = builder.resolve(
@@ -249,6 +274,7 @@ def check_cv(
             [
                 {
                     "rule_id": f.rule_id,
+                    "category": f.category,
                     "severity": f.severity,
                     "section": f.section,
                     "entry": f.entry,
