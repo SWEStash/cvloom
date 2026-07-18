@@ -10,7 +10,7 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from cvloom import builder, export, linter
+from cvloom import builder, export, importer, linter
 from cvloom import trim as trim_mod
 from cvloom.builder import _section_summary
 from cvloom.diff import compare
@@ -35,10 +35,10 @@ def cli() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _ats_score(findings: list[linter.LintFinding]) -> int:
-    """Compute an ATS score (0–100) by deducting per finding severity."""
-    _deductions = {"error": 10, "warning": 5, "suggestion": 2}
-    return max(0, 100 - sum(_deductions.get(f.severity, 5) for f in findings))
+def _lint_breakdown(findings: list[linter.LintFinding]) -> str:
+    """Render the per-category writing-lint breakdown (no single 0–100 score)."""
+    counts = linter.category_counts(findings)
+    return ", ".join(f"{cat}: {n}" for cat, n in counts.items())
 
 
 @cli.command()
@@ -79,14 +79,14 @@ def _ats_score(findings: list[linter.LintFinding]) -> int:
     "run_check",
     is_flag=True,
     default=False,
-    help="Run ATS linter after build and print score.",
+    help="Run the writing lint after build and print a category breakdown.",
 )
 @click.option(
     "--strict",
     default=None,
     type=int,
     metavar="N",
-    help="Exit non-zero if ATS score is below N (implies --check).",
+    help="Exit non-zero if more than N lint findings (implies --check).",
 )
 def build(
     profile: str,
@@ -122,13 +122,13 @@ def build(
 
     if run_check or strict is not None:
         findings = linter.lint(result.resolved)
-        score = _ats_score(findings)
-        color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
+        count = len(findings)
+        color = "green" if count == 0 else "yellow" if count <= 5 else "red"
         _console.print(
-            f"[{color}]ATS Score: {score}/100[/{color}] ({len(findings)} issue(s) found)"
+            f"[{color}]Writing lint: {count} issue(s)[/{color}] — {_lint_breakdown(findings)}"
         )
-        if strict is not None and score < strict:
-            _console.print(f"[red]Score {score} is below --strict threshold {strict}.[/red]")
+        if strict is not None and count > strict:
+            _console.print(f"[red]{count} findings exceed the --strict budget of {strict}.[/red]")
             raise SystemExit(1)
 
 
@@ -146,7 +146,11 @@ def build(
     help="Profile name (without .yaml extension).",
 )
 def check(profile: str) -> None:
-    """Run ATS linter checks on a profile's resolved data."""
+    """Run the writing lint on a profile's resolved data.
+
+    Findings are grouped into three honest axes — writing, structure, and
+    ats-parse — with no single "ATS score". See docs/reference/ats-readiness.md.
+    """
     root = _root()
     resolved = builder.resolve(
         data_dir=root / "data",
@@ -167,6 +171,7 @@ def check(profile: str) -> None:
         padding=(0, 1),
     )
     table.add_column("Rule")
+    table.add_column("Category")
     table.add_column("Section")
     table.add_column("Entry")
     table.add_column("Message")
@@ -175,6 +180,7 @@ def check(profile: str) -> None:
     for f in findings:
         table.add_row(
             f.rule_id,
+            f.category,
             f.section,
             f.entry,
             f.message,
@@ -182,7 +188,9 @@ def check(profile: str) -> None:
         )
 
     _console.print(table)
-    _console.print(f"\n[yellow]{len(findings)} issue(s) found.[/yellow]")
+    _console.print(
+        f"\n[yellow]{len(findings)} issue(s) found.[/yellow] [dim]{_lint_breakdown(findings)}[/dim]"
+    )
     raise SystemExit(1)
 
 
@@ -361,6 +369,74 @@ def export_cmd(profile: str, fmt: str, output: str | None) -> None:
         out_path = Path(output) if output else root / "dist" / f"{profile}.resume.docx"
         export.export_docx(resolved, out_path)
         _console.print(f"[green]✓[/green] DOCX → {out_path}")
+
+
+# ---------------------------------------------------------------------------
+# import
+# ---------------------------------------------------------------------------
+
+
+@cli.command("import")
+@click.argument("source", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json-resume"]),
+    default="json-resume",
+    show_default=True,
+    help="Source format.",
+)
+@click.option("--dry-run", is_flag=True, help="Show what would be written without writing.")
+@click.option("--force", is_flag=True, help="Overwrite existing data/private files.")
+def import_cmd(source: Path, fmt: str, dry_run: bool, force: bool) -> None:
+    """Import a JSON Resume file into cvloom's data/ and private/ layout.
+
+    Contact details (name, email, phone, location, social handles) are written
+    to private/contact.yaml; everything else to data/.
+    """
+    root = _root()
+    data_dir = root / "data"
+    private_dir = root / "private"
+
+    try:
+        doc = importer.load_json_resume(source)
+        imported = importer.from_json_resume(doc)
+    except importer.ImportProblem as exc:
+        _err.print(f"[bold red]Import failed:[/bold red] {exc}")
+        raise SystemExit(1) from exc
+
+    errors = importer.validate_imported(imported)
+    if errors:
+        _err.print("[bold red]Imported data failed validation:[/bold red]")
+        for err in errors:
+            _err.print(f"  [red]✗[/red] {err}")
+        raise SystemExit(1)
+
+    plans = importer.plan_writes(imported, data_dir, private_dir)
+    conflicts = [p for p in plans if p.exists]
+
+    if dry_run:
+        _console.print("[bold]Would write:[/bold]")
+        for p in plans:
+            tag = " [yellow](overwrites)[/yellow]" if p.exists else ""
+            fence = " [dim](private)[/dim]" if p.is_private else ""
+            _console.print(f"  {p.path.relative_to(root)}{fence}{tag}")
+        return
+
+    if conflicts and not force:
+        _err.print("[bold red]Refusing to overwrite existing files:[/bold red]")
+        for p in conflicts:
+            _err.print(f"  [red]✗[/red] {p.path.relative_to(root)}")
+        _err.print("Re-run with [bold]--force[/bold] to overwrite, or [bold]--dry-run[/bold].")
+        raise SystemExit(1)
+
+    written = importer.write_imported(imported, data_dir, private_dir)
+    for path in written:
+        _console.print(f"[green]✓[/green] {path.relative_to(root)}")
+    _console.print(
+        f"\n[green]Imported {len(written)} file(s).[/green] "
+        "Contact PII (if any) went to [bold]private/contact.yaml[/bold]."
+    )
 
 
 # ---------------------------------------------------------------------------
