@@ -32,7 +32,7 @@ cvloom/
 ├── overlays.py         # Match-and-patch system for per-job customization
 ├── renderer.py         # Jinja2 rendering, template discovery
 ├── filters.py          # Custom Jinja2 filters: md, date_range, skill_level_bar
-├── linter.py           # ATS linter: 17 rules, LintFinding, lint()
+├── linter.py           # Writing lint: 17 categorized rules, LintFinding, lint()
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
@@ -154,9 +154,9 @@ Three custom Jinja2 filters registered via `register_filters(env)`:
 
 `lint(resolved, rule_ids=None) -> list[LintFinding]`
 
-Rules are stored in a module-level list `RULES: list[LintRule]`. Each `LintRule` is a callable that takes a `ResolvedProfile` and returns `list[LintFinding]`. The `lint()` function iterates the list and collects all findings. Pass `rule_ids` to run a subset.
+Rules are stored in a module-level list `RULES: list[LintRule]`. Each `LintRule` carries a `rule_id`, `name`, `description`, `category` (`writing`/`structure`/`ats-parse`), and a `check` callable that takes a `ResolvedProfile` and returns `list[LintFinding]`. The `lint()` function iterates the list, stamps each finding with its rule's `category`, and collects all findings. Pass `rule_ids` to run a subset.
 
-`ats_score(findings) -> int` — computes 0–100 score: `100 - warnings×5 - suggestions×2`, floored at 0.
+`category_counts(findings) -> dict[str, int]` — tallies findings per axis. There is deliberately no single "ATS score"; see [ATS-readiness model](../reference/ats-readiness.md).
 
 ### `trim.py`
 
@@ -261,9 +261,10 @@ Highlights without IDs cannot be targeted by `pick`/`exclude`/`replace` but are 
 Adding a new rule:
 
 1. Define a function `def check_my_rule(resolved: ResolvedProfile) -> list[LintFinding]`
-2. Append it to the `RULES` list in `linter.py`
-3. Assign a stable `rule_id` in the `ats-NNN` sequence
-4. Choose `severity`: `"warning"` (counts toward score ×5) or `"suggestion"` (×2)
+2. Append a `LintRule(rule_id, name, description, category, check)` to the `RULES` list in `linter.py`
+3. Assign a stable `rule_id` in the `wl-NNN` sequence
+4. Choose a `category`: `CATEGORY_WRITING`, `CATEGORY_STRUCTURE`, or `CATEGORY_ATS_PARSE`
+5. Choose `severity`: `"warning"` or `"suggestion"`
 
 Rules that check hidden sections should respect `resolved.show_sections` — skip sections with `show_sections[section] == False`.
 

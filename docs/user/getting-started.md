@@ -325,27 +325,27 @@ uv run cvloom build --output-dir out/
 
 ## Scenario 4: Lint Your CV
 
-The ATS linter checks your bullet points and CV structure for common quality issues. It runs 17 built-in rules:
+The writing lint checks your bullet points and CV structure for common quality issues. It runs 17 built-in rules across three honest axes (`writing`, `structure`, `ats-parse`) — see the [ATS-readiness model](../reference/ats-readiness.md) for why there is no single "ATS score":
 
 | Rule | Severity | What it catches |
 |------|:--------:|----------------|
-| `ats-001` | warning | Passive voice ("was built", "is designed") |
-| `ats-002` | warning | Missing metrics (no numbers in a bullet) |
-| `ats-003` | warning | Noise skills (MS Word, Google Docs) |
-| `ats-004` | warning | Weak verbs ("helped", "assisted", "worked on") |
-| `ats-005` | warning | Bullet too short (<8 words) or too long (>25 words) |
-| `ats-006` | warning | Too few (<3) or too many (>8) bullets per work entry |
-| `ats-007` | warning | First-person pronouns (I/my/me) |
-| `ats-008` | warning | Vague buzzwords (motivated, passionate, proactive, …) |
-| `ats-009` | warning | Fewer than 8 or more than 25 total skills |
-| `ats-010` | warning | No LinkedIn or GitHub link in contact |
-| `ats-011` | warning | Estimated page count exceeds 2 |
-| `ats-012` | warning | Mixed date formats (YYYY-MM vs YYYY) |
-| `ats-013` | warning | Wrong verb tense for current vs past roles |
-| `ats-014` | warning | Summary shorter than 20 or longer than 80 words |
-| `ats-015` | suggestion | Metric present but no result-framing phrase |
-| `ats-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
-| `ats-017` | suggestion | Work entry highlights mention no skill item |
+| `wl-001` | warning | Passive voice ("was built", "is designed") |
+| `wl-002` | warning | Missing metrics (no numbers in a bullet) |
+| `wl-003` | warning | Noise skills (MS Word, Google Docs) |
+| `wl-004` | warning | Weak verbs ("helped", "assisted", "worked on") |
+| `wl-005` | warning | Bullet too short (<8 words) or too long (>25 words) |
+| `wl-006` | warning | Too few (<3) or too many (>8) bullets per work entry |
+| `wl-007` | warning | First-person pronouns (I/my/me) |
+| `wl-008` | warning | Vague buzzwords (motivated, passionate, proactive, …) |
+| `wl-009` | warning | Fewer than 8 or more than 25 total skills |
+| `wl-010` | warning | No LinkedIn or GitHub link in contact |
+| `wl-011` | warning | Estimated page count exceeds 2 |
+| `wl-012` | warning | Mixed date formats (YYYY-MM vs YYYY) |
+| `wl-013` | warning | Wrong verb tense for current vs past roles |
+| `wl-014` | warning | Summary shorter than 20 or longer than 80 words |
+| `wl-015` | suggestion | Metric present but no result-framing phrase |
+| `wl-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
+| `wl-017` | suggestion | Work entry highlights mention no skill item |
 
 ### 4.1 Run the linter
 
@@ -373,10 +373,10 @@ You will see findings like:
 ```
 Rule     Section  Entry       Message                                     Fix
 ───────  ───────  ──────────  ──────────────────────────────────────────  ────────────────────────
-ats-001  work     Acme Corp   "Was responsible for..." — passive voice    Use active voice
-ats-004  work     Acme Corp   "Helped with testing" — weak verb           Start with a strong verb
-ats-002  work     Acme Corp   "Improved performance" — no metrics         Add a number or %
-ats-005  work     Acme Corp   3 words (min 8)                             Add context and impact
+wl-001  work     Acme Corp   "Was responsible for..." — passive voice    Use active voice
+wl-004  work     Acme Corp   "Helped with testing" — weak verb           Start with a strong verb
+wl-002  work     Acme Corp   "Improved performance" — no metrics         Add a number or %
+wl-005  work     Acme Corp   3 words (min 8)                             Add context and impact
 ```
 
 The exit code is `1` when issues are found — useful for CI.
@@ -393,7 +393,7 @@ Run the linter again — it should pass cleanly now. Remove the temporary bullet
 
 For the full rule reference, see [ATS Linter Rules](../reference/ats-linter-rules.md).
 
-### 4.2 Build with inline ATS score
+### 4.2 Build with inline writing-lint breakdown
 
 Run the linter automatically after every build with `--check`:
 
@@ -401,10 +401,10 @@ Run the linter automatically after every build with `--check`:
 uv run cvloom build --profile backend-role --check
 ```
 
-To fail CI if the score drops below a threshold, use `--strict`:
+To fail CI if there are more than N lint findings, use `--strict`:
 
 ```bash
-uv run cvloom build --profile backend-role --strict 70
+uv run cvloom build --profile backend-role --strict 10
 ```
 
 ---
@@ -998,7 +998,8 @@ You have now used every major feature of cvloom. Here are some things to explore
 | [CLI Reference](cli-reference.md) | Every command, flag, and option |
 | [User Guide](user-guide.md) | Complete config and features manual |
 | [Profiles and Overlays](../reference/profiles-and-overlays.md) | Deep dive into the profile and overlay system |
-| [ATS Linter Rules](../reference/ats-linter-rules.md) | Full rule reference with examples |
+| [Writing Lint Rules](../reference/ats-linter-rules.md) | Full rule reference with categories and examples |
+| [ATS-readiness model](../reference/ats-readiness.md) | The three honest axes; why there is no single "ATS score" |
 | [MCP Server](../reference/mcp-server.md) | MCP tool reference and workflow examples |
 | [AI Features](ai-features.md) | Full AI command and backend guide |
 | [PII Safety](pii-safety.md) | How contact data is protected |

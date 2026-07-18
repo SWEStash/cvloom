@@ -1,4 +1,15 @@
-"""ATS linter — rule-based checks for CV content quality."""
+"""Writing lint — deterministic, rule-based checks for CV writing quality.
+
+Each rule carries a *category* that maps to one of the three honest axes of
+"ATS-readiness" (see ``docs/reference/ats-readiness.md``):
+
+- ``writing`` — writing-quality heuristics (voice, verbs, quantification, …).
+- ``structure`` — document structure and completeness (bullet/skill counts, …).
+- ``ats-parse`` — things that specifically affect ATS parsing / keyword pickup.
+
+There is deliberately no single "ATS score 0–100": that number would claim a
+predictive validity we cannot honestly support (see the reference doc).
+"""
 
 from __future__ import annotations
 
@@ -8,6 +19,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from cvloom.models import ResolvedProfile
+
+# Rule categories — the three honest axes of writing/ATS readiness.
+CATEGORY_WRITING = "writing"
+CATEGORY_STRUCTURE = "structure"
+CATEGORY_ATS_PARSE = "ats-parse"
 
 # ── Data structures ─────────────────────────────────────────────────
 
@@ -24,6 +40,7 @@ class LintFinding:
     bullet_text: str | None
     message: str
     fix_hint: str
+    category: str = ""
 
 
 @dataclass
@@ -33,6 +50,7 @@ class LintRule:
     rule_id: str
     name: str
     description: str
+    category: str
     check: Callable[[ResolvedProfile], list[LintFinding]]
 
 
@@ -313,14 +331,14 @@ def _check_highlights(
 
 
 def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-001: Flag passive voice constructions in highlights."""
+    """wl-001: Flag passive voice constructions in highlights."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         match = _PASSIVE_RE.search(text)
         if match and match.group(1).lower() not in _PASSIVE_FALSE_POSITIVES:
             return LintFinding(
-                rule_id="ats-001",
+                rule_id="wl-001",
                 severity="warning",
                 section="",
                 entry="",
@@ -332,18 +350,18 @@ def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
         return None
 
     for section in ("work", "education", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-001", test))
+        findings.extend(_check_highlights(resolved, section, "wl-001", test))
     return findings
 
 
 def _check_missing_quantification(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-002: Flag highlights without any numbers."""
+    """wl-002: Flag highlights without any numbers."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         if not re.search(r"\d+", text):
             return LintFinding(
-                rule_id="ats-002",
+                rule_id="wl-002",
                 severity="warning",
                 section="",
                 entry="",
@@ -355,12 +373,12 @@ def _check_missing_quantification(resolved: ResolvedProfile) -> list[LintFinding
         return None
 
     for section in ("work", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-002", test))
+        findings.extend(_check_highlights(resolved, section, "wl-002", test))
     return findings
 
 
 def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-003: Flag low-value 'noise' skills."""
+    """wl-003: Flag low-value 'noise' skills."""
     findings: list[LintFinding] = []
     if not resolved.show_sections.get("skills"):
         return findings
@@ -372,7 +390,7 @@ def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
             if name.lower() in _NOISE_SKILLS:
                 findings.append(
                     LintFinding(
-                        rule_id="ats-003",
+                        rule_id="wl-003",
                         severity="warning",
                         section="skills",
                         entry=category,
@@ -386,7 +404,7 @@ def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-004: Flag highlights starting with weak action verbs."""
+    """wl-004: Flag highlights starting with weak action verbs."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
@@ -394,7 +412,7 @@ def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
         for weak in _WEAK_OPENERS:
             if lower.startswith(weak):
                 return LintFinding(
-                    rule_id="ats-004",
+                    rule_id="wl-004",
                     severity="warning",
                     section="",
                     entry="",
@@ -407,19 +425,19 @@ def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
         return None
 
     for section in ("work", "education", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-004", test))
+        findings.extend(_check_highlights(resolved, section, "wl-004", test))
     return findings
 
 
 def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-005: Flag highlights that are too short or too long."""
+    """wl-005: Flag highlights that are too short or too long."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         word_count = len(text.split())
         if word_count < _MIN_HIGHLIGHT_WORDS:
             return LintFinding(
-                rule_id="ats-005",
+                rule_id="wl-005",
                 severity="warning",
                 section="",
                 entry="",
@@ -430,7 +448,7 @@ def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
             )
         if word_count > _MAX_HIGHLIGHT_WORDS:
             return LintFinding(
-                rule_id="ats-005",
+                rule_id="wl-005",
                 severity="warning",
                 section="",
                 entry="",
@@ -442,12 +460,12 @@ def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
         return None
 
     for section in ("work", "education", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-005", test))
+        findings.extend(_check_highlights(resolved, section, "wl-005", test))
     return findings
 
 
 def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-012: Flag mixed date formats (YYYY-MM vs YYYY) within each section."""
+    """wl-012: Flag mixed date formats (YYYY-MM vs YYYY) within each section."""
     findings: list[LintFinding] = []
 
     for section in ("work", "education"):
@@ -468,7 +486,7 @@ def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFindin
         if len(formats) > 1:
             findings.append(
                 LintFinding(
-                    rule_id="ats-012",
+                    rule_id="wl-012",
                     severity="warning",
                     section=section,
                     entry="dates",
@@ -483,7 +501,7 @@ def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFindin
 
 
 def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-013: Present tense for current roles, past tense for previous."""
+    """wl-013: Present tense for current roles, past tense for previous."""
     findings: list[LintFinding] = []
 
     if not resolved.show_sections.get("work"):
@@ -504,7 +522,7 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
             if is_current and is_past:
                 findings.append(
                     LintFinding(
-                        rule_id="ats-013",
+                        rule_id="wl-013",
                         severity="warning",
                         section="work",
                         entry=company,
@@ -517,7 +535,7 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
             elif not is_current and first_word in _PRESENT_TENSE_VERBS:
                 findings.append(
                     LintFinding(
-                        rule_id="ats-013",
+                        rule_id="wl-013",
                         severity="warning",
                         section="work",
                         entry=company,
@@ -532,7 +550,7 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-014: Warn if summary is too short or too long."""
+    """wl-014: Warn if summary is too short or too long."""
     summary = resolved.data.get("basics", {}).get("summary", "")
     if not summary:
         return []
@@ -540,7 +558,7 @@ def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
     if word_count < _MIN_SUMMARY_WORDS:
         return [
             LintFinding(
-                rule_id="ats-014",
+                rule_id="wl-014",
                 severity="warning",
                 section="basics",
                 entry="summary",
@@ -553,7 +571,7 @@ def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
     if word_count > _MAX_SUMMARY_WORDS:
         return [
             LintFinding(
-                rule_id="ats-014",
+                rule_id="wl-014",
                 severity="warning",
                 section="basics",
                 entry="summary",
@@ -567,13 +585,13 @@ def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_action_result(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-015: Flag highlights with a quantified metric but no result framing."""
+    """wl-015: Flag highlights with a quantified metric but no result framing."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         if _METRIC_RE.search(text) and not _RESULT_FRAMING_RE.search(text):
             return LintFinding(
-                rule_id="ats-015",
+                rule_id="wl-015",
                 severity="suggestion",
                 section="",
                 entry="",
@@ -585,13 +603,13 @@ def _check_action_result(resolved: ResolvedProfile) -> list[LintFinding]:
         return None
 
     for section in ("work", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-015", test))
+        findings.extend(_check_highlights(resolved, section, "wl-015", test))
 
     return findings
 
 
 def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-006: Warn if a work entry has too few or too many highlights."""
+    """wl-006: Warn if a work entry has too few or too many highlights."""
     findings: list[LintFinding] = []
     if not resolved.show_sections.get("work"):
         return findings
@@ -601,7 +619,7 @@ def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
         if count < _MIN_BULLETS:
             findings.append(
                 LintFinding(
-                    rule_id="ats-006",
+                    rule_id="wl-006",
                     severity="warning",
                     section="work",
                     entry=company,
@@ -614,7 +632,7 @@ def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
         elif count > _MAX_BULLETS:
             findings.append(
                 LintFinding(
-                    rule_id="ats-006",
+                    rule_id="wl-006",
                     severity="warning",
                     section="work",
                     entry=company,
@@ -628,13 +646,13 @@ def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-007: Flag first-person pronouns in highlights and summary."""
+    """wl-007: Flag first-person pronouns in highlights and summary."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         if _FIRST_PERSON_RE.search(text):
             return LintFinding(
-                rule_id="ats-007",
+                rule_id="wl-007",
                 severity="warning",
                 section="",
                 entry="",
@@ -646,13 +664,13 @@ def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
         return None
 
     for section in ("work", "education", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-007", test))
+        findings.extend(_check_highlights(resolved, section, "wl-007", test))
 
     summary = resolved.data.get("basics", {}).get("summary", "")
     if summary and _FIRST_PERSON_RE.search(summary):
         findings.append(
             LintFinding(
-                rule_id="ats-007",
+                rule_id="wl-007",
                 severity="warning",
                 section="basics",
                 entry="summary",
@@ -667,14 +685,14 @@ def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-008: Flag vague buzzwords in highlights and summary."""
+    """wl-008: Flag vague buzzwords in highlights and summary."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         m = _VAGUE_BUZZWORDS_RE.search(text)
         if m:
             return LintFinding(
-                rule_id="ats-008",
+                rule_id="wl-008",
                 severity="warning",
                 section="",
                 entry="",
@@ -686,7 +704,7 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
         return None
 
     for section in ("work", "education", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-008", test))
+        findings.extend(_check_highlights(resolved, section, "wl-008", test))
 
     summary = resolved.data.get("basics", {}).get("summary", "")
     if summary:
@@ -694,7 +712,7 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
         if m:
             findings.append(
                 LintFinding(
-                    rule_id="ats-008",
+                    rule_id="wl-008",
                     severity="warning",
                     section="basics",
                     entry="summary",
@@ -709,14 +727,14 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-009: Warn if total skills are below minimum or above maximum."""
+    """wl-009: Warn if total skills are below minimum or above maximum."""
     if not resolved.show_sections.get("skills"):
         return []
     total = sum(len(group.get("items", [])) for group in resolved.data.get("skills", []))
     if total < _MIN_SKILLS:
         return [
             LintFinding(
-                rule_id="ats-009",
+                rule_id="wl-009",
                 severity="warning",
                 section="skills",
                 entry="total",
@@ -729,7 +747,7 @@ def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
     if total > _MAX_SKILLS:
         return [
             LintFinding(
-                rule_id="ats-009",
+                rule_id="wl-009",
                 severity="warning",
                 section="skills",
                 entry="total",
@@ -743,7 +761,7 @@ def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-010: Warn if no LinkedIn or GitHub link is present."""
+    """wl-010: Warn if no LinkedIn or GitHub link is present."""
     contact = resolved.data.get("contact", {})
     if contact.get("linkedin") or contact.get("github"):
         return []
@@ -753,7 +771,7 @@ def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
             return []
     return [
         LintFinding(
-            rule_id="ats-010",
+            rule_id="wl-010",
             severity="warning",
             section="contact",
             entry="profile links",
@@ -768,7 +786,7 @@ def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-011: Warn if estimated page count exceeds 2 (skipped for academic templates)."""
+    """wl-011: Warn if estimated page count exceeds 2 (skipped for academic templates)."""
     if "academic" in resolved.template_name:
         return []
 
@@ -794,7 +812,7 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
     if estimated_pages > 2:
         return [
             LintFinding(
-                rule_id="ats-011",
+                rule_id="wl-011",
                 severity="warning",
                 section="basics",
                 entry="page estimate",
@@ -808,13 +826,13 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-016: Flag highlights with Flesch-Kincaid grade level outside 6–12."""
+    """wl-016: Flag highlights with Flesch-Kincaid grade level outside 6–12."""
 
     def test(text: str, idx: int) -> LintFinding | None:
         grade = _fk_grade(text)
         if grade > _FK_MAX_GRADE:
             return LintFinding(
-                rule_id="ats-016",
+                rule_id="wl-016",
                 severity="suggestion",
                 section="",
                 entry="",
@@ -831,7 +849,7 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
             )
         if grade < _FK_MIN_GRADE:
             return LintFinding(
-                rule_id="ats-016",
+                rule_id="wl-016",
                 severity="suggestion",
                 section="",
                 entry="",
@@ -849,12 +867,12 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
 
     findings: list[LintFinding] = []
     for section in ("work", "projects"):
-        findings.extend(_check_highlights(resolved, section, "ats-016", test))
+        findings.extend(_check_highlights(resolved, section, "wl-016", test))
     return findings
 
 
 def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]:
-    """ats-017: Flag work entries whose highlights mention no skill item."""
+    """wl-017: Flag work entries whose highlights mention no skill item."""
     skill_names: set[str] = set()
     for group in resolved.data.get("skills", []):
         for item in group.get("items", []):
@@ -876,7 +894,7 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
         if not any(skill in hl_text for skill in skill_names):
             findings.append(
                 LintFinding(
-                    rule_id="ats-017",
+                    rule_id="wl-017",
                     severity="suggestion",
                     section="work",
                     entry=entry.get("company", ""),
@@ -896,105 +914,122 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
 
 RULES: list[LintRule] = [
     LintRule(
-        "ats-001",
+        "wl-001",
         "passive-voice",
         "Flag passive voice in highlights",
+        CATEGORY_WRITING,
         _check_passive_voice,
     ),
     LintRule(
-        "ats-002",
+        "wl-002",
         "missing-quantification",
         "Flag highlights without numbers",
+        CATEGORY_WRITING,
         _check_missing_quantification,
     ),
     LintRule(
-        "ats-003",
+        "wl-003",
         "noise-skills",
         "Flag low-value skills",
+        CATEGORY_WRITING,
         _check_noise_skills,
     ),
     LintRule(
-        "ats-004",
+        "wl-004",
         "weak-action-verbs",
         "Flag weak opening verbs",
+        CATEGORY_WRITING,
         _check_weak_action_verbs,
     ),
     LintRule(
-        "ats-005",
+        "wl-005",
         "highlight-length",
         "Flag too-short or too-long highlights",
+        CATEGORY_WRITING,
         _check_highlight_length,
     ),
     LintRule(
-        "ats-012",
+        "wl-012",
         "date-format-consistency",
         "Flag mixed date formats within work or education sections",
+        CATEGORY_ATS_PARSE,
         _check_date_format_consistency,
     ),
     LintRule(
-        "ats-013",
+        "wl-013",
         "tense-consistency",
         "Present tense for current roles, past tense for previous",
+        CATEGORY_WRITING,
         _check_tense_consistency,
     ),
     LintRule(
-        "ats-014",
+        "wl-014",
         "summary-length",
         "Warn if summary is too short or too long",
+        CATEGORY_STRUCTURE,
         _check_summary_length,
     ),
     LintRule(
-        "ats-015",
+        "wl-015",
         "action-result",
         "Flag highlights with a metric but no result framing",
+        CATEGORY_WRITING,
         _check_action_result,
     ),
     LintRule(
-        "ats-006",
+        "wl-006",
         "bullet-count",
         "Warn if a work entry has too few or too many highlights",
+        CATEGORY_STRUCTURE,
         _check_bullet_count,
     ),
     LintRule(
-        "ats-007",
+        "wl-007",
         "first-person",
         "Flag first-person pronouns in highlights and summary",
+        CATEGORY_WRITING,
         _check_first_person,
     ),
     LintRule(
-        "ats-008",
+        "wl-008",
         "vague-buzzwords",
         "Flag vague buzzwords in highlights and summary",
+        CATEGORY_WRITING,
         _check_vague_buzzwords,
     ),
     LintRule(
-        "ats-009",
+        "wl-009",
         "skill-count",
         "Warn if total skills are below minimum or above maximum",
+        CATEGORY_STRUCTURE,
         _check_skill_count,
     ),
     LintRule(
-        "ats-010",
+        "wl-010",
         "profile-links",
         "Warn if no LinkedIn or GitHub link is present",
+        CATEGORY_STRUCTURE,
         _check_profile_links,
     ),
     LintRule(
-        "ats-011",
+        "wl-011",
         "page-count",
         "Warn if estimated page count exceeds 2",
+        CATEGORY_STRUCTURE,
         _check_page_count,
     ),
     LintRule(
-        "ats-016",
+        "wl-016",
         "readability",
         "Flesch-Kincaid grade level per highlight (target 6–12)",
+        CATEGORY_WRITING,
         _check_readability,
     ),
     LintRule(
-        "ats-017",
+        "wl-017",
         "tech-mentions-in-work",
         "Flag work entries with no skill items mentioned in highlights",
+        CATEGORY_ATS_PARSE,
         _check_tech_mentions_in_work,
     ),
 ]
@@ -1015,5 +1050,20 @@ def lint(
     for rule in RULES:
         if rule_ids and rule.rule_id not in rule_ids:
             continue
-        findings.extend(rule.check(resolved))
+        rule_findings = rule.check(resolved)
+        for finding in rule_findings:
+            finding.category = rule.category
+        findings.extend(rule_findings)
     return findings
+
+
+def category_counts(findings: list[LintFinding]) -> dict[str, int]:
+    """Count findings per category, in the canonical axis order."""
+    counts = {
+        CATEGORY_WRITING: 0,
+        CATEGORY_STRUCTURE: 0,
+        CATEGORY_ATS_PARSE: 0,
+    }
+    for finding in findings:
+        counts[finding.category] = counts.get(finding.category, 0) + 1
+    return counts

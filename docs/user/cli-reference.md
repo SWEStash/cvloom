@@ -16,6 +16,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [diff](#diff)
 - [match](#match)
 - [export](#export)
+- [import](#import)
 - [init](#init)
 - [list-projects](#list-projects)
 - [list-profiles](#list-profiles)
@@ -40,8 +41,8 @@ cvloom build [OPTIONS]
 | `--output-dir` | `-o` | `dist` | Output directory for generated files |
 | `--public` | | off | Use placeholder contact data (safe for CI / GitHub Pages) |
 | `--skip-pdf` | | off | Skip PDF generation; produce HTML only |
-| `--check` | | off | Run ATS linter after build and print a 0–100 score |
-| `--strict N` | | off | Exit non-zero if ATS score is below N (implies `--check`) |
+| `--check` | | off | Run the writing lint after build and print a per-axis breakdown |
+| `--strict N` | | off | Exit non-zero if more than N lint findings (implies `--check`) |
 
 ### Examples
 
@@ -61,11 +62,11 @@ cvloom build --profile backend-role --template cv/modern-single
 # Write output to a custom directory
 cvloom build --profile backend-role --output-dir out/
 
-# Build and show ATS score inline
+# Build and show the writing-lint breakdown inline
 cvloom build --profile backend-role --check
 
-# Build and fail CI if ATS score falls below 70
-cvloom build --profile backend-role --strict 70
+# Build and fail CI if there are more than 10 lint findings
+cvloom build --profile backend-role --strict 10
 ```
 
 ### Sample Output
@@ -90,7 +91,9 @@ WARNING: Estimated 3 pages — consider trimming (run `cvloom trim`).
 
 ## `check`
 
-Run the ATS linter against a resolved profile and report issues.
+Run the writing lint against a resolved profile and report issues, grouped into three
+honest axes (`writing`, `structure`, `ats-parse`). No single "ATS score" — see the
+[ATS-readiness model](../reference/ats-readiness.md).
 
 ```bash
 cvloom check [OPTIONS]
@@ -102,29 +105,29 @@ cvloom check [OPTIONS]
 |---|---|---|---|
 | `--profile` | `-p` | `general` | Profile name (without `.yaml` extension) |
 
-### ATS Rules
+### Lint Rules
 
 17 built-in rules (see [ats-linter-rules.md](../reference/ats-linter-rules.md) for full details):
 
 | Rule | Severity | What it catches |
 |---|---|---|
-| `ats-001` | warning | Passive voice in highlights |
-| `ats-002` | warning | Missing quantification (no numbers/metrics) |
-| `ats-003` | warning | Noise skills (commodity office tools) |
-| `ats-004` | warning | Weak action verbs |
-| `ats-005` | warning | Highlight length outside 8-25 word range |
-| `ats-006` | warning | Too few or too many highlights per work entry |
-| `ats-007` | warning | First-person pronouns (I/my/me) |
-| `ats-008` | warning | Vague buzzwords (motivated, proactive, …) |
-| `ats-009` | warning | Fewer than 8 or more than 25 total skills |
-| `ats-010` | warning | No LinkedIn or GitHub link present |
-| `ats-011` | warning | Estimated page count exceeds 2 |
-| `ats-012` | warning | Mixed YYYY-MM / YYYY date formats |
-| `ats-013` | warning | Wrong tense for current vs past roles |
-| `ats-014` | warning | Summary shorter than 20 or longer than 80 words |
-| `ats-015` | suggestion | Metric present but no result-framing phrase |
-| `ats-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
-| `ats-017` | suggestion | Work entry mentions no skill item in highlights |
+| `wl-001` | warning | Passive voice in highlights |
+| `wl-002` | warning | Missing quantification (no numbers/metrics) |
+| `wl-003` | warning | Noise skills (commodity office tools) |
+| `wl-004` | warning | Weak action verbs |
+| `wl-005` | warning | Highlight length outside 8-25 word range |
+| `wl-006` | warning | Too few or too many highlights per work entry |
+| `wl-007` | warning | First-person pronouns (I/my/me) |
+| `wl-008` | warning | Vague buzzwords (motivated, proactive, …) |
+| `wl-009` | warning | Fewer than 8 or more than 25 total skills |
+| `wl-010` | warning | No LinkedIn or GitHub link present |
+| `wl-011` | warning | Estimated page count exceeds 2 |
+| `wl-012` | warning | Mixed YYYY-MM / YYYY date formats |
+| `wl-013` | warning | Wrong tense for current vs past roles |
+| `wl-014` | warning | Summary shorter than 20 or longer than 80 words |
+| `wl-015` | suggestion | Metric present but no result-framing phrase |
+| `wl-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
+| `wl-017` | suggestion | Work entry mentions no skill item in highlights |
 
 ### Examples
 
@@ -141,10 +144,10 @@ cvloom check --profile backend-role
 ```
 Rule     Section   Entry          Message                        Fix
 ───────  ────────  ─────────────  ─────────────────────────────  ──────────────────────────
-ats-001  work      Acme Corp      "Was responsible for..."       Use active voice
-ats-002  work      Acme Corp      "Improved performance"         Add a metric (%, $, time)
-ats-004  work      Initech        "Helped build the platform"    Replace with strong verb
-ats-005  work      Initech        Highlight is 4 words (min 8)   Expand with details
+wl-001  work      Acme Corp      "Was responsible for..."       Use active voice
+wl-002  work      Acme Corp      "Improved performance"         Add a metric (%, $, time)
+wl-004  work      Initech        "Helped build the platform"    Replace with strong verb
+wl-005  work      Initech        Highlight is 4 words (min 8)   Expand with details
 
 4 issues found.
 ```
@@ -346,6 +349,55 @@ cvloom export --format docx
 
 # Specific profile to a custom path
 cvloom export --profile backend-role --format markdown --output resume.md
+```
+
+---
+
+## `import`
+
+Import an external resume into cvloom's `data/` + `private/` layout. The inverse of
+`export` — it lets users of the [JSON Resume](https://jsonresume.org/) standard migrate in
+one command.
+
+```bash
+cvloom import [OPTIONS] SOURCE
+```
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--format` | `json-resume` | Source format (currently only `json-resume`) |
+| `--dry-run` | *(off)* | Print the files that would be written, without writing anything |
+| `--force` | *(off)* | Overwrite existing `data/`/`private/` files (refuses otherwise) |
+
+### PII split
+
+Contact details are **never** written to `data/`. `import` routes them to
+`private/contact.yaml` (gitignored), matching cvloom's PII compartmentalization:
+
+| JSON Resume field | Written to |
+|---|---|
+| `basics.name` / `email` / `phone` / `url` / `location` | `private/contact.yaml` |
+| `basics.profiles` (LinkedIn, GitHub) | `private/contact.yaml` |
+| `basics.label` → `headline`, `basics.summary` | `data/basics.yaml` |
+| `work`, `education`, `skills` | `data/*.yaml` |
+| `projects[]` | `data/projects/<slug>.yaml` |
+
+The imported data is schema-validated before anything is written; a malformed source or one
+that produces invalid data exits non-zero with the errors listed.
+
+### Examples
+
+```bash
+# Preview what would be written
+cvloom import resume.json --dry-run
+
+# Import (refuses if data/ or private/ files already exist)
+cvloom import resume.json
+
+# Overwrite existing files
+cvloom import resume.json --force
 ```
 
 ---

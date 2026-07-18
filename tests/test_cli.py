@@ -167,24 +167,28 @@ def test_build_check_flag(project_root: Path, monkeypatch: pytest.MonkeyPatch) -
     runner = CliRunner()
     result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--check"])
     assert result.exit_code == 0
-    assert "ATS Score" in result.output
+    assert "Writing lint" in result.output
 
 
 def test_build_strict_passes(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(project_root)
     runner = CliRunner()
-    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--strict", "0"])
+    # A generous findings budget passes.
+    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--strict", "100"])
     assert result.exit_code == 0
-    assert "ATS Score" in result.output
+    assert "Writing lint" in result.output
 
 
 def test_build_strict_fails(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Guarantee at least one finding (a noise skill), then use a zero budget.
+    (project_root / "data" / "skills.yaml").write_text(
+        "- category: Office\n  items: [Microsoft Word]\n"
+    )
     monkeypatch.chdir(project_root)
     runner = CliRunner()
-    # 101 exceeds the maximum possible score (100), so any build will fail --strict
-    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--strict", "101"])
+    result = runner.invoke(cli, ["build", "--skip-pdf", "--public", "--strict", "0"])
     assert result.exit_code != 0
-    assert "ATS Score" in result.output
+    assert "Writing lint" in result.output
 
 
 # ── check command ──────────────────────────────────────────────────
@@ -205,7 +209,7 @@ def test_check_with_noise_skill(project_root: Path, monkeypatch: pytest.MonkeyPa
     runner = CliRunner()
     result = runner.invoke(cli, ["check"])
     assert result.exit_code == 1
-    assert "ats-003" in result.output
+    assert "wl-003" in result.output
 
 
 # ── trim command ───────────────────────────────────────────────────

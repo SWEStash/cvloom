@@ -281,7 +281,7 @@ Two flags integrate ATS scoring into the build:
 
 | Flag | Effect |
 |---|---|
-| `--check` | Runs all 17 linter rules after build and prints a 0–100 score |
+| `--check` | Runs all 17 lint rules after build and prints a per-axis breakdown |
 | `--strict N` | Same as `--check`, plus exits with code 1 if score < N |
 
 The score is calculated as: `100 - (warnings × 5) - (suggestions × 2)`, floored at 0.

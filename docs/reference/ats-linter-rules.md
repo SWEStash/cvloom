@@ -1,12 +1,12 @@
-# ATS Linter Rules Reference
+# Writing Lint Rules Reference
 
-[Back to README](../../README.md)
+[Back to README](../../README.md) · See also: [ATS-readiness model](ats-readiness.md)
 
 ## Overview
 
-The `cvloom check` command runs 17 built-in rules against a resolved profile to catch
-common CV quality issues. The linter inspects highlights (bullet points) in the work,
-education, and projects sections, as well as skill items, contact info, and basics.
+The `cvloom check` command runs 17 deterministic, rule-based checks against a resolved
+profile to catch common CV writing issues. The linter inspects highlights (bullet points) in
+the work, education, and projects sections, as well as skill items, contact info, and basics.
 
 ```bash
 uv run cvloom check --profile NAME
@@ -14,50 +14,70 @@ uv run cvloom check --profile NAME
 
 Each finding includes:
 
-- **Rule ID** -- a stable identifier (e.g. `ats-001`)
-- **Section** -- which CV section triggered the finding
-- **Entry** -- the company, institution, or project name
-- **Message** -- what was detected
-- **Fix hint** -- actionable suggestion for resolving the issue
+- **Rule ID** — a stable identifier (e.g. `wl-001`)
+- **Category** — one of `writing`, `structure`, or `ats-parse` (see below)
+- **Section** — which CV section triggered the finding
+- **Entry** — the company, institution, or project name
+- **Message** — what was detected
+- **Fix hint** — actionable suggestion for resolving the issue
 
 The command exits with code **1** if any issues are found, and **0** if the profile is clean.
+Hidden sections (`show_sections: false`) are skipped — the linter only checks content that
+would appear in the rendered CV.
 
-Sections that are hidden (`show_sections: false` in the profile) are skipped entirely --
-the linter only checks content that would appear in the rendered CV.
+### On categories, and why there is no single "ATS score"
+
+These rules are grouped into the three **honest, measurable axes** of ATS-readiness. cvloom
+deliberately does **not** emit a single "ATS score 0–100": no ATS publishes such a number, the
+one signal that is actually predictive (keyword overlap) only exists relative to a specific job
+description, and there is no public ground-truth to calibrate against. See the
+[ATS-readiness model](ats-readiness.md) for the full reasoning.
+
+| Category | What it measures | Honest claim |
+|---|---|---|
+| `writing` | Writing quality — voice, verbs, quantification, tense, buzzwords, readability | Correlates with recruiter/human preference |
+| `structure` | Document structure & completeness — counts, lengths, links, page budget | Helps both humans and parsers scan the CV |
+| `ats-parse` | Signals that specifically affect ATS parsing / keyword pickup | Reduces the most common ATS failure modes |
+
+Parseability of the *rendered PDF* (tagged text, single-column, standard headings) is a
+**rendering** concern and is tracked separately — see the ATS-readiness doc.
 
 ## Quick Reference
 
-| Rule ID   | Name                      | Severity   | Sections Checked           | What It Flags |
-|-----------|---------------------------|:----------:|----------------------------|---------------|
-| `ats-001` | passive-voice             | warning    | work, education, projects  | Passive voice constructions in highlights |
-| `ats-002` | missing-quantification    | warning    | work, projects             | Highlights with no numbers |
-| `ats-003` | noise-skills              | warning    | skills                     | Low-value commodity skills |
-| `ats-004` | weak-action-verbs         | warning    | work, education, projects  | Highlights starting with weak verbs/phrases |
-| `ats-005` | highlight-length          | warning    | work, education, projects  | Highlights shorter than 8 or longer than 25 words |
-| `ats-006` | bullet-count              | warning    | work                       | Fewer than 3 or more than 8 highlights per role |
-| `ats-007` | first-person              | warning    | work, projects, basics     | First-person pronouns (I/my/me/mine/myself) |
-| `ats-008` | vague-buzzwords           | warning    | work, projects, basics     | Overused vague terms (e.g. "motivated", "proactive") |
-| `ats-009` | skill-count               | warning    | skills                     | Fewer than 8 or more than 25 total skills |
-| `ats-010` | profile-links             | warning    | contact                    | No LinkedIn or GitHub link present |
-| `ats-011` | page-count                | warning    | (whole CV)                 | Estimated page count exceeds 2 |
-| `ats-012` | date-format-consistency   | warning    | work, education            | Mixed YYYY-MM / YYYY date formats |
-| `ats-013` | tense-consistency         | warning    | work                       | Past tense in current role or present tense in past role |
-| `ats-014` | summary-length            | warning    | basics                     | Summary shorter than 20 or longer than 80 words |
-| `ats-015` | action-result             | suggestion | work, projects             | Metric present but no result-framing phrase |
-| `ats-016` | readability               | suggestion | work, projects             | Flesch-Kincaid grade outside target range 6–12 |
-| `ats-017` | tech-mentions-in-work     | suggestion | work                       | Work entry highlights mention no skill item |
+| Rule ID  | Name                    | Category   | Severity   | Sections Checked           | What It Flags |
+|----------|-------------------------|------------|:----------:|----------------------------|---------------|
+| `wl-001` | passive-voice           | writing    | warning    | work, education, projects  | Passive voice constructions in highlights |
+| `wl-002` | missing-quantification  | writing    | warning    | work, projects             | Highlights with no numbers |
+| `wl-003` | noise-skills            | writing    | warning    | skills                     | Low-value commodity skills |
+| `wl-004` | weak-action-verbs       | writing    | warning    | work, education, projects  | Highlights starting with weak verbs/phrases |
+| `wl-005` | highlight-length        | writing    | warning    | work, education, projects  | Highlights shorter than 8 or longer than 25 words |
+| `wl-006` | bullet-count            | structure  | warning    | work                       | Fewer than 3 or more than 8 highlights per role |
+| `wl-007` | first-person            | writing    | warning    | work, projects, basics     | First-person pronouns (I/my/me/mine/myself) |
+| `wl-008` | vague-buzzwords         | writing    | warning    | work, projects, basics     | Overused vague terms (e.g. "motivated", "proactive") |
+| `wl-009` | skill-count             | structure  | warning    | skills                     | Fewer than 8 or more than 25 total skills |
+| `wl-010` | profile-links           | structure  | warning    | contact                    | No LinkedIn or GitHub link present |
+| `wl-011` | page-count              | structure  | warning    | (whole CV)                 | Estimated page count exceeds 2 |
+| `wl-012` | date-format-consistency | ats-parse  | warning    | work, education            | Mixed YYYY-MM / YYYY date formats |
+| `wl-013` | tense-consistency       | writing    | warning    | work                       | Past tense in current role or present tense in past role |
+| `wl-014` | summary-length          | structure  | warning    | basics                     | Summary shorter than 20 or longer than 80 words |
+| `wl-015` | action-result           | writing    | suggestion | work, projects             | Metric present but no result-framing phrase |
+| `wl-016` | readability             | writing    | suggestion | work, projects             | Flesch-Kincaid grade outside target range 6–12 |
+| `wl-017` | tech-mentions-in-work   | ats-parse  | suggestion | work                       | Work entry highlights mention no skill item |
 
 ---
 
 ## Rule Details
 
-### ats-001: passive-voice
+### wl-001: passive-voice
 
-**Sections checked:** work, education, projects | **Severity:** warning
+**Category:** writing | **Sections checked:** work, education, projects | **Severity:** warning
 
 Detects passive voice constructions using the pattern:
 `(was|were|been|being|is|are) [also] <past-participle>` where past participles are words
 ending in `-ed`, `-en`, `-wn`, `-lt`, `-ht`, `-pt`, or `-nt`. The match is case-insensitive.
+
+**Basis:** active voice is the near-universal recommendation of resume-writing guidance;
+recruiters read active bullets as ownership of impact.
 
 **Bad:**
 - "Was responsible for designing the API"
@@ -71,12 +91,15 @@ ending in `-ed`, `-en`, `-wn`, `-lt`, `-ht`, `-pt`, or `-nt`. The match is case-
 
 ---
 
-### ats-002: missing-quantification
+### wl-002: missing-quantification
 
-**Sections checked:** work, projects | **Severity:** warning
+**Category:** writing | **Sections checked:** work, projects | **Severity:** warning
 
 Flags any highlight that contains no digits at all. Numbers provide concrete evidence of
-impact and are strongly preferred by hiring managers and ATS systems.
+impact and are strongly preferred by hiring managers.
+
+**Basis:** quantified achievements are consistently rated more credible than unquantified
+claims in recruiter-preference studies and style guides.
 
 **Bad:**
 - "Improved application performance significantly"
@@ -88,9 +111,9 @@ impact and are strongly preferred by hiring managers and ATS systems.
 
 ---
 
-### ats-003: noise-skills
+### wl-003: noise-skills
 
-**Sections checked:** skills | **Severity:** warning
+**Category:** writing | **Sections checked:** skills | **Severity:** warning
 
 Flags skills that appear in a built-in noise list. These are commodity office-suite tools
 that add no signal to a technical CV:
@@ -99,17 +122,23 @@ that add no signal to a technical CV:
 - Google Docs, Google Sheets, Google Slides
 - MS Office, MS Word
 
+**Basis:** commodity office tools are assumed baseline for knowledge work; listing them
+dilutes the signal of specialised skills.
+
 **Fix hint:** Remove it or replace with a more specific/valuable skill.
 
 ---
 
-### ats-004: weak-action-verbs
+### wl-004: weak-action-verbs
 
-**Sections checked:** work, education, projects | **Severity:** warning
+**Category:** writing | **Sections checked:** work, education, projects | **Severity:** warning
 
 Flags highlights that begin with one of these weak openers:
 
 - helped, assisted, worked on, was responsible for, participated in, was involved in, contributed to
+
+**Basis:** weak openers describe involvement rather than ownership; strong action verbs read
+as accountability for the outcome.
 
 **Bad:** "Helped the team implement the new API"
 
@@ -119,29 +148,37 @@ Flags highlights that begin with one of these weak openers:
 
 ---
 
-### ats-005: highlight-length
+### wl-005: highlight-length
 
-**Sections checked:** work, education, projects | **Severity:** warning
+**Category:** writing | **Sections checked:** work, education, projects | **Severity:** warning
 
 - **Too short:** fewer than 8 words — lacks context, impact, or specificity.
 - **Too long:** more than 25 words — hard to scan; split or tighten.
 
+**Basis:** the 8–25 word band keeps bullets skimmable while carrying enough context; extreme
+lengths reduce readability either way.
+
 ---
 
-### ats-006: bullet-count
+### wl-006: bullet-count
 
-**Sections checked:** work | **Severity:** warning
+**Category:** structure | **Sections checked:** work | **Severity:** warning
 
 - **Too few:** fewer than 3 highlights per work entry — insufficient detail for the role.
 - **Too many:** more than 8 highlights — dilutes focus; cut the weakest bullets.
 
+**Basis:** structural convention that keeps each role substantiated without overwhelming the
+reader (and keeps the document a scannable length).
+
 ---
 
-### ats-007: first-person
+### wl-007: first-person
 
-**Sections checked:** work highlights, projects highlights, basics summary | **Severity:** warning
+**Category:** writing | **Sections checked:** work highlights, projects highlights, basics summary | **Severity:** warning
 
 Flags uses of: `I`, `my`, `me`, `mine`, `myself` (case-insensitive).
+
+**Basis:** the implied-first-person resume convention — bullets omit the subject pronoun.
 
 **Bad:** "I led a team of 5 engineers to deliver the API."
 
@@ -149,65 +186,82 @@ Flags uses of: `I`, `my`, `me`, `mine`, `myself` (case-insensitive).
 
 ---
 
-### ats-008: vague-buzzwords
+### wl-008: vague-buzzwords
 
-**Sections checked:** work highlights, projects highlights, basics summary | **Severity:** warning
+**Category:** writing | **Sections checked:** work highlights, projects highlights, basics summary | **Severity:** warning
 
 Flags overused, low-signal terms: motivated, detail-oriented, team player, hardworking,
 passionate, dynamic, results-driven, go-getter, synergy, proactive, self-starter, innovative.
+
+**Basis:** these adjectives assert traits without evidence; concrete accomplishments are more
+persuasive and are routinely flagged by resume guides.
 
 **Fix hint:** Replace with a specific example or accomplishment that demonstrates the trait.
 
 ---
 
-### ats-009: skill-count
+### wl-009: skill-count
 
-**Sections checked:** skills (all categories combined) | **Severity:** warning
+**Category:** structure | **Sections checked:** skills (all categories combined) | **Severity:** warning
 
 - **Too few:** fewer than 8 total skills — sparse; add relevant tools and technologies.
 - **Too many:** more than 25 total skills — overwhelming; keep only job-relevant items.
 
+**Basis:** a completeness heuristic — too few looks thin, too many reads as unfocused keyword
+stuffing.
+
 ---
 
-### ats-010: profile-links
+### wl-010: profile-links
 
-**Sections checked:** contact | **Severity:** warning
+**Category:** structure | **Sections checked:** contact | **Severity:** warning
 
 Warns when neither a LinkedIn URL/handle nor a GitHub URL/handle is present in the contact
 data or `public_links`.
+
+**Basis:** recruiters expect at least one professional profile link; its absence is a
+completeness gap.
 
 **Fix hint:** Add `linkedin:` and/or `github:` to `private/contact.yaml`.
 
 ---
 
-### ats-011: page-count
+### wl-011: page-count
 
-**Sections checked:** whole CV (word estimate) | **Severity:** warning
+**Category:** structure | **Sections checked:** whole CV (word estimate) | **Severity:** warning
 
 Estimates page count as total words ÷ 500. Warns if estimated pages > 2. Skipped for
 `cv/academic` template (academic CVs may be longer).
+
+**Basis:** the 1–2 page convention for non-academic CVs; a longer document risks not being
+read in full.
 
 **Fix hint:** Remove the least impactful highlights or shorten descriptions.
 
 ---
 
-### ats-012: date-format-consistency
+### wl-012: date-format-consistency
 
-**Sections checked:** work, education | **Severity:** warning
+**Category:** ats-parse | **Sections checked:** work, education | **Severity:** warning
 
 Flags mixing of `YYYY-MM` (e.g. `2021-03`) and `YYYY` (e.g. `2021`) date formats within
 the same section. Pick one format and use it throughout.
 
+**Basis (ATS-parse):** ATS date parsers are brittle; inconsistent formats within a section
+are a common cause of mis-parsed employment timelines.
+
 ---
 
-### ats-013: tense-consistency
+### wl-013: tense-consistency
 
-**Sections checked:** work | **Severity:** warning
+**Category:** writing | **Sections checked:** work | **Severity:** warning
 
 - **Current role** (end_date = "Present" or missing): highlights should use **present tense**.
 - **Past role** (end_date is a year/date): highlights should use **past tense**.
 
 The check looks at the first word of each highlight.
+
+**Basis:** consistent tense is a standard editing convention; mixed tense reads as careless.
 
 **Bad:** "Built new features" in a current role (past tense).
 
@@ -215,21 +269,26 @@ The check looks at the first word of each highlight.
 
 ---
 
-### ats-014: summary-length
+### wl-014: summary-length
 
-**Sections checked:** basics summary | **Severity:** warning
+**Category:** structure | **Sections checked:** basics summary | **Severity:** warning
 
 - **Too short:** fewer than 20 words — insufficient to convey value proposition.
 - **Too long:** more than 80 words — too dense; recruiters skim summaries.
 
+**Basis:** the 20–80 word band matches how recruiters skim a summary block.
+
 ---
 
-### ats-015: action-result
+### wl-015: action-result
 
-**Sections checked:** work, projects | **Severity:** suggestion
+**Category:** writing | **Sections checked:** work, projects | **Severity:** suggestion
 
 Flags highlights that contain a metric (%, $, ×, k/m/b suffix) but lack a result-framing
 phrase such as "enabling", "resulting in", "saving", "driving", "reducing", "improving".
+
+**Basis:** the "action → result" bullet structure links effort to business impact, which
+resume guidance consistently recommends.
 
 **Bad:** "Refactored the codebase, reducing lines by 40%."
 
@@ -237,9 +296,9 @@ phrase such as "enabling", "resulting in", "saving", "driving", "reducing", "imp
 
 ---
 
-### ats-016: readability
+### wl-016: readability
 
-**Sections checked:** work, projects | **Severity:** suggestion
+**Category:** writing | **Sections checked:** work, projects | **Severity:** suggestion
 
 Calculates the Flesch-Kincaid Grade Level for each highlight (treated as a single sentence).
 Flags highlights outside the target range of grade 6–12.
@@ -249,20 +308,27 @@ Flags highlights outside the target range of grade 6–12.
 - **Grade < 6:** sentence is too simple — too short or uses only monosyllabic words.
   Add a metric, scope, or result to increase substance.
 
+**Basis:** Flesch-Kincaid is a well-established readability metric; the 6–12 band keeps bullets
+accessible without being simplistic.
+
 **Fix hint (too complex):** Break into shorter phrases or replace multi-syllable words with simpler alternatives.
 
 **Fix hint (too simple):** Expand the highlight with a result, metric, or scope to increase substance.
 
 ---
 
-### ats-017: tech-mentions-in-work
+### wl-017: tech-mentions-in-work
 
-**Sections checked:** work | **Severity:** suggestion
+**Category:** ats-parse | **Sections checked:** work | **Severity:** suggestion
 
 Cross-references each work entry's highlights against all skill item names. Fires when a
 work entry has highlights but none of them mention any skill (case-insensitive substring match).
 
 Skipped when the skills section is empty.
+
+**Basis (ATS-parse):** ATS keyword matching favours skills that appear *in context* within
+role descriptions, not only in a skills list; a role that names no technologies is weaker for
+keyword retrieval.
 
 **Bad:** A "Senior Python Engineer" role whose highlights mention no technologies at all.
 
