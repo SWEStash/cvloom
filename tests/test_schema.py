@@ -70,9 +70,17 @@ def test_basics_headline_wrong_type():
 
 
 def test_work_highlights_wrong_type():
-    errors = validate("work", [
-        {"company": "Acme", "title": "Dev", "start_date": "2020-01", "highlights": "not a list"},
-    ])
+    errors = validate(
+        "work",
+        [
+            {
+                "company": "Acme",
+                "title": "Dev",
+                "start_date": "2020-01",
+                "highlights": "not a list",
+            },
+        ],
+    )
     assert len(errors) > 0
 
 

@@ -39,11 +39,10 @@ def get_client() -> Any:
             "Run 'cvloom ai config' for setup instructions."
         )
     try:
-        import openai  # type: ignore[import-not-found]
+        import openai
     except ImportError as exc:
         raise ImportError(
-            "The 'openai' package is required for AI features.\n"
-            "Install with: uv sync --extra ai"
+            "The 'openai' package is required for AI features.\nInstall with: uv sync --extra ai"
         ) from exc
 
     base_url = os.environ["CVLOOM_AI_BASE_URL"].rstrip("/")

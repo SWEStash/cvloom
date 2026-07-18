@@ -8,18 +8,19 @@ import pytest
 
 from cvloom.ai.cover import _build_cover_prompt, _parse_cover_result
 
-
 # ---------------------------------------------------------------------------
 # _parse_cover_result
 # ---------------------------------------------------------------------------
 
 
 def test_parse_valid_json() -> None:
-    raw = json.dumps({
-        "letter": "Dear Hiring Manager,\n\nI am writing to apply...",
-        "word_count": 120,
-        "key_alignments": ["5 years Python", "distributed systems experience"],
-    })
+    raw = json.dumps(
+        {
+            "letter": "Dear Hiring Manager,\n\nI am writing to apply...",
+            "word_count": 120,
+            "key_alignments": ["5 years Python", "distributed systems experience"],
+        }
+    )
     result = _parse_cover_result(raw)
     assert result.letter == "Dear Hiring Manager,\n\nI am writing to apply..."
     assert result.word_count == 120

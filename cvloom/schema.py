@@ -14,9 +14,7 @@ _console = Console(stderr=True)
 
 
 def _load_schema(name: str) -> dict[str, Any]:
-    result: dict[str, Any] = json.loads(
-        (_SCHEMAS_DIR / f"{name}.json").read_text()
-    )
+    result: dict[str, Any] = json.loads((_SCHEMAS_DIR / f"{name}.json").read_text())
     return result
 
 
@@ -57,7 +55,8 @@ def validate_all(
 
     if "contact" in data:
         errs = validate(
-            "contact", data["contact"],
+            "contact",
+            data["contact"],
             source_path=private_path or "private/contact.yaml",
         )
         all_errors.extend(errs)

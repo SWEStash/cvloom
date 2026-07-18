@@ -36,9 +36,7 @@ def apply_overlays(data: dict[str, Any], profile: dict[str, Any]) -> None:
 # ── Basics overlay ───────────────────────────────────────────────────
 
 
-def _apply_basics_overlay(
-    data: dict[str, Any], overlay: dict[str, Any]
-) -> None:
+def _apply_basics_overlay(data: dict[str, Any], overlay: dict[str, Any]) -> None:
     """Shallow-merge overlay keys into ``data["basics"]``."""
     basics = data.get("basics")
     if basics is None:
@@ -50,9 +48,7 @@ def _apply_basics_overlay(
 # ── Array section overlays (work / education / projects) ─────────────
 
 
-def _match_entry(
-    entry: dict[str, Any], match: dict[str, str]
-) -> bool:
+def _match_entry(entry: dict[str, Any], match: dict[str, str]) -> bool:
     """Return True if *entry* matches all field-value pairs in *match*."""
     return all(entry.get(k) == v for k, v in match.items())
 
@@ -92,9 +88,7 @@ def _apply_array_overlay(
     data[section] = [e for e in entries if e is not None]
 
 
-def _apply_entry_overlay(
-    entry: dict[str, Any], overlay: dict[str, Any]
-) -> None:
+def _apply_entry_overlay(entry: dict[str, Any], overlay: dict[str, Any]) -> None:
     """Apply field overrides and highlight operations to a single entry."""
     # Field overrides (e.g. title)
     if "title" in overlay:
@@ -134,9 +128,7 @@ def _apply_entry_overlay(
 # ── Skills overlay ───────────────────────────────────────────────────
 
 
-def _apply_skills_overlay(
-    data: dict[str, Any], overlay: dict[str, Any]
-) -> None:
+def _apply_skills_overlay(data: dict[str, Any], overlay: dict[str, Any]) -> None:
     """Filter skill categories and items."""
     skills: list[dict[str, Any]] = data.get("skills", [])
     if not skills:
@@ -161,9 +153,7 @@ def _apply_skills_overlay(
         exclude_items = set(override.get("exclude_items", []))
         if exclude_items:
             group["items"] = [
-                item
-                for item in group["items"]
-                if (_item_name(item) not in exclude_items)
+                item for item in group["items"] if (_item_name(item) not in exclude_items)
             ]
 
     data["skills"] = skills
@@ -234,9 +224,7 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
             # Check if match spec matches any entry
             matched_entries = [e for e in entries if _match_entry(e, match_spec)]
             if not matched_entries:
-                warnings.append(
-                    f"{section} overlay: match={match_spec} does not match any entry."
-                )
+                warnings.append(f"{section} overlay: match={match_spec} does not match any entry.")
                 continue
 
             # Check highlight IDs in pick/exclude/replace
@@ -251,7 +239,8 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
             for entry in matched_entries:
                 entry_highlights = entry.get("highlights", [])
                 available_ids: set[str] = {
-                    h["id"] for h in entry_highlights
+                    h["id"]
+                    for h in entry_highlights
                     if isinstance(h, dict) and isinstance(h.get("id"), str)
                 }
 

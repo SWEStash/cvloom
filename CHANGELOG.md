@@ -7,6 +7,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- MIT `LICENSE` file (the license was previously declared but not shipped)
+- Fake-client tests for all four AI orchestrators (`review`, `generate_cover`, `suggest`, `align`) and all four AI MCP tools, including malformed-response cases — AI orchestration modules now at 100% coverage
+- CI quality gates: `ruff check`, `ruff format --check`, and strict `mypy` now run in the test job, across Python 3.11, 3.12, and 3.13
+
+### Changed
+- `__version__` is now read from package metadata (`pyproject.toml` is the single source of truth)
+- Codebase formatted with `ruff format`; formatting is now enforced in CI
+- Root `CONTRIBUTING.md` is the canonical contributing guide; `docs/dev/contributing.md` now points to it
+
+### Fixed
+- All outstanding `ruff` and `mypy` errors on `main`
+- README MCP tool table now lists all 16 tools (`trim_report` and `diff_profiles` were missing)
+
+---
+
 ## [0.5.0] — 2026-04-29
 
 ### Added

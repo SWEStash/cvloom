@@ -89,12 +89,14 @@ def test_analyze_match_empty_jd():
 
 def test_analyze_match_keyword_sections():
     resolved = _make_resolved(
-        work=[{
-            "company": "Acme",
-            "title": "Python Developer",
-            "start_date": "2020-01",
-            "highlights": ["Built microservices with Python and FastAPI."],
-        }],
+        work=[
+            {
+                "company": "Acme",
+                "title": "Python Developer",
+                "start_date": "2020-01",
+                "highlights": ["Built microservices with Python and FastAPI."],
+            }
+        ],
         skills=[{"category": "Languages", "items": ["Python"]}],
     )
     jd = "Python microservices FastAPI"
@@ -125,7 +127,7 @@ def project_root(tmp_path: Path) -> Path:
         'headline: "Python Engineer"\nsummary: "Backend specialist with 5 years."\n'
     )
     (data / "work.yaml").write_text(
-        '- company: Acme\n  title: Engineer\n  location: Remote\n'
+        "- company: Acme\n  title: Engineer\n  location: Remote\n"
         '  start_date: "2020-01"\n  end_date: Present\n'
         "  highlights:\n    - Built scalable Python microservices handling 10k requests.\n"
         "  tags: [python]\n"
@@ -135,9 +137,7 @@ def project_root(tmp_path: Path) -> Path:
         '  start_date: "2016"\n  end_date: "2020"\n'
         "  highlights:\n    - Graduated with honours in computer science.\n"
     )
-    (data / "skills.yaml").write_text(
-        "- category: Languages\n  items: [Python, Go, SQL]\n"
-    )
+    (data / "skills.yaml").write_text("- category: Languages\n  items: [Python, Go, SQL]\n")
     projects = data / "projects"
     projects.mkdir()
     (projects / "proj.yaml").write_text(
@@ -196,32 +196,58 @@ def test_match_cli_command(project_root: Path, monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_reorder_hints_suggests_better_order() -> None:
-    r = _make_resolved(work=[
-        {"company": "A", "title": "Engineer", "start_date": "2020-01",
-         "highlights": ["Built pipelines."]},
-        {"company": "B", "title": "Python Developer", "start_date": "2022-01",
-         "highlights": ["Built Python microservices with FastAPI and PostgreSQL."]},
-    ])
+    r = _make_resolved(
+        work=[
+            {
+                "company": "A",
+                "title": "Engineer",
+                "start_date": "2020-01",
+                "highlights": ["Built pipelines."],
+            },
+            {
+                "company": "B",
+                "title": "Python Developer",
+                "start_date": "2022-01",
+                "highlights": ["Built Python microservices with FastAPI and PostgreSQL."],
+            },
+        ]
+    )
     report = analyze_match(r, "Python FastAPI PostgreSQL microservices developer")
     assert len(report.reorder_hints) == 1
     assert "Python Developer at B" in report.reorder_hints[0]
 
 
 def test_reorder_hints_empty_when_already_optimal() -> None:
-    r = _make_resolved(work=[
-        {"company": "A", "title": "Python Developer", "start_date": "2022-01",
-         "highlights": ["Built Python microservices."]},
-        {"company": "B", "title": "Engineer", "start_date": "2020-01",
-         "highlights": ["Did general work."]},
-    ])
+    r = _make_resolved(
+        work=[
+            {
+                "company": "A",
+                "title": "Python Developer",
+                "start_date": "2022-01",
+                "highlights": ["Built Python microservices."],
+            },
+            {
+                "company": "B",
+                "title": "Engineer",
+                "start_date": "2020-01",
+                "highlights": ["Did general work."],
+            },
+        ]
+    )
     report = analyze_match(r, "Python microservices developer")
     assert report.reorder_hints == []
 
 
 def test_reorder_hints_empty_single_work_entry() -> None:
-    r = _make_resolved(work=[
-        {"company": "A", "title": "Engineer", "start_date": "2020-01",
-         "highlights": ["Built things."]},
-    ])
+    r = _make_resolved(
+        work=[
+            {
+                "company": "A",
+                "title": "Engineer",
+                "start_date": "2020-01",
+                "highlights": ["Built things."],
+            },
+        ]
+    )
     report = analyze_match(r, "Python developer")
     assert report.reorder_hints == []

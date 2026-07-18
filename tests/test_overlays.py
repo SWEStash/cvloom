@@ -490,10 +490,12 @@ class TestValidateOverlays:
                     entry["highlights"][i] = {"id": f"h{i}", "text": h}
         profile = {
             "overlays": {
-                "work": [{
-                    "match": {"company": "Acme Corp"},
-                    "highlights": {"mode": "pick", "items": ["nonexistent"]},
-                }],
+                "work": [
+                    {
+                        "match": {"company": "Acme Corp"},
+                        "highlights": {"mode": "pick", "items": ["nonexistent"]},
+                    }
+                ],
             }
         }
         warnings = validate_overlays(data, profile)
@@ -507,10 +509,12 @@ class TestValidateOverlays:
                     entry["highlights"][i] = {"id": f"h{i}", "text": h}
         profile = {
             "overlays": {
-                "work": [{
-                    "match": {"company": "Acme Corp"},
-                    "highlights": {"replace": {"badid": "new text"}},
-                }],
+                "work": [
+                    {
+                        "match": {"company": "Acme Corp"},
+                        "highlights": {"replace": {"badid": "new text"}},
+                    }
+                ],
             }
         }
         warnings = validate_overlays(data, profile)
@@ -520,10 +524,12 @@ class TestValidateOverlays:
         data = _base_data()
         profile = {
             "overlays": {
-                "work": [{
-                    "match": {"company": "Acme Corp"},
-                    "highlights": {"mode": "pick", "items": ["migration"]},
-                }],
+                "work": [
+                    {
+                        "match": {"company": "Acme Corp"},
+                        "highlights": {"mode": "pick", "items": ["migration"]},
+                    }
+                ],
             }
         }
         warnings = validate_overlays(data, profile)

@@ -49,8 +49,16 @@ def _count_words(data: dict[str, Any], sections: set[str]) -> int:
         if section not in sections:
             continue
         for entry in data.get(section, []):
-            for k in ("title", "company", "institution", "name",
-                       "description", "location", "degree", "field"):
+            for k in (
+                "title",
+                "company",
+                "institution",
+                "name",
+                "description",
+                "location",
+                "degree",
+                "field",
+            ):
                 val = entry.get(k)
                 if isinstance(val, str):
                     total += len(val.split())

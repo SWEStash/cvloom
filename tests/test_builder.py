@@ -163,9 +163,7 @@ def project_dir(tmp_path: Path) -> Path:
     """Create a minimal project structure for resolve() tests."""
     data = tmp_path / "data"
     data.mkdir()
-    (data / "basics.yaml").write_text(
-        'headline: "Test Engineer"\nsummary: "A test summary."\n'
-    )
+    (data / "basics.yaml").write_text('headline: "Test Engineer"\nsummary: "A test summary."\n')
     (data / "work.yaml").write_text(
         '- company: Acme\n  title: Engineer\n  start_date: "2020-01"\n'
         "  highlights:\n    - Built things.\n"
@@ -173,26 +171,18 @@ def project_dir(tmp_path: Path) -> Path:
     (data / "education.yaml").write_text(
         '- institution: Uni\n  degree: BSc\n  start_date: "2016"\n'
     )
-    (data / "skills.yaml").write_text(
-        "- category: Languages\n  items: [Python]\n"
-    )
+    (data / "skills.yaml").write_text("- category: Languages\n  items: [Python]\n")
     projects = data / "projects"
     projects.mkdir()
-    (projects / "alpha.yaml").write_text(
-        'name: alpha\ndescription: "A project."\ntags: [python]\n'
-    )
+    (projects / "alpha.yaml").write_text('name: alpha\ndescription: "A project."\ntags: [python]\n')
 
     private = tmp_path / "private"
     private.mkdir()
-    (private / "contact.yaml").write_text(
-        'name: Test\nemail: "test@example.com"\n'
-    )
+    (private / "contact.yaml").write_text('name: Test\nemail: "test@example.com"\n')
 
     profiles = tmp_path / "profiles"
     profiles.mkdir()
-    (profiles / "general.yaml").write_text(
-        "template: cv/ats-single\noutput_filename: cv\n"
-    )
+    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
 
     return tmp_path
 

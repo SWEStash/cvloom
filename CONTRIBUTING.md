@@ -11,7 +11,7 @@ headless browsers. Contributions that preserve this scope are most welcome.
 **Good fit:**
 - Bug fixes and validation improvements
 - New built-in templates (CV layouts, cover letter styles)
-- New ATS linter rules (see `docs/ats-linter-rules.md`)
+- New ATS linter rules (see `docs/reference/ats-linter-rules.md`)
 - Documentation and examples
 - Test coverage
 
@@ -36,13 +36,14 @@ uv run cvloom --help     # smoke test
 ## Development workflow
 
 ```bash
-uv run ruff check cvloom tests    # lint
-uv run ruff format cvloom tests   # format
-uv run mypy cvloom                # type-check
-uv run pytest -v                     # tests with output
+uv run ruff check cvloom tests           # lint
+uv run ruff format --check cvloom tests  # format check
+uv run mypy cvloom                       # type-check (strict mode)
+uv run pytest -v                            # tests with output
 ```
 
-All four commands must pass cleanly before opening a PR.
+All four commands must pass cleanly before opening a PR — CI enforces them
+on Python 3.11, 3.12, and 3.13.
 
 ## Adding a template
 
@@ -105,7 +106,7 @@ the `RULES` list in `cvloom/linter.py`.
    and your check function.
 3. Append it to `RULES`.
 4. Add tests in `tests/test_linter.py` covering both positive and negative cases.
-5. Document the rule in `docs/ats-linter-rules.md`.
+5. Document the rule in `docs/reference/ats-linter-rules.md`.
 
 See `_check_passive_voice` (ats-001) for a minimal example.
 
@@ -134,8 +135,10 @@ test: cover list-projects tag filtering
 ## Pull request checklist
 
 - [ ] `uv run pytest` passes
-- [ ] `uv run ruff check cvloom tests` passes (no errors)
+- [ ] `uv run ruff check cvloom tests` and `uv run ruff format --check cvloom tests` pass
 - [ ] `uv run mypy cvloom` passes
 - [ ] CHANGELOG.md updated under `[Unreleased]`
 - [ ] `docs/` updated if user-facing behaviour changed
 - [ ] New templates include a render test
+- [ ] New linter rules include tests for both triggering and clean cases
+- [ ] New MCP tools include a test and an updated tool count in `docs/reference/mcp-server.md`

@@ -8,26 +8,27 @@ import pytest
 
 from cvloom.ai.analyzer import _build_review_prompt, _parse_review_result
 
-
 # ---------------------------------------------------------------------------
 # _parse_review_result
 # ---------------------------------------------------------------------------
 
 
 def test_parse_valid_json() -> None:
-    raw = json.dumps({
-        "overall_score": 7.5,
-        "sections": [
-            {
-                "section": "work",
-                "score": 8.0,
-                "strengths": ["Good metrics"],
-                "weaknesses": ["Too verbose"],
-                "suggestions": ["Add more numbers"],
-            }
-        ],
-        "top_priorities": ["Quantify impact", "Tighten summary", "Add LinkedIn"],
-    })
+    raw = json.dumps(
+        {
+            "overall_score": 7.5,
+            "sections": [
+                {
+                    "section": "work",
+                    "score": 8.0,
+                    "strengths": ["Good metrics"],
+                    "weaknesses": ["Too verbose"],
+                    "suggestions": ["Add more numbers"],
+                }
+            ],
+            "top_priorities": ["Quantify impact", "Tighten summary", "Add LinkedIn"],
+        }
+    )
     result = _parse_review_result(raw)
     assert result.overall_score == 7.5
     assert len(result.sections) == 1
@@ -48,10 +49,12 @@ def test_parse_missing_sections_key() -> None:
 
 
 def test_parse_section_missing_optional_fields() -> None:
-    raw = json.dumps({
-        "overall_score": 6.0,
-        "sections": [{"section": "skills", "score": 6}],
-    })
+    raw = json.dumps(
+        {
+            "overall_score": 6.0,
+            "sections": [{"section": "skills", "score": 6}],
+        }
+    )
     result = _parse_review_result(raw)
     assert result.sections[0].strengths == []
     assert result.sections[0].weaknesses == []
@@ -64,10 +67,12 @@ def test_parse_invalid_json() -> None:
 
 
 def test_parse_score_coerced_to_float() -> None:
-    raw = json.dumps({
-        "overall_score": 8,
-        "sections": [{"section": "work", "score": 9}],
-    })
+    raw = json.dumps(
+        {
+            "overall_score": 8,
+            "sections": [{"section": "work", "score": 9}],
+        }
+    )
     result = _parse_review_result(raw)
     assert isinstance(result.overall_score, float)
     assert isinstance(result.sections[0].score, float)

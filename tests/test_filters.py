@@ -26,9 +26,9 @@ def test_date_range_no_end():
 
 def test_skill_level_bar_expert():
     result = skill_level_bar("expert")
-    assert 'skill-level-4' in result
+    assert "skill-level-4" in result
 
 
 def test_skill_level_bar_empty():
     result = skill_level_bar("")
-    assert 'skill-level-0' in result
+    assert "skill-level-0" in result

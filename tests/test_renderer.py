@@ -11,9 +11,7 @@ from cvloom.renderer import render_template
 def templates_dir(tmp_path: Path) -> Path:
     t = tmp_path / "templates"
     (t / "cv").mkdir(parents=True)
-    (t / "cv" / "test.html.j2").write_text(
-        "<html><body>{{ contact.name }}</body></html>"
-    )
+    (t / "cv" / "test.html.j2").write_text("<html><body>{{ contact.name }}</body></html>")
     return t
 
 

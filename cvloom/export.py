@@ -31,17 +31,21 @@ def _map_profiles(contact: dict[str, Any]) -> list[dict[str, str]]:
     """Map contact social links to JSON Resume profiles."""
     profiles: list[dict[str, str]] = []
     if contact.get("linkedin"):
-        profiles.append({
-            "network": "LinkedIn",
-            "username": contact["linkedin"],
-            "url": f"https://linkedin.com/in/{contact['linkedin']}",
-        })
+        profiles.append(
+            {
+                "network": "LinkedIn",
+                "username": contact["linkedin"],
+                "url": f"https://linkedin.com/in/{contact['linkedin']}",
+            }
+        )
     if contact.get("github"):
-        profiles.append({
-            "network": "GitHub",
-            "username": contact["github"],
-            "url": f"https://github.com/{contact['github']}",
-        })
+        profiles.append(
+            {
+                "network": "GitHub",
+                "username": contact["github"],
+                "url": f"https://github.com/{contact['github']}",
+            }
+        )
     return profiles
 
 
@@ -66,8 +70,7 @@ def _map_work(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["location"] = entry["location"]
         if entry.get("highlights"):
             item["highlights"] = [
-                h if isinstance(h, str) else h.get("text", "")
-                for h in entry["highlights"]
+                h if isinstance(h, str) else h.get("text", "") for h in entry["highlights"]
             ]
         result.append(item)
     return result
@@ -90,8 +93,7 @@ def _map_education(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["score"] = entry["grade"]
         if entry.get("highlights"):
             item["highlights"] = [
-                h if isinstance(h, str) else h.get("text", "")
-                for h in entry["highlights"]
+                h if isinstance(h, str) else h.get("text", "") for h in entry["highlights"]
             ]
         result.append(item)
     return result
@@ -107,10 +109,12 @@ def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 keywords.append(item)
             else:
                 keywords.append(item.get("name", ""))
-        result.append({
-            "name": group.get("category", ""),
-            "keywords": keywords,
-        })
+        result.append(
+            {
+                "name": group.get("category", ""),
+                "keywords": keywords,
+            }
+        )
     return result
 
 
@@ -132,8 +136,7 @@ def _map_projects(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["keywords"] = entry["tags"]
         if entry.get("highlights"):
             item["highlights"] = [
-                h if isinstance(h, str) else h.get("text", "")
-                for h in entry["highlights"]
+                h if isinstance(h, str) else h.get("text", "") for h in entry["highlights"]
             ]
         result.append(item)
     return result
@@ -371,8 +374,7 @@ def export_linkedin(resolved: ResolvedProfile, output_path: Path) -> list[str]:
     summary = resolved.data.get("basics", {}).get("summary", "")
     if len(summary) > _LINKEDIN_ABOUT_LIMIT:
         warnings.append(
-            f"About section is {len(summary)} chars "
-            f"(LinkedIn limit: {_LINKEDIN_ABOUT_LIMIT})"
+            f"About section is {len(summary)} chars (LinkedIn limit: {_LINKEDIN_ABOUT_LIMIT})"
         )
     return warnings
 

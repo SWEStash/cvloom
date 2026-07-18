@@ -48,14 +48,60 @@ _PASSIVE_RE = re.compile(
 
 # Words that match the passive participle pattern but are adjectives/non-participles.
 _PASSIVE_FALSE_POSITIVES = {
-    "present", "recent", "absent", "current", "different", "important", "efficient",
-    "excellent", "sufficient", "consistent", "persistent", "resilient", "intelligent",
-    "confident", "competent", "relevant", "elegant", "frequent", "urgent", "ancient",
-    "silent", "content", "evident", "dependent", "independent", "spent", "sent", "went",
-    "bent", "lent", "meant", "dealt", "felt", "built", "knelt", "prevalent", "prominent",
-    "transparent", "coherent", "concurrent", "existent", "inherent", "latent", "potent",
-    "reluctant", "apparent", "brilliant", "compliant", "diligent", "proficient",
-    "sufficient", "emergent", "equivalent", "fluent",
+    "present",
+    "recent",
+    "absent",
+    "current",
+    "different",
+    "important",
+    "efficient",
+    "excellent",
+    "sufficient",
+    "consistent",
+    "persistent",
+    "resilient",
+    "intelligent",
+    "confident",
+    "competent",
+    "relevant",
+    "elegant",
+    "frequent",
+    "urgent",
+    "ancient",
+    "silent",
+    "content",
+    "evident",
+    "dependent",
+    "independent",
+    "spent",
+    "sent",
+    "went",
+    "bent",
+    "lent",
+    "meant",
+    "dealt",
+    "felt",
+    "built",
+    "knelt",
+    "prevalent",
+    "prominent",
+    "transparent",
+    "coherent",
+    "concurrent",
+    "existent",
+    "inherent",
+    "latent",
+    "potent",
+    "reluctant",
+    "apparent",
+    "brilliant",
+    "compliant",
+    "diligent",
+    "proficient",
+    "sufficient",
+    "emergent",
+    "equivalent",
+    "fluent",
 }
 
 _WEAK_OPENERS = [
@@ -103,23 +149,97 @@ _WORDS_PER_PAGE = 500
 _DATE_YYYY_MM_RE = re.compile(r"^\d{4}-\d{2}$")
 _DATE_YYYY_RE = re.compile(r"^\d{4}$")
 
-_IRREGULAR_PAST = frozenset({
-    "led", "built", "ran", "wrote", "grew", "drove", "won", "taught",
-    "brought", "became", "came", "cut", "drew", "went", "had", "held",
-    "kept", "lost", "made", "met", "paid", "put", "read", "said", "sat",
-    "sold", "took", "told", "thought", "set", "got", "left", "sent", "spent",
-    "began", "broke", "chose", "found", "gave", "knew", "saw", "spoke",
-    "stood", "wore",
-})
+_IRREGULAR_PAST = frozenset(
+    {
+        "led",
+        "built",
+        "ran",
+        "wrote",
+        "grew",
+        "drove",
+        "won",
+        "taught",
+        "brought",
+        "became",
+        "came",
+        "cut",
+        "drew",
+        "went",
+        "had",
+        "held",
+        "kept",
+        "lost",
+        "made",
+        "met",
+        "paid",
+        "put",
+        "read",
+        "said",
+        "sat",
+        "sold",
+        "took",
+        "told",
+        "thought",
+        "set",
+        "got",
+        "left",
+        "sent",
+        "spent",
+        "began",
+        "broke",
+        "chose",
+        "found",
+        "gave",
+        "knew",
+        "saw",
+        "spoke",
+        "stood",
+        "wore",
+    }
+)
 
-_PRESENT_TENSE_VERBS = frozenset({
-    "design", "develop", "build", "lead", "manage", "implement", "create",
-    "write", "run", "analyze", "architect", "deploy", "maintain", "optimize",
-    "own", "deliver", "drive", "grow", "scale", "migrate", "integrate",
-    "coordinate", "mentor", "review", "define", "establish", "improve",
-    "reduce", "increase", "support", "enable", "handle", "oversee",
-    "operate", "automate", "monitor", "evaluate", "collaborate",
-})
+_PRESENT_TENSE_VERBS = frozenset(
+    {
+        "design",
+        "develop",
+        "build",
+        "lead",
+        "manage",
+        "implement",
+        "create",
+        "write",
+        "run",
+        "analyze",
+        "architect",
+        "deploy",
+        "maintain",
+        "optimize",
+        "own",
+        "deliver",
+        "drive",
+        "grow",
+        "scale",
+        "migrate",
+        "integrate",
+        "coordinate",
+        "mentor",
+        "review",
+        "define",
+        "establish",
+        "improve",
+        "reduce",
+        "increase",
+        "support",
+        "enable",
+        "handle",
+        "oversee",
+        "operate",
+        "automate",
+        "monitor",
+        "evaluate",
+        "collaborate",
+    }
+)
 
 _RESULT_FRAMING_RE = re.compile(
     r"\b(?:enabling|resulting|achieving|allowing|saving|delivering|"
@@ -206,7 +326,7 @@ def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="",
                 bullet_index=idx,
                 bullet_text=text,
-                message=f"Passive voice detected: \"{match.group()}\"",
+                message=f'Passive voice detected: "{match.group()}"',
                 fix_hint="Rewrite using an active verb (e.g. 'Designed', 'Built', 'Led').",
             )
         return None
@@ -250,16 +370,18 @@ def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
         for item in group.get("items", []):
             name = item if isinstance(item, str) else item.get("name", "")
             if name.lower() in _NOISE_SKILLS:
-                findings.append(LintFinding(
-                    rule_id="ats-003",
-                    severity="warning",
-                    section="skills",
-                    entry=category,
-                    bullet_index=None,
-                    bullet_text=None,
-                    message=f"\"{name}\" is considered a noise skill by most ATS reviewers.",
-                    fix_hint="Remove it or replace with a more specific/valuable skill.",
-                ))
+                findings.append(
+                    LintFinding(
+                        rule_id="ats-003",
+                        severity="warning",
+                        section="skills",
+                        entry=category,
+                        bullet_index=None,
+                        bullet_text=None,
+                        message=f'"{name}" is considered a noise skill by most ATS reviewers.',
+                        fix_hint="Remove it or replace with a more specific/valuable skill.",
+                    )
+                )
     return findings
 
 
@@ -278,9 +400,9 @@ def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
                     entry="",
                     bullet_index=idx,
                     bullet_text=text,
-                    message=f"Weak opener: \"{weak}\".",
+                    message=f'Weak opener: "{weak}".',
                     fix_hint="Start with a strong action verb: 'Designed', 'Implemented', "
-                             "'Reduced', 'Delivered', 'Architected'.",
+                    "'Reduced', 'Delivered', 'Architected'.",
                 )
         return None
 
@@ -344,16 +466,18 @@ def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFindin
                 else:
                     formats.add("other")
         if len(formats) > 1:
-            findings.append(LintFinding(
-                rule_id="ats-012",
-                severity="warning",
-                section=section,
-                entry="dates",
-                bullet_index=None,
-                bullet_text=None,
-                message=f"Mixed date formats in {section}: {', '.join(sorted(formats))}.",
-                fix_hint="Use a single date format throughout (YYYY-MM recommended).",
-            ))
+            findings.append(
+                LintFinding(
+                    rule_id="ats-012",
+                    severity="warning",
+                    section=section,
+                    entry="dates",
+                    bullet_index=None,
+                    bullet_text=None,
+                    message=f"Mixed date formats in {section}: {', '.join(sorted(formats))}.",
+                    fix_hint="Use a single date format throughout (YYYY-MM recommended).",
+                )
+            )
 
     return findings
 
@@ -378,27 +502,31 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
             is_past = first_word.endswith("ed") or first_word in _IRREGULAR_PAST
 
             if is_current and is_past:
-                findings.append(LintFinding(
-                    rule_id="ats-013",
-                    severity="warning",
-                    section="work",
-                    entry=company,
-                    bullet_index=i,
-                    bullet_text=text,
-                    message=f"Past-tense opener \"{first_word}\" in current role.",
-                    fix_hint="Use present tense for current roles (e.g. 'Design', 'Lead').",
-                ))
+                findings.append(
+                    LintFinding(
+                        rule_id="ats-013",
+                        severity="warning",
+                        section="work",
+                        entry=company,
+                        bullet_index=i,
+                        bullet_text=text,
+                        message=f'Past-tense opener "{first_word}" in current role.',
+                        fix_hint="Use present tense for current roles (e.g. 'Design', 'Lead').",
+                    )
+                )
             elif not is_current and first_word in _PRESENT_TENSE_VERBS:
-                findings.append(LintFinding(
-                    rule_id="ats-013",
-                    severity="warning",
-                    section="work",
-                    entry=company,
-                    bullet_index=i,
-                    bullet_text=text,
-                    message=f"Present-tense opener \"{first_word}\" in past role.",
-                    fix_hint="Use past tense for past roles (e.g. 'Designed', 'Led').",
-                ))
+                findings.append(
+                    LintFinding(
+                        rule_id="ats-013",
+                        severity="warning",
+                        section="work",
+                        entry=company,
+                        bullet_index=i,
+                        bullet_text=text,
+                        message=f'Present-tense opener "{first_word}" in past role.',
+                        fix_hint="Use past tense for past roles (e.g. 'Designed', 'Led').",
+                    )
+                )
 
     return findings
 
@@ -410,27 +538,31 @@ def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
         return []
     word_count = len(summary.split())
     if word_count < _MIN_SUMMARY_WORDS:
-        return [LintFinding(
-            rule_id="ats-014",
-            severity="warning",
-            section="basics",
-            entry="summary",
-            bullet_index=None,
-            bullet_text=None,
-            message=f"Summary too short ({word_count} words, minimum {_MIN_SUMMARY_WORDS}).",
-            fix_hint="Expand to 20–80 words to give context and grab recruiter attention.",
-        )]
+        return [
+            LintFinding(
+                rule_id="ats-014",
+                severity="warning",
+                section="basics",
+                entry="summary",
+                bullet_index=None,
+                bullet_text=None,
+                message=f"Summary too short ({word_count} words, minimum {_MIN_SUMMARY_WORDS}).",
+                fix_hint="Expand to 20–80 words to give context and grab recruiter attention.",
+            )
+        ]
     if word_count > _MAX_SUMMARY_WORDS:
-        return [LintFinding(
-            rule_id="ats-014",
-            severity="warning",
-            section="basics",
-            entry="summary",
-            bullet_index=None,
-            bullet_text=None,
-            message=f"Summary too long ({word_count} words, maximum {_MAX_SUMMARY_WORDS}).",
-            fix_hint="Tighten to 80 words or fewer; recruiters skim the summary.",
-        )]
+        return [
+            LintFinding(
+                rule_id="ats-014",
+                severity="warning",
+                section="basics",
+                entry="summary",
+                bullet_index=None,
+                bullet_text=None,
+                message=f"Summary too long ({word_count} words, maximum {_MAX_SUMMARY_WORDS}).",
+                fix_hint="Tighten to 80 words or fewer; recruiters skim the summary.",
+            )
+        ]
     return []
 
 
@@ -467,27 +599,31 @@ def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
         count = len(entry.get("highlights", []))
         company = str(entry.get("company", "?"))
         if count < _MIN_BULLETS:
-            findings.append(LintFinding(
-                rule_id="ats-006",
-                severity="warning",
-                section="work",
-                entry=company,
-                bullet_index=None,
-                bullet_text=None,
-                message=f"{count} highlight(s) (minimum {_MIN_BULLETS}).",
-                fix_hint="Add more highlights to better showcase your impact in this role.",
-            ))
+            findings.append(
+                LintFinding(
+                    rule_id="ats-006",
+                    severity="warning",
+                    section="work",
+                    entry=company,
+                    bullet_index=None,
+                    bullet_text=None,
+                    message=f"{count} highlight(s) (minimum {_MIN_BULLETS}).",
+                    fix_hint="Add more highlights to better showcase your impact in this role.",
+                )
+            )
         elif count > _MAX_BULLETS:
-            findings.append(LintFinding(
-                rule_id="ats-006",
-                severity="warning",
-                section="work",
-                entry=company,
-                bullet_index=None,
-                bullet_text=None,
-                message=f"{count} highlights (maximum {_MAX_BULLETS}).",
-                fix_hint="Trim to the most impactful bullets.",
-            ))
+            findings.append(
+                LintFinding(
+                    rule_id="ats-006",
+                    severity="warning",
+                    section="work",
+                    entry=company,
+                    bullet_index=None,
+                    bullet_text=None,
+                    message=f"{count} highlights (maximum {_MAX_BULLETS}).",
+                    fix_hint="Trim to the most impactful bullets.",
+                )
+            )
     return findings
 
 
@@ -514,16 +650,18 @@ def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
 
     summary = resolved.data.get("basics", {}).get("summary", "")
     if summary and _FIRST_PERSON_RE.search(summary):
-        findings.append(LintFinding(
-            rule_id="ats-007",
-            severity="warning",
-            section="basics",
-            entry="summary",
-            bullet_index=None,
-            bullet_text=None,
-            message="First-person pronoun detected in summary.",
-            fix_hint="Remove first-person pronouns; use implied subject.",
-        ))
+        findings.append(
+            LintFinding(
+                rule_id="ats-007",
+                severity="warning",
+                section="basics",
+                entry="summary",
+                bullet_index=None,
+                bullet_text=None,
+                message="First-person pronoun detected in summary.",
+                fix_hint="Remove first-person pronouns; use implied subject.",
+            )
+        )
 
     return findings
 
@@ -542,7 +680,7 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="",
                 bullet_index=idx,
                 bullet_text=text,
-                message=f"Vague buzzword detected: \"{m.group().lower()}\".",
+                message=f'Vague buzzword detected: "{m.group().lower()}".',
                 fix_hint="Replace with specific accomplishment or concrete skill.",
             )
         return None
@@ -554,16 +692,18 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
     if summary:
         m = _VAGUE_BUZZWORDS_RE.search(summary)
         if m:
-            findings.append(LintFinding(
-                rule_id="ats-008",
-                severity="warning",
-                section="basics",
-                entry="summary",
-                bullet_index=None,
-                bullet_text=None,
-                message=f"Vague buzzword detected: \"{m.group().lower()}\".",
-                fix_hint="Replace with specific accomplishment or concrete skill.",
-            ))
+            findings.append(
+                LintFinding(
+                    rule_id="ats-008",
+                    severity="warning",
+                    section="basics",
+                    entry="summary",
+                    bullet_index=None,
+                    bullet_text=None,
+                    message=f'Vague buzzword detected: "{m.group().lower()}".',
+                    fix_hint="Replace with specific accomplishment or concrete skill.",
+                )
+            )
 
     return findings
 
@@ -574,27 +714,31 @@ def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
         return []
     total = sum(len(group.get("items", [])) for group in resolved.data.get("skills", []))
     if total < _MIN_SKILLS:
-        return [LintFinding(
-            rule_id="ats-009",
-            severity="warning",
-            section="skills",
-            entry="total",
-            bullet_index=None,
-            bullet_text=None,
-            message=f"Only {total} skill(s) listed (minimum {_MIN_SKILLS}).",
-            fix_hint="Add more skills to reach at least 8.",
-        )]
+        return [
+            LintFinding(
+                rule_id="ats-009",
+                severity="warning",
+                section="skills",
+                entry="total",
+                bullet_index=None,
+                bullet_text=None,
+                message=f"Only {total} skill(s) listed (minimum {_MIN_SKILLS}).",
+                fix_hint="Add more skills to reach at least 8.",
+            )
+        ]
     if total > _MAX_SKILLS:
-        return [LintFinding(
-            rule_id="ats-009",
-            severity="warning",
-            section="skills",
-            entry="total",
-            bullet_index=None,
-            bullet_text=None,
-            message=f"{total} skills listed (maximum {_MAX_SKILLS}).",
-            fix_hint="Trim to the most relevant 25 skills.",
-        )]
+        return [
+            LintFinding(
+                rule_id="ats-009",
+                severity="warning",
+                section="skills",
+                entry="total",
+                bullet_index=None,
+                bullet_text=None,
+                message=f"{total} skills listed (maximum {_MAX_SKILLS}).",
+                fix_hint="Trim to the most relevant 25 skills.",
+            )
+        ]
     return []
 
 
@@ -607,16 +751,20 @@ def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
         url = str(link.get("url", ""))
         if "linkedin.com" in url or "github.com" in url:
             return []
-    return [LintFinding(
-        rule_id="ats-010",
-        severity="warning",
-        section="contact",
-        entry="profile links",
-        bullet_index=None,
-        bullet_text=None,
-        message="No LinkedIn or GitHub profile link found.",
-        fix_hint="Add linkedin or github to contact.yaml, or add a public_links entry in basics.",
-    )]
+    return [
+        LintFinding(
+            rule_id="ats-010",
+            severity="warning",
+            section="contact",
+            entry="profile links",
+            bullet_index=None,
+            bullet_text=None,
+            message="No LinkedIn or GitHub profile link found.",
+            fix_hint=(
+                "Add linkedin or github to contact.yaml, or add a public_links entry in basics."
+            ),
+        )
+    ]
 
 
 def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
@@ -644,16 +792,18 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
     estimated_pages = max(1, round(total_words / _WORDS_PER_PAGE))
 
     if estimated_pages > 2:
-        return [LintFinding(
-            rule_id="ats-011",
-            severity="warning",
-            section="basics",
-            entry="page estimate",
-            bullet_index=None,
-            bullet_text=None,
-            message=f"Estimated ~{estimated_pages} pages; target 1–2 pages.",
-            fix_hint="Reduce highlights or shorten descriptions.",
-        )]
+        return [
+            LintFinding(
+                rule_id="ats-011",
+                severity="warning",
+                section="basics",
+                entry="page estimate",
+                bullet_index=None,
+                bullet_text=None,
+                message=f"Estimated ~{estimated_pages} pages; target 1–2 pages.",
+                fix_hint="Reduce highlights or shorten descriptions.",
+            )
+        ]
     return []
 
 
@@ -664,8 +814,12 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
         grade = _fk_grade(text)
         if grade > _FK_MAX_GRADE:
             return LintFinding(
-                rule_id="ats-016", severity="suggestion",
-                section="", entry="", bullet_index=idx, bullet_text=text,
+                rule_id="ats-016",
+                severity="suggestion",
+                section="",
+                entry="",
+                bullet_index=idx,
+                bullet_text=text,
                 message=(
                     f"Readability grade {grade:.1f} exceeds target (≤{_FK_MAX_GRADE});"
                     " simplify sentence structure."
@@ -677,8 +831,12 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
             )
         if grade < _FK_MIN_GRADE:
             return LintFinding(
-                rule_id="ats-016", severity="suggestion",
-                section="", entry="", bullet_index=idx, bullet_text=text,
+                rule_id="ats-016",
+                severity="suggestion",
+                section="",
+                entry="",
+                bullet_index=idx,
+                bullet_text=text,
                 message=(
                     f"Readability grade {grade:.1f} is below target (≥{_FK_MIN_GRADE});"
                     " add context or detail."
@@ -713,19 +871,24 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
         if not highlights:
             continue
         hl_text = " ".join(
-            h if isinstance(h, str) else h.get("text", "")
-            for h in highlights
+            h if isinstance(h, str) else h.get("text", "") for h in highlights
         ).lower()
         if not any(skill in hl_text for skill in skill_names):
-            findings.append(LintFinding(
-                rule_id="ats-017", severity="suggestion",
-                section="work", entry=entry.get("company", ""),
-                bullet_index=None, bullet_text=None,
-                message="No skill items mentioned in this role's highlights.",
-                fix_hint=(
-                    "Reference at least one tool, language, or framework from your skills section."
-                ),
-            ))
+            findings.append(
+                LintFinding(
+                    rule_id="ats-017",
+                    severity="suggestion",
+                    section="work",
+                    entry=entry.get("company", ""),
+                    bullet_index=None,
+                    bullet_text=None,
+                    message="No skill items mentioned in this role's highlights.",
+                    fix_hint=(
+                        "Reference at least one tool, language, or framework "
+                        "from your skills section."
+                    ),
+                )
+            )
     return findings
 
 
@@ -733,71 +896,104 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
 
 RULES: list[LintRule] = [
     LintRule(
-        "ats-001", "passive-voice",
-        "Flag passive voice in highlights", _check_passive_voice,
+        "ats-001",
+        "passive-voice",
+        "Flag passive voice in highlights",
+        _check_passive_voice,
     ),
     LintRule(
-        "ats-002", "missing-quantification",
-        "Flag highlights without numbers", _check_missing_quantification,
+        "ats-002",
+        "missing-quantification",
+        "Flag highlights without numbers",
+        _check_missing_quantification,
     ),
     LintRule(
-        "ats-003", "noise-skills",
-        "Flag low-value skills", _check_noise_skills,
+        "ats-003",
+        "noise-skills",
+        "Flag low-value skills",
+        _check_noise_skills,
     ),
     LintRule(
-        "ats-004", "weak-action-verbs",
-        "Flag weak opening verbs", _check_weak_action_verbs,
+        "ats-004",
+        "weak-action-verbs",
+        "Flag weak opening verbs",
+        _check_weak_action_verbs,
     ),
     LintRule(
-        "ats-005", "highlight-length",
-        "Flag too-short or too-long highlights", _check_highlight_length,
+        "ats-005",
+        "highlight-length",
+        "Flag too-short or too-long highlights",
+        _check_highlight_length,
     ),
     LintRule(
-        "ats-012", "date-format-consistency",
-        "Flag mixed date formats within work or education sections", _check_date_format_consistency,
+        "ats-012",
+        "date-format-consistency",
+        "Flag mixed date formats within work or education sections",
+        _check_date_format_consistency,
     ),
     LintRule(
-        "ats-013", "tense-consistency",
-        "Present tense for current roles, past tense for previous", _check_tense_consistency,
+        "ats-013",
+        "tense-consistency",
+        "Present tense for current roles, past tense for previous",
+        _check_tense_consistency,
     ),
     LintRule(
-        "ats-014", "summary-length",
-        "Warn if summary is too short or too long", _check_summary_length,
+        "ats-014",
+        "summary-length",
+        "Warn if summary is too short or too long",
+        _check_summary_length,
     ),
     LintRule(
-        "ats-015", "action-result",
-        "Flag highlights with a metric but no result framing", _check_action_result,
+        "ats-015",
+        "action-result",
+        "Flag highlights with a metric but no result framing",
+        _check_action_result,
     ),
     LintRule(
-        "ats-006", "bullet-count",
-        "Warn if a work entry has too few or too many highlights", _check_bullet_count,
+        "ats-006",
+        "bullet-count",
+        "Warn if a work entry has too few or too many highlights",
+        _check_bullet_count,
     ),
     LintRule(
-        "ats-007", "first-person",
-        "Flag first-person pronouns in highlights and summary", _check_first_person,
+        "ats-007",
+        "first-person",
+        "Flag first-person pronouns in highlights and summary",
+        _check_first_person,
     ),
     LintRule(
-        "ats-008", "vague-buzzwords",
-        "Flag vague buzzwords in highlights and summary", _check_vague_buzzwords,
+        "ats-008",
+        "vague-buzzwords",
+        "Flag vague buzzwords in highlights and summary",
+        _check_vague_buzzwords,
     ),
     LintRule(
-        "ats-009", "skill-count",
-        "Warn if total skills are below minimum or above maximum", _check_skill_count,
+        "ats-009",
+        "skill-count",
+        "Warn if total skills are below minimum or above maximum",
+        _check_skill_count,
     ),
     LintRule(
-        "ats-010", "profile-links",
-        "Warn if no LinkedIn or GitHub link is present", _check_profile_links,
+        "ats-010",
+        "profile-links",
+        "Warn if no LinkedIn or GitHub link is present",
+        _check_profile_links,
     ),
     LintRule(
-        "ats-011", "page-count",
-        "Warn if estimated page count exceeds 2", _check_page_count,
+        "ats-011",
+        "page-count",
+        "Warn if estimated page count exceeds 2",
+        _check_page_count,
     ),
     LintRule(
-        "ats-016", "readability",
-        "Flesch-Kincaid grade level per highlight (target 6–12)", _check_readability,
+        "ats-016",
+        "readability",
+        "Flesch-Kincaid grade level per highlight (target 6–12)",
+        _check_readability,
     ),
     LintRule(
-        "ats-017", "tech-mentions-in-work",
+        "ats-017",
+        "tech-mentions-in-work",
         "Flag work entries with no skill items mentioned in highlights",
         _check_tech_mentions_in_work,
     ),

@@ -62,9 +62,7 @@ def flatten_highlights(entries: list[dict[str, Any]]) -> None:
         raw = entry.get("highlights")
         if not raw:
             continue
-        entry["highlights"] = [
-            item["text"] if isinstance(item, dict) else item for item in raw
-        ]
+        entry["highlights"] = [item["text"] if isinstance(item, dict) else item for item in raw]
 
 
 def load_data(
@@ -104,11 +102,10 @@ def load_data(
     # Apply tag filtering
     if include_tags:
         tag_set = set(include_tags)
-        result["projects"] = [
-            p for p in result["projects"] if set(p.get("tags", [])) & tag_set
-        ]
+        result["projects"] = [p for p in result["projects"] if set(p.get("tags", [])) & tag_set]
         result["work"] = [
-            w for w in result.get("work", [])
+            w
+            for w in result.get("work", [])
             if not w.get("tags") or set(w.get("tags", [])) & tag_set
         ]
 

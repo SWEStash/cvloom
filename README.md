@@ -242,6 +242,8 @@ cvloom-mcp
 | `validate_data` | Run schema validation |
 | `export_json_resume` | Export as JSON Resume |
 | `check_cv` | Run ATS linter, return findings |
+| `trim_report` | Per-section word counts and trim recommendations |
+| `diff_profiles` | Compare two profiles side by side |
 | `match_jd` | Keyword gap analysis against a JD |
 | `ai_review_cv` | AI section scoring and feedback |
 | `ai_generate_cover` | AI cover letter from CV + JD text |
@@ -296,7 +298,7 @@ my-cv/
 |---|---|
 | [Architecture](docs/dev/architecture.md) | Build pipeline, module responsibilities, data flow |
 | [Custom Templates](docs/dev/custom-templates.md) | Writing Jinja2 templates, available blocks and filters |
-| [Contributing](docs/dev/contributing.md) | Dev setup, testing, adding linter rules, PR checklist |
+| [Contributing](CONTRIBUTING.md) | Dev setup, testing, adding linter rules, PR checklist |
 
 ---
 

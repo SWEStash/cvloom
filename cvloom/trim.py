@@ -78,8 +78,16 @@ def _analyze_array_section(
 
     for entry in entries:
         words = 0
-        for key in ("title", "company", "institution", "name",
-                     "description", "location", "degree", "field"):
+        for key in (
+            "title",
+            "company",
+            "institution",
+            "name",
+            "description",
+            "location",
+            "degree",
+            "field",
+        ):
             val = entry.get(key)
             if isinstance(val, str):
                 words += _count_words(val)
@@ -91,12 +99,14 @@ def _analyze_array_section(
             words += hw
             longest_hl = max(longest_hl, hw)
 
-        entry_counts.append(EntryWordCount(
-            label=_entry_label(section, entry),
-            total_words=words,
-            highlight_count=len(highlights),
-            longest_highlight_words=longest_hl,
-        ))
+        entry_counts.append(
+            EntryWordCount(
+                label=_entry_label(section, entry),
+                total_words=words,
+                highlight_count=len(highlights),
+                longest_highlight_words=longest_hl,
+            )
+        )
         total += words
 
     return SectionWordCount(section=section, total_words=total, entries=entry_counts)

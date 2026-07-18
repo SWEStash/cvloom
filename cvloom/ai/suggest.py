@@ -86,6 +86,4 @@ def suggest(
     try:
         return _parse_suggest_result(raw)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"AI returned invalid JSON. Raw response:\n{raw}"
-        ) from exc
+        raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc

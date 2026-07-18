@@ -142,10 +142,14 @@ def test_projects_mapping():
 
 
 def test_minimal_contact():
-    result = to_json_resume(_make_resolved(contact={
-        "name": "Min",
-        "email": "min@test.com",
-    }))
+    result = to_json_resume(
+        _make_resolved(
+            contact={
+                "name": "Min",
+                "email": "min@test.com",
+            }
+        )
+    )
     assert result["basics"]["name"] == "Min"
     assert "phone" not in result["basics"]
     assert "url" not in result["basics"]

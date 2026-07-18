@@ -37,9 +37,11 @@ def _make_resolved(
 
 
 def test_passive_voice_detected():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["The system was designed to handle load."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["The system was designed to handle load."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-001"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-001"
@@ -47,22 +49,29 @@ def test_passive_voice_detected():
 
 
 def test_passive_voice_clean():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Designed a system to handle 10k req/s."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Designed a system to handle 10k req/s."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-001"])
     assert len(findings) == 0
 
 
 def test_passive_voice_false_positive_adjective():
     """Adjectives like 'present', 'efficient', 'built' should not flag."""
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [
-            "The system is present in every data center across the region.",
-            "The architecture was efficient and reduced overall compute costs.",
-            "The pipeline was built to process events at scale with Kafka.",
-        ]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "The system is present in every data center across the region.",
+                    "The architecture was efficient and reduced overall compute costs.",
+                    "The pipeline was built to process events at scale with Kafka.",
+                ],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-001"])
     # Only "was built" should NOT flag (built is in false positives).
     # "is present" and "was efficient" should NOT flag (adjectives).
@@ -73,18 +82,22 @@ def test_passive_voice_false_positive_adjective():
 
 
 def test_missing_quantification_detected():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Improved system performance significantly."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Improved system performance significantly."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-002"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-002"
 
 
 def test_quantification_present():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Reduced latency by 40%."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Reduced latency by 40%."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-002"])
     assert len(findings) == 0
 
@@ -93,9 +106,11 @@ def test_quantification_present():
 
 
 def test_noise_skill_detected():
-    resolved = _make_resolved(skills=[
-        {"category": "Office", "items": ["Microsoft Word", "Python"]},
-    ])
+    resolved = _make_resolved(
+        skills=[
+            {"category": "Office", "items": ["Microsoft Word", "Python"]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-003"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-003"
@@ -103,17 +118,21 @@ def test_noise_skill_detected():
 
 
 def test_noise_skill_clean():
-    resolved = _make_resolved(skills=[
-        {"category": "Languages", "items": ["Python", "Go"]},
-    ])
+    resolved = _make_resolved(
+        skills=[
+            {"category": "Languages", "items": ["Python", "Go"]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-003"])
     assert len(findings) == 0
 
 
 def test_noise_skill_with_level_objects():
-    resolved = _make_resolved(skills=[
-        {"category": "Office", "items": [{"name": "Microsoft Excel", "level": "expert"}]},
-    ])
+    resolved = _make_resolved(
+        skills=[
+            {"category": "Office", "items": [{"name": "Microsoft Excel", "level": "expert"}]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-003"])
     assert len(findings) == 1
 
@@ -122,18 +141,22 @@ def test_noise_skill_with_level_objects():
 
 
 def test_weak_verb_detected():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Helped build the deployment pipeline."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Helped build the deployment pipeline."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-004"])
     assert len(findings) == 1
     assert "helped" in findings[0].message.lower()
 
 
 def test_strong_verb_clean():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Architected the deployment pipeline."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Architected the deployment pipeline."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-004"])
     assert len(findings) == 0
 
@@ -142,9 +165,11 @@ def test_strong_verb_clean():
 
 
 def test_highlight_too_short():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Built things."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Built things."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-005"])
     assert len(findings) == 1
     assert "too short" in findings[0].message.lower()
@@ -152,9 +177,11 @@ def test_highlight_too_short():
 
 def test_highlight_too_long():
     long_text = " ".join(["word"] * 30)
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [long_text]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": [long_text]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-005"])
     assert len(findings) == 1
     assert "too long" in findings[0].message.lower()
@@ -162,9 +189,11 @@ def test_highlight_too_long():
 
 def test_highlight_good_length():
     text = "Built a scalable pipeline processing 50k events per second with Kafka."
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [text]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": [text]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-005"])
     assert len(findings) == 0
 
@@ -175,10 +204,13 @@ def test_highlight_good_length():
 def test_lint_all_rules():
     resolved = _make_resolved(
         work=[
-            {"company": "Acme", "highlights": [
-                "Helped with stuff.",  # ats-004 + ats-005
-                "The system was designed.",  # ats-001 + ats-002 + ats-005
-            ]},  # 2 highlights → ats-006
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Helped with stuff.",  # ats-004 + ats-005
+                    "The system was designed.",  # ats-001 + ats-002 + ats-005
+                ],
+            },  # 2 highlights → ats-006
         ],
         skills=[
             {"category": "Office", "items": ["Microsoft Word"]},  # ats-003 + ats-009 (1 < 8)
@@ -223,9 +255,14 @@ def test_lint_rule_filter():
 
 
 def test_bullet_count_too_few():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Built a high-availability system with 99.9% uptime."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": ["Built a high-availability system with 99.9% uptime."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-006"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-006"
@@ -233,25 +270,33 @@ def test_bullet_count_too_few():
 
 
 def test_bullet_count_too_many():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [
-            f"Delivered feature {i} on schedule." for i in range(9)
-        ]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [f"Delivered feature {i} on schedule." for i in range(9)],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-006"])
     assert len(findings) == 1
     assert "maximum" in findings[0].message
 
 
 def test_bullet_count_ok():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [
-            "Built a pipeline processing 1M events per day.",
-            "Reduced deployment time by 40% via automation.",
-            "Mentored 3 junior engineers to promotion.",
-            "Shipped 5 features ahead of schedule.",
-        ]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Built a pipeline processing 1M events per day.",
+                    "Reduced deployment time by 40% via automation.",
+                    "Mentored 3 junior engineers to promotion.",
+                    "Shipped 5 features ahead of schedule.",
+                ],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-006"])
     assert len(findings) == 0
 
@@ -260,9 +305,14 @@ def test_bullet_count_ok():
 
 
 def test_first_person_in_highlight():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["I led the team to deliver the product 2 weeks early."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": ["I led the team to deliver the product 2 weeks early."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-007"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-007"
@@ -278,9 +328,14 @@ def test_first_person_in_summary():
 
 
 def test_first_person_clean():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Led the team to deliver the product 2 weeks early."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": ["Led the team to deliver the product 2 weeks early."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-007"])
     assert len(findings) == 0
 
@@ -289,11 +344,16 @@ def test_first_person_clean():
 
 
 def test_vague_buzzword_in_highlight():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [
-            "A proactive engineer who delivered 3 features per sprint.",
-        ]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "A proactive engineer who delivered 3 features per sprint.",
+                ],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-008"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-008"
@@ -310,11 +370,16 @@ def test_vague_buzzword_in_summary():
 
 
 def test_vague_buzzword_clean():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [
-            "Reduced infrastructure costs by 30% using spot instances.",
-        ]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Reduced infrastructure costs by 30% using spot instances.",
+                ],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-008"])
     assert len(findings) == 0
 
@@ -323,28 +388,34 @@ def test_vague_buzzword_clean():
 
 
 def test_skill_count_too_few():
-    resolved = _make_resolved(skills=[
-        {"category": "Languages", "items": ["Python", "Go", "Rust"]},
-    ])
+    resolved = _make_resolved(
+        skills=[
+            {"category": "Languages", "items": ["Python", "Go", "Rust"]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-009"])
     assert len(findings) == 1
     assert "minimum" in findings[0].message
 
 
 def test_skill_count_too_many():
-    resolved = _make_resolved(skills=[
-        {"category": "Languages", "items": [f"Skill{i}" for i in range(30)]},
-    ])
+    resolved = _make_resolved(
+        skills=[
+            {"category": "Languages", "items": [f"Skill{i}" for i in range(30)]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-009"])
     assert len(findings) == 1
     assert "maximum" in findings[0].message
 
 
 def test_skill_count_ok():
-    resolved = _make_resolved(skills=[
-        {"category": "Languages", "items": ["Python", "Go", "Rust", "TypeScript"]},
-        {"category": "Tools", "items": ["Docker", "Kubernetes", "Terraform", "Git", "Kafka"]},
-    ])
+    resolved = _make_resolved(
+        skills=[
+            {"category": "Languages", "items": ["Python", "Go", "Rust", "TypeScript"]},
+            {"category": "Tools", "items": ["Docker", "Kubernetes", "Terraform", "Git", "Kafka"]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-009"])
     assert len(findings) == 0
 
@@ -386,10 +457,12 @@ def test_profile_link_in_public_links():
 
 def test_page_count_exceeded():
     long_highlight = " ".join(["achievement"] * 50)  # 50 words each
-    resolved = _make_resolved(work=[
-        {"company": f"Company{i}", "highlights": [long_highlight] * 5}
-        for i in range(6)  # 6 * 5 * 50 = 1500 words
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": f"Company{i}", "highlights": [long_highlight] * 5}
+            for i in range(6)  # 6 * 5 * 50 = 1500 words
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-011"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-011"
@@ -397,13 +470,18 @@ def test_page_count_exceeded():
 
 
 def test_page_count_ok():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": [
-            "Built a scalable pipeline processing 1M events per day.",
-            "Reduced deployment time by 40% via CI/CD automation.",
-            "Mentored 3 junior engineers to staff-level promotions.",
-        ]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Built a scalable pipeline processing 1M events per day.",
+                    "Reduced deployment time by 40% via CI/CD automation.",
+                    "Mentored 3 junior engineers to staff-level promotions.",
+                ],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-011"])
     assert len(findings) == 0
 
@@ -411,10 +489,7 @@ def test_page_count_ok():
 def test_page_count_academic_skipped():
     long_highlight = " ".join(["achievement"] * 50)
     resolved = _make_resolved(
-        work=[
-            {"company": f"Company{i}", "highlights": [long_highlight] * 5}
-            for i in range(6)
-        ],
+        work=[{"company": f"Company{i}", "highlights": [long_highlight] * 5} for i in range(6)],
         template_name="cv/academic",
     )
     findings = lint(resolved, rule_ids=["ats-011"])
@@ -425,10 +500,12 @@ def test_page_count_academic_skipped():
 
 
 def test_date_format_mixed_within_section():
-    resolved = _make_resolved(work=[
-        {"company": "A", "start_date": "2020-01", "end_date": "Present", "highlights": []},
-        {"company": "B", "start_date": "2018", "end_date": "2020", "highlights": []},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "A", "start_date": "2020-01", "end_date": "Present", "highlights": []},
+            {"company": "B", "start_date": "2018", "end_date": "2020", "highlights": []},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-012"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-012"
@@ -437,10 +514,12 @@ def test_date_format_mixed_within_section():
 
 
 def test_date_format_consistent():
-    resolved = _make_resolved(work=[
-        {"company": "A", "start_date": "2020-01", "end_date": "Present", "highlights": []},
-        {"company": "B", "start_date": "2018-03", "end_date": "2020-01", "highlights": []},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "A", "start_date": "2020-01", "end_date": "Present", "highlights": []},
+            {"company": "B", "start_date": "2018-03", "end_date": "2020-01", "highlights": []},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-012"])
     assert len(findings) == 0
 
@@ -463,47 +542,59 @@ def test_date_format_sections_independent():
 
 
 def test_tense_past_in_current_role():
-    resolved = _make_resolved(work=[
-        {
-            "company": "Acme", "end_date": "Present",
-            "highlights": ["Led the platform team to deliver 3 services ahead of schedule."],
-        },
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "end_date": "Present",
+                "highlights": ["Led the platform team to deliver 3 services ahead of schedule."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-013"])
     assert len(findings) == 1
     assert "past-tense" in findings[0].message.lower()
 
 
 def test_tense_present_in_past_role():
-    resolved = _make_resolved(work=[
-        {
-            "company": "Acme", "end_date": "2022-01",
-            "highlights": ["Design a microservices platform handling 50k requests per second."],
-        },
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "end_date": "2022-01",
+                "highlights": ["Design a microservices platform handling 50k requests per second."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-013"])
     assert len(findings) == 1
     assert "present-tense" in findings[0].message.lower()
 
 
 def test_tense_correct_past_role():
-    resolved = _make_resolved(work=[
-        {
-            "company": "Acme", "end_date": "2022-01",
-            "highlights": ["Led the platform team to deliver 3 services ahead of schedule."],
-        },
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "end_date": "2022-01",
+                "highlights": ["Led the platform team to deliver 3 services ahead of schedule."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-013"])
     assert len(findings) == 0
 
 
 def test_tense_correct_current_role():
-    resolved = _make_resolved(work=[
-        {
-            "company": "Acme", "end_date": "Present",
-            "highlights": ["Lead the platform team delivering 3 services ahead of schedule."],
-        },
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "end_date": "Present",
+                "highlights": ["Lead the platform team delivering 3 services ahead of schedule."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-013"])
     assert len(findings) == 0
 
@@ -546,9 +637,11 @@ def test_summary_good_length():
 
 
 def test_action_result_metric_without_framing():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Reduced latency by 40%."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Reduced latency by 40%."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-015"])
     assert len(findings) == 1
     assert findings[0].rule_id == "ats-015"
@@ -556,20 +649,24 @@ def test_action_result_metric_without_framing():
 
 
 def test_action_result_metric_with_framing():
-    resolved = _make_resolved(work=[
-        {
-            "company": "Acme",
-            "highlights": ["Reduced latency by 40%, enabling 3x more traffic through the API."],
-        },
-    ])
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": ["Reduced latency by 40%, enabling 3x more traffic through the API."],
+            },
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-015"])
     assert len(findings) == 0
 
 
 def test_action_result_no_metric_no_finding():
-    resolved = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Led the platform team to ship 5 features."]},
-    ])
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Led the platform team to ship 5 features."]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-015"])
     assert len(findings) == 0
 
@@ -605,9 +702,11 @@ def test_readability_projects_checked() -> None:
         "Architected microservices infrastructure incorporating"
         " containerization orchestration technologies."
     )
-    resolved = _make_resolved(projects=[
-        {"name": "P", "description": "", "tags": [], "highlights": [hl]},
-    ])
+    resolved = _make_resolved(
+        projects=[
+            {"name": "P", "description": "", "tags": [], "highlights": [hl]},
+        ]
+    )
     findings = lint(resolved, rule_ids=["ats-016"])
     assert any(f.rule_id == "ats-016" for f in findings)
 

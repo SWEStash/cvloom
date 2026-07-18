@@ -46,9 +46,7 @@ def _apply_force_includes(
         pool = unfiltered.get(section, [])
         for match in matchers:
             # Skip if already present
-            already = any(
-                all(e.get(k) == v for k, v in match.items()) for e in existing
-            )
+            already = any(all(e.get(k) == v for k, v in match.items()) for e in existing)
             if already:
                 continue
             for entry in pool:
@@ -58,9 +56,7 @@ def _apply_force_includes(
         data[section] = existing
 
 
-def _word_count_by_section(
-    data: dict[str, Any], show: dict[str, bool]
-) -> dict[str, int]:
+def _word_count_by_section(data: dict[str, Any], show: dict[str, bool]) -> dict[str, int]:
     """Count words per visible section from the data model."""
     counts: dict[str, int] = {}
     for section in ("work", "education", "projects"):
@@ -68,8 +64,16 @@ def _word_count_by_section(
             continue
         words = 0
         for entry in data.get(section, []):
-            for key in ("title", "company", "institution", "name", "description",
-                        "location", "degree", "field"):
+            for key in (
+                "title",
+                "company",
+                "institution",
+                "name",
+                "description",
+                "location",
+                "degree",
+                "field",
+            ):
                 val = entry.get(key)
                 if isinstance(val, str):
                     words += len(val.split())
@@ -123,6 +127,7 @@ def resolve(
     )
     if profile_errors:
         from rich.console import Console
+
         _err = Console(stderr=True)
         _err.print("[bold red]Profile validation errors:[/bold red]")
         for err in profile_errors:
@@ -171,6 +176,7 @@ def resolve(
     overlay_warnings = overlays.validate_overlays(data, profile)
     if overlay_warnings:
         from rich.console import Console
+
         _warn = Console(stderr=True)
         for w in overlay_warnings:
             _warn.print(f"[yellow]Warning:[/yellow] {w}")
@@ -260,9 +266,7 @@ def build(
     }
 
     # Render HTML
-    html = renderer.render_template(
-        resolved.template_name, context, templates_dir=templates_dir
-    )
+    html = renderer.render_template(resolved.template_name, context, templates_dir=templates_dir)
 
     # Write outputs
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -292,7 +296,5 @@ def _render_pdf(html: str, output_path: Path) -> None:
     try:
         from weasyprint import HTML  # type: ignore[import-untyped]
     except ImportError:
-        raise SystemExit(
-            "WeasyPrint is not installed. Install it with: uv pip install weasyprint"
-        )
+        raise SystemExit("WeasyPrint is not installed. Install it with: uv pip install weasyprint")
     HTML(string=html).write_pdf(str(output_path))

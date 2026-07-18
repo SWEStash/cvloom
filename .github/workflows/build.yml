@@ -15,15 +15,25 @@ concurrency:
 
 jobs:
   test:
-    name: Test
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --all-extras
+      - name: Lint
+        run: uv run ruff check cvloom tests
+      - name: Check formatting
+        run: uv run ruff format --check cvloom tests
+      - name: Type-check
+        run: uv run mypy cvloom
       - name: Run tests
         run: uv run pytest
 

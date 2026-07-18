@@ -17,20 +17,12 @@ def data_dir(tmp_path: Path) -> Path:
     d = tmp_path / "data"
     d.mkdir()
     (d / "basics.yaml").write_text("headline: Engineer\nsummary: Great.\n")
-    (d / "work.yaml").write_text(
-        "- company: Acme\n  title: Dev\n  start_date: '2020-01'\n"
-    )
-    (d / "education.yaml").write_text(
-        "- institution: Uni\n  degree: BSc\n  start_date: '2018'\n"
-    )
-    (d / "skills.yaml").write_text(
-        "- category: Languages\n  items: [Python]\n"
-    )
+    (d / "work.yaml").write_text("- company: Acme\n  title: Dev\n  start_date: '2020-01'\n")
+    (d / "education.yaml").write_text("- institution: Uni\n  degree: BSc\n  start_date: '2018'\n")
+    (d / "skills.yaml").write_text("- category: Languages\n  items: [Python]\n")
     projects = d / "projects"
     projects.mkdir()
-    (projects / "proj.yaml").write_text(
-        "name: proj\ndescription: A project.\ntags: [python]\n"
-    )
+    (projects / "proj.yaml").write_text("name: proj\ndescription: A project.\ntags: [python]\n")
     return d
 
 

@@ -18,6 +18,7 @@ from cvloom.diff import compare
 _console = Console()
 _err = Console(stderr=True)
 
+
 def _root() -> Path:
     """Return the project root — the directory from which cvloom is invoked."""
     return Path.cwd()
@@ -42,36 +43,59 @@ def _ats_score(findings: list[linter.LintFinding]) -> int:
 
 @cli.command()
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--template", "-t", default=None,
+    "--template",
+    "-t",
+    default=None,
     help="Override template (e.g. cv/modern-single).",
 )
 @click.option(
-    "--output-dir", "-o", default="dist",
-    show_default=True, help="Output directory.",
+    "--output-dir",
+    "-o",
+    default="dist",
+    show_default=True,
+    help="Output directory.",
 )
 @click.option(
-    "--public", is_flag=True, default=False,
+    "--public",
+    is_flag=True,
+    default=False,
     help="Use placeholder contact data (safe for CI/GitHub Pages).",
 )
 @click.option(
-    "--skip-pdf", is_flag=True, default=False,
+    "--skip-pdf",
+    is_flag=True,
+    default=False,
     help="Skip PDF generation (HTML only).",
 )
 @click.option(
-    "--check", "run_check", is_flag=True, default=False,
+    "--check",
+    "run_check",
+    is_flag=True,
+    default=False,
     help="Run ATS linter after build and print score.",
 )
 @click.option(
-    "--strict", default=None, type=int, metavar="N",
+    "--strict",
+    default=None,
+    type=int,
+    metavar="N",
     help="Exit non-zero if ATS score is below N (implies --check).",
 )
 def build(
-    profile: str, template: str | None, output_dir: str,
-    public: bool, skip_pdf: bool, run_check: bool, strict: int | None,
+    profile: str,
+    template: str | None,
+    output_dir: str,
+    public: bool,
+    skip_pdf: bool,
+    run_check: bool,
+    strict: int | None,
 ) -> None:
     """Build CV outputs for a given profile."""
     root = _root()
@@ -101,13 +125,10 @@ def build(
         score = _ats_score(findings)
         color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
         _console.print(
-            f"[{color}]ATS Score: {score}/100[/{color}] "
-            f"({len(findings)} issue(s) found)"
+            f"[{color}]ATS Score: {score}/100[/{color}] ({len(findings)} issue(s) found)"
         )
         if strict is not None and score < strict:
-            _console.print(
-                f"[red]Score {score} is below --strict threshold {strict}.[/red]"
-            )
+            _console.print(f"[red]Score {score} is below --strict threshold {strict}.[/red]")
             raise SystemExit(1)
 
 
@@ -115,10 +136,14 @@ def build(
 # check
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 def check(profile: str) -> None:
     """Run ATS linter checks on a profile's resolved data."""
@@ -136,7 +161,10 @@ def check(profile: str) -> None:
         return
 
     table = Table(
-        show_header=True, header_style="bold", box=None, padding=(0, 1),
+        show_header=True,
+        header_style="bold",
+        box=None,
+        padding=(0, 1),
     )
     table.add_column("Rule")
     table.add_column("Section")
@@ -162,14 +190,20 @@ def check(profile: str) -> None:
 # trim
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--target-pages", default=1,
-    show_default=True, help="Target page count.",
+    "--target-pages",
+    default=1,
+    show_default=True,
+    help="Target page count.",
 )
 def trim(profile: str, target_pages: int) -> None:
     """Show per-section word breakdown and trim recommendations."""
@@ -184,7 +218,10 @@ def trim(profile: str, target_pages: int) -> None:
     report = trim_mod.analyze(resolved, target_pages=target_pages)
 
     table = Table(
-        show_header=True, header_style="bold", box=None, padding=(0, 1),
+        show_header=True,
+        header_style="bold",
+        box=None,
+        padding=(0, 1),
     )
     table.add_column("Section")
     table.add_column("Words", justify="right")
@@ -214,6 +251,7 @@ def trim(profile: str, target_pages: int) -> None:
 # diff
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.argument("profile_a")
 @click.argument("profile_b")
@@ -238,31 +276,23 @@ def diff(profile_a: str, profile_b: str) -> None:
 
     # Template
     if result.template_a != result.template_b:
-        _console.print(
-            f"[bold]Template:[/bold] {result.template_a} → {result.template_b}"
-        )
+        _console.print(f"[bold]Template:[/bold] {result.template_a} → {result.template_b}")
 
     # Sections
     if result.sections_only_in_a:
         _console.print(
-            f"[red]Sections only in {profile_a}:[/red] "
-            + ", ".join(result.sections_only_in_a)
+            f"[red]Sections only in {profile_a}:[/red] " + ", ".join(result.sections_only_in_a)
         )
     if result.sections_only_in_b:
         _console.print(
-            f"[green]Sections only in {profile_b}:[/green] "
-            + ", ".join(result.sections_only_in_b)
+            f"[green]Sections only in {profile_b}:[/green] " + ", ".join(result.sections_only_in_b)
         )
 
     # Entries
     for section, labels in result.entries_only_in_a.items():
-        _console.print(
-            f"[red]{section} only in {profile_a}:[/red] " + ", ".join(labels)
-        )
+        _console.print(f"[red]{section} only in {profile_a}:[/red] " + ", ".join(labels))
     for section, labels in result.entries_only_in_b.items():
-        _console.print(
-            f"[green]{section} only in {profile_b}:[/green] " + ", ".join(labels)
-        )
+        _console.print(f"[green]{section} only in {profile_b}:[/green] " + ", ".join(labels))
 
     # Word counts
     delta = result.word_count_b - result.word_count_a
@@ -273,8 +303,7 @@ def diff(profile_a: str, profile_b: str) -> None:
         f"[{color}]({sign}{delta})[/{color}]"
     )
     _console.print(
-        f"[bold]Highlights:[/bold] {result.highlight_count_a} vs "
-        f"{result.highlight_count_b}"
+        f"[bold]Highlights:[/bold] {result.highlight_count_a} vs {result.highlight_count_b}"
     )
 
 
@@ -282,18 +311,26 @@ def diff(profile_a: str, profile_b: str) -> None:
 # export
 # ---------------------------------------------------------------------------
 
+
 @cli.command("export")
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--format", "fmt",
+    "--format",
+    "fmt",
     type=click.Choice(["json-resume", "markdown", "linkedin", "docx"]),
-    required=True, help="Export format.",
+    required=True,
+    help="Export format.",
 )
 @click.option(
-    "--output", "-o", default=None,
+    "--output",
+    "-o",
+    default=None,
     help="Output file path (inferred from profile and format if omitted).",
 )
 def export_cmd(profile: str, fmt: str, output: str | None) -> None:
@@ -400,6 +437,7 @@ def match(profile: str, jd: str) -> None:
 # init
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.option("--force", is_flag=True, default=False, help="Overwrite existing files.")
 def init(force: bool) -> None:
@@ -421,6 +459,7 @@ def init(force: bool) -> None:
 # ---------------------------------------------------------------------------
 # list-projects
 # ---------------------------------------------------------------------------
+
 
 @cli.command("list-projects")
 @click.option("--tag", "-t", multiple=True, help="Filter by tag (can be repeated).")
@@ -461,6 +500,7 @@ def list_projects(tag: tuple[str, ...]) -> None:
 # ---------------------------------------------------------------------------
 # list-profiles
 # ---------------------------------------------------------------------------
+
 
 @cli.command("list-profiles")
 def list_profiles() -> None:
@@ -526,24 +566,34 @@ def ai_config() -> None:
         _console.print("[green]AI provider: configured[/green]")
         _console.print(f"  Base URL:  {cfg['base_url']}")
         _console.print(f"  Model:     {cfg['model']}")
-        _console.print(f"  API key:   {'***set***' if cfg['api_key_set'] else '[yellow]not set[/yellow]'}")
+        key_status = "***set***" if cfg["api_key_set"] else "[yellow]not set[/yellow]"
+        _console.print(f"  API key:   {key_status}")
     else:
         _console.print("[yellow]AI provider: not configured[/yellow]")
         _console.print()
         _console.print("Set the following environment variables to enable AI features:")
-        _console.print("  [bold]CVLOOM_AI_BASE_URL[/bold]  e.g. http://localhost:11434/v1  (Ollama)")
-        _console.print("  [bold]CVLOOM_AI_API_KEY[/bold]   your API key (use \"ollama\" for local Ollama)")
-        _console.print("  [bold]CVLOOM_AI_MODEL[/bold]     e.g. gemma3:27b, gpt-4o, claude-sonnet-4-6")
+        env_rows = [
+            ("CVLOOM_AI_BASE_URL", "e.g. http://localhost:11434/v1  (Ollama)"),
+            ("CVLOOM_AI_API_KEY", 'your API key (use "ollama" for local Ollama)'),
+            ("CVLOOM_AI_MODEL", "e.g. gemma3:27b, gpt-4o, claude-sonnet-4-6"),
+        ]
+        for var_name, hint in env_rows:
+            _console.print(f"  [bold]{var_name:<21}[/bold]  {hint}")
         _console.print()
         _console.print("[dim]Quickstart options:[/dim]")
         _console.print("  [dim]• Local (Ollama):    https://ollama.ai[/dim]")
-        _console.print("  [dim]• Cloud proxy:       https://litellm.vercel.app/docs/proxy/quick_start[/dim]")
+        _console.print(
+            "  [dim]• Cloud proxy:       https://litellm.vercel.app/docs/proxy/quick_start[/dim]"
+        )
 
 
 @ai.command("review")
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 def ai_review(profile: str) -> None:
     """Score each CV section with AI-powered feedback."""
@@ -572,7 +622,9 @@ def ai_review(profile: str) -> None:
         _console.print(f"[red]AI error:[/red] {exc}")
         raise SystemExit(1)
 
-    score_color = "green" if result.overall_score >= 7 else "yellow" if result.overall_score >= 5 else "red"
+    score_color = (
+        "green" if result.overall_score >= 7 else "yellow" if result.overall_score >= 5 else "red"
+    )
     _console.print(f"\n[bold]CV Review[/bold]  profile: {profile}")
     _console.print(f"Overall score: [{score_color}]{result.overall_score:.1f}/10[/{score_color}]\n")
 
@@ -595,15 +647,24 @@ def ai_review(profile: str) -> None:
 
 @ai.command("cover")
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--jd", "jd_file", required=True, type=click.Path(exists=True),
+    "--jd",
+    "jd_file",
+    required=True,
+    type=click.Path(exists=True),
     help="Path to job description file.",
 )
 @click.option(
-    "--output", "-o", type=click.Path(), default=None,
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
     help="Write cover letter to this file instead of printing.",
 )
 def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
@@ -636,7 +697,9 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
 
     if output:
         Path(output).write_text(result.letter, encoding="utf-8")
-        _console.print(f"[green]✓[/green] Cover letter written to {output}  ({result.word_count} words)")
+        _console.print(
+            f"[green]✓[/green] Cover letter written to {output}  ({result.word_count} words)"
+        )
     else:
         _console.print(f"\n[bold]Cover Letter[/bold]  profile: {profile}\n")
         _console.print(result.letter)
@@ -649,11 +712,16 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
 
 @ai.command("suggest")
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--role", "role_context", default="",
+    "--role",
+    "role_context",
+    default="",
     help="Target role description (e.g. 'Senior Backend Engineer').",
 )
 def ai_suggest(profile: str, role_context: str) -> None:
@@ -714,11 +782,17 @@ def ai_suggest(profile: str, role_context: str) -> None:
 
 @ai.command("align")
 @click.option(
-    "--profile", "-p", default="general",
-    show_default=True, help="Profile name (without .yaml extension).",
+    "--profile",
+    "-p",
+    default="general",
+    show_default=True,
+    help="Profile name (without .yaml extension).",
 )
 @click.option(
-    "--jd", "jd_file", required=True, type=click.Path(exists=True),
+    "--jd",
+    "jd_file",
+    required=True,
+    type=click.Path(exists=True),
     help="Path to job description file.",
 )
 def ai_align(profile: str, jd_file: str) -> None:

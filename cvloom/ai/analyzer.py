@@ -76,6 +76,4 @@ def review(resolved: ResolvedProfile, client: Any, model: str) -> ReviewResult:
     try:
         return _parse_review_result(raw)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"AI returned invalid JSON. Raw response:\n{raw}"
-        ) from exc
+        raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc

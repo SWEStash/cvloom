@@ -68,8 +68,7 @@ def render_template(
         template = env.get_template(template_name)
     except jinja2.TemplateNotFound:
         available = sorted(
-            str(p.relative_to(templates_dir))
-            for p in templates_dir.rglob("*.html.j2")
+            str(p.relative_to(templates_dir)) for p in templates_dir.rglob("*.html.j2")
         )
         raise SystemExit(
             f"Template '{template_name}' not found in {templates_dir}.\n"

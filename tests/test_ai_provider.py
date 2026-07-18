@@ -76,6 +76,7 @@ def test_get_client_raises_when_not_configured(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
     with pytest.raises(AINotConfiguredError):
         from cvloom.ai.provider import get_client
+
         get_client()
 
 

@@ -23,8 +23,12 @@ def _make_resolved(
             "projects": projects or [],
             "contact": {"name": "Test", "email": "t@t.com"},
         },
-        show_sections=show or {
-            "work": True, "education": True, "skills": True, "projects": True,
+        show_sections=show
+        or {
+            "work": True,
+            "education": True,
+            "skills": True,
+            "projects": True,
         },
         section_order=["skills", "work", "education", "projects"],
         template_name=template,
@@ -52,38 +56,50 @@ def test_different_sections():
 
 
 def test_different_entries():
-    a = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["A."]},
-        {"company": "Beta", "highlights": ["B."]},
-    ])
-    b = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["A."]},
-        {"company": "Gamma", "highlights": ["G."]},
-    ])
+    a = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["A."]},
+            {"company": "Beta", "highlights": ["B."]},
+        ]
+    )
+    b = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["A."]},
+            {"company": "Gamma", "highlights": ["G."]},
+        ]
+    )
     result = compare(a, b, "a", "b")
     assert "Beta" in result.entries_only_in_a.get("work", [])
     assert "Gamma" in result.entries_only_in_b.get("work", [])
 
 
 def test_word_count_delta():
-    a = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["Short."]},
-    ])
+    a = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Short."]},
+        ]
+    )
     long_text = " ".join(["word"] * 50)
-    b = _make_resolved(work=[
-        {"company": "Acme", "highlights": [long_text]},
-    ])
+    b = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": [long_text]},
+        ]
+    )
     result = compare(a, b, "a", "b")
     assert result.word_count_b > result.word_count_a
 
 
 def test_highlight_count_diff():
-    a = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["A.", "B.", "C."]},
-    ])
-    b = _make_resolved(work=[
-        {"company": "Acme", "highlights": ["A."]},
-    ])
+    a = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["A.", "B.", "C."]},
+        ]
+    )
+    b = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["A."]},
+        ]
+    )
     result = compare(a, b, "a", "b")
     assert result.highlight_count_a == 3
     assert result.highlight_count_b == 1
@@ -98,13 +114,17 @@ def test_template_difference():
 
 
 def test_project_entries_diff():
-    a = _make_resolved(projects=[
-        {"name": "alpha", "description": "A", "tags": ["python"]},
-    ])
-    b = _make_resolved(projects=[
-        {"name": "alpha", "description": "A", "tags": ["python"]},
-        {"name": "beta", "description": "B", "tags": ["go"]},
-    ])
+    a = _make_resolved(
+        projects=[
+            {"name": "alpha", "description": "A", "tags": ["python"]},
+        ]
+    )
+    b = _make_resolved(
+        projects=[
+            {"name": "alpha", "description": "A", "tags": ["python"]},
+            {"name": "beta", "description": "B", "tags": ["go"]},
+        ]
+    )
     result = compare(a, b, "a", "b")
     assert "beta" in result.entries_only_in_b.get("projects", [])
 

@@ -18,11 +18,11 @@ def project_root(tmp_path: Path) -> Path:
     (data / "basics.yaml").write_text(
         'headline: "Test Engineer"\n'
         'summary: "Experienced backend engineer with 5 years building scalable distributed'
-        ' systems in Python and Go, delivering measurable reliability improvements and'
+        " systems in Python and Go, delivering measurable reliability improvements and"
         ' infrastructure cost reductions across high-traffic production services."\n'
     )
     (data / "work.yaml").write_text(
-        '- company: Acme\n  title: Engineer\n  location: Remote\n'
+        "- company: Acme\n  title: Engineer\n  location: Remote\n"
         '  start_date: "2020-01"\n  end_date: Present\n'
         "  highlights:\n"
         "    - Reduce API latency by 40 percent by adding a Redis cache to five endpoints.\n"
@@ -62,9 +62,7 @@ def project_root(tmp_path: Path) -> Path:
 
     profiles = tmp_path / "profiles"
     profiles.mkdir()
-    (profiles / "general.yaml").write_text(
-        "template: cv/ats-single\noutput_filename: cv\n"
-    )
+    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
     (profiles / "backend.yaml").write_text(
         "template: cv/modern-single\noutput_filename: backend-cv\n"
         "include_tags: [python]\n"
@@ -154,9 +152,7 @@ def test_build_missing_profile(project_root: Path, monkeypatch: pytest.MonkeyPat
     assert result.exit_code != 0
 
 
-def test_build_with_template_override(
-    project_root: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_with_template_override(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(project_root)
     runner = CliRunner()
     result = runner.invoke(

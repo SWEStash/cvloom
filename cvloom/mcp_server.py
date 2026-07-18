@@ -35,13 +35,15 @@ def list_profiles(project_root: str | None = None) -> str:
     result: list[dict[str, Any]] = []
     for pf in sorted(profiles_dir.glob("*.yaml")):
         data = yaml.safe_load(pf.read_text()) or {}
-        result.append({
-            "name": pf.stem,
-            "template": data.get("template", ""),
-            "output_filename": data.get("output_filename", pf.stem),
-            "include_tags": data.get("include_tags", []),
-            "job_context": data.get("job_context"),
-        })
+        result.append(
+            {
+                "name": pf.stem,
+                "template": data.get("template", ""),
+                "output_filename": data.get("output_filename", pf.stem),
+                "include_tags": data.get("include_tags", []),
+                "job_context": data.get("job_context"),
+            }
+        )
     return json.dumps(result, indent=2)
 
 
@@ -64,11 +66,13 @@ def list_projects(
         ptags = data.get("tags", [])
         if tag_set and not (set(ptags) & tag_set):
             continue
-        result.append({
-            "name": data.get("name", pf.stem),
-            "description": data.get("description", ""),
-            "tags": ptags,
-        })
+        result.append(
+            {
+                "name": data.get("name", pf.stem),
+                "description": data.get("description", ""),
+                "tags": ptags,
+            }
+        )
     return json.dumps(result, indent=2)
 
 
@@ -121,13 +125,16 @@ def build_cv(
             public=public,
             skip_pdf=skip_pdf,
         )
-        return json.dumps({
-            "html_path": str(result.html_path),
-            "pdf_path": str(result.pdf_path) if result.pdf_path else None,
-            "words": result.words,
-            "pages": result.pages,
-            "section_word_counts": result.section_word_counts,
-        }, indent=2)
+        return json.dumps(
+            {
+                "html_path": str(result.html_path),
+                "pdf_path": str(result.pdf_path) if result.pdf_path else None,
+                "words": result.words,
+                "pages": result.pages,
+                "section_word_counts": result.section_word_counts,
+            },
+            indent=2,
+        )
     except SystemExit as e:
         return json.dumps({"error": f"Build failed with exit code {e.code}"})
 
@@ -238,17 +245,20 @@ def check_cv(
             public=True,
         )
         findings = linter.lint(resolved, rule_ids=rule_ids)
-        return json.dumps([
-            {
-                "rule_id": f.rule_id,
-                "severity": f.severity,
-                "section": f.section,
-                "entry": f.entry,
-                "message": f.message,
-                "fix_hint": f.fix_hint,
-            }
-            for f in findings
-        ], indent=2)
+        return json.dumps(
+            [
+                {
+                    "rule_id": f.rule_id,
+                    "severity": f.severity,
+                    "section": f.section,
+                    "entry": f.entry,
+                    "message": f.message,
+                    "fix_hint": f.fix_hint,
+                }
+                for f in findings
+            ],
+            indent=2,
+        )
     except SystemExit as e:
         return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
 
@@ -270,23 +280,25 @@ def trim_report(
             public=True,
         )
         report = trim_mod.analyze(resolved, target_pages=target_pages)
-        return json.dumps({
-            "total_words": report.total_words,
-            "estimated_pages": report.estimated_pages,
-            "words_to_cut": report.words_to_cut,
-            "sections": [
-                {
-                    "section": s.section,
-                    "total_words": s.total_words,
-                    "entries": [
-                        {"label": e.label, "total_words": e.total_words}
-                        for e in s.entries
-                    ],
-                }
-                for s in report.sections
-            ],
-            "recommendations": report.recommendations,
-        }, indent=2)
+        return json.dumps(
+            {
+                "total_words": report.total_words,
+                "estimated_pages": report.estimated_pages,
+                "words_to_cut": report.words_to_cut,
+                "sections": [
+                    {
+                        "section": s.section,
+                        "total_words": s.total_words,
+                        "entries": [
+                            {"label": e.label, "total_words": e.total_words} for e in s.entries
+                        ],
+                    }
+                    for s in report.sections
+                ],
+                "recommendations": report.recommendations,
+            },
+            indent=2,
+        )
     except SystemExit as e:
         return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
 
@@ -315,18 +327,21 @@ def diff_profiles(
             public=True,
         )
         result = compare(resolved_a, resolved_b, name_a=profile_a, name_b=profile_b)
-        return json.dumps({
-            "template_a": result.template_a,
-            "template_b": result.template_b,
-            "sections_only_in_a": result.sections_only_in_a,
-            "sections_only_in_b": result.sections_only_in_b,
-            "entries_only_in_a": result.entries_only_in_a,
-            "entries_only_in_b": result.entries_only_in_b,
-            "word_count_a": result.word_count_a,
-            "word_count_b": result.word_count_b,
-            "highlight_count_a": result.highlight_count_a,
-            "highlight_count_b": result.highlight_count_b,
-        }, indent=2)
+        return json.dumps(
+            {
+                "template_a": result.template_a,
+                "template_b": result.template_b,
+                "sections_only_in_a": result.sections_only_in_a,
+                "sections_only_in_b": result.sections_only_in_b,
+                "entries_only_in_a": result.entries_only_in_a,
+                "entries_only_in_b": result.entries_only_in_b,
+                "word_count_a": result.word_count_a,
+                "word_count_b": result.word_count_b,
+                "highlight_count_a": result.highlight_count_a,
+                "highlight_count_b": result.highlight_count_b,
+            },
+            indent=2,
+        )
     except SystemExit as e:
         return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
 
@@ -348,20 +363,23 @@ def match_jd(
             public=True,
         )
         report = analyze_match(resolved, jd_text)
-        return json.dumps({
-            "coverage": round(report.cv_keywords_coverage, 3),
-            "jd_word_count": report.jd_word_count,
-            "matched": [
-                {
-                    "keyword": m.keyword,
-                    "found_in": m.found_in,
-                    "frequency_jd": m.frequency_jd,
-                }
-                for m in report.matched
-            ],
-            "gaps": report.gaps,
-            "top_jd_keywords": report.top_jd_keywords,
-        }, indent=2)
+        return json.dumps(
+            {
+                "coverage": round(report.cv_keywords_coverage, 3),
+                "jd_word_count": report.jd_word_count,
+                "matched": [
+                    {
+                        "keyword": m.keyword,
+                        "found_in": m.found_in,
+                        "frequency_jd": m.frequency_jd,
+                    }
+                    for m in report.matched
+                ],
+                "gaps": report.gaps,
+                "top_jd_keywords": report.top_jd_keywords,
+            },
+            indent=2,
+        )
     except SystemExit as e:
         return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
 
@@ -393,24 +411,29 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
     except Exception as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps({
-        "overall_score": result.overall_score,
-        "sections": [
-            {
-                "section": s.section,
-                "score": s.score,
-                "strengths": s.strengths,
-                "weaknesses": s.weaknesses,
-                "suggestions": s.suggestions,
-            }
-            for s in result.sections
-        ],
-        "top_priorities": result.top_priorities,
-    }, indent=2)
+    return json.dumps(
+        {
+            "overall_score": result.overall_score,
+            "sections": [
+                {
+                    "section": s.section,
+                    "score": s.score,
+                    "strengths": s.strengths,
+                    "weaknesses": s.weaknesses,
+                    "suggestions": s.suggestions,
+                }
+                for s in result.sections
+            ],
+            "top_priorities": result.top_priorities,
+        },
+        indent=2,
+    )
 
 
 @mcp.tool()
-def ai_generate_cover(profile: str = "general", jd_text: str = "", project_root: str | None = None) -> str:
+def ai_generate_cover(
+    profile: str = "general", jd_text: str = "", project_root: str | None = None
+) -> str:
     """Generate a tailored cover letter from the CV and a job description.
 
     Requires CVLOOM_AI_BASE_URL environment variable.
@@ -437,11 +460,14 @@ def ai_generate_cover(profile: str = "general", jd_text: str = "", project_root:
     except Exception as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps({
-        "letter": result.letter,
-        "word_count": result.word_count,
-        "key_alignments": result.key_alignments,
-    }, indent=2)
+    return json.dumps(
+        {
+            "letter": result.letter,
+            "word_count": result.word_count,
+            "key_alignments": result.key_alignments,
+        },
+        indent=2,
+    )
 
 
 @mcp.tool()
