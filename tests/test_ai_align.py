@@ -70,9 +70,7 @@ def test_parse_empty_lists() -> None:
 
 def _make_match_report(gaps: list[str] | None = None) -> MatchReport:
     return MatchReport(
-        matched=[
-            KeywordMatch(keyword="python", found_in=["skills"], frequency_jd=3, frequency_cv=2)
-        ],
+        matched=[KeywordMatch(keyword="python", found_in=["skills"], frequency_jd=3)],
         gaps=gaps or ["kubernetes", "terraform"],
         jd_word_count=300,
         cv_keywords_coverage=0.65,

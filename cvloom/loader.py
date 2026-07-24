@@ -31,8 +31,6 @@ def _apply_public_mode(contact: dict[str, Any]) -> dict[str, Any]:
     result = {k: v for k, v in contact.items() if k not in _SENSITIVE_FIELDS}
     if "public_name" in result:
         result["name"] = result.pop("public_name")
-    else:
-        result.pop("public_name", None)
     return result
 
 

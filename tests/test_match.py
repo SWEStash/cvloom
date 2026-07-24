@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from cvloom.cli import cli
-from cvloom.match import MatchReport, _extract_keywords, analyze_match
+from cvloom.match import MatchReport, _extract_keywords, _suggest_section, analyze_match
 from cvloom.models import ResolvedProfile
 
 
@@ -167,13 +167,18 @@ def test_suggestions_single_token_goes_to_skills():
         assert report.suggestions[gap] == "skills"
 
 
-def test_suggestions_multi_word_goes_to_work():
-    resolved = _make_resolved()
-    # multi-word phrase extracted as separate tokens by tokenizer; each token maps to skills
-    # Use a phrase that stays as separate tokens
-    report = analyze_match(resolved, "stakeholder management")
-    for gap in report.gaps:
-        assert report.suggestions.get(gap) in ("skills", "work")
+def test_suggest_section_multi_word_goes_to_work():
+    # A multi-word phrase is not a single token, so it belongs in work highlights.
+    assert _suggest_section("stakeholder relationship management") == "work"
+
+
+def test_suggest_section_long_token_goes_to_work():
+    # A single token longer than 20 chars is treated as prose, not a skill.
+    assert _suggest_section("hyperconvergedinfrastructure") == "work"
+
+
+def test_suggest_section_short_token_goes_to_skills():
+    assert _suggest_section("kubernetes") == "skills"
 
 
 def test_suggestions_present_for_all_gaps():

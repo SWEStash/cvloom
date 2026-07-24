@@ -7,7 +7,7 @@ from typing import Any
 
 from cvloom.ai.models import AlignResult
 from cvloom.ai.prompts import SYSTEM_ANALYSIS, cv_context_block, jd_context_block
-from cvloom.ai.provider import cv_to_text
+from cvloom.ai.provider import complete_json, cv_to_text
 from cvloom.match import MatchReport, analyze_match
 from cvloom.models import ResolvedProfile
 
@@ -67,17 +67,11 @@ def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> A
     match_report = analyze_match(resolved, jd_text)
     prompt = _build_align_prompt(cv_text, jd_text, match_report)
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_ANALYSIS},
-            {"role": "user", "content": prompt},
-        ],
+    return complete_json(
+        client,
+        model,
+        system=SYSTEM_ANALYSIS,
+        prompt=prompt,
         temperature=0.3,
-        response_format={"type": "json_object"},
+        parse=_parse_align_result,
     )
-    raw = response.choices[0].message.content or ""
-    try:
-        return _parse_align_result(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc

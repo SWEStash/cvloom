@@ -423,6 +423,7 @@ mcp = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1" },
+    { name = "cvloom", extras = ["docx"], marker = "extra == 'dev'" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "jsonschema", specifier = ">=4.21" },
     { name = "markdown-it-py", specifier = ">=3.0" },
@@ -431,7 +432,6 @@ requires-dist = [
     { name = "openai", marker = "extra == 'ai'", specifier = ">=1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.1.0" },
-    { name = "python-docx", marker = "extra == 'dev'", specifier = ">=1.1" },
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.0" },

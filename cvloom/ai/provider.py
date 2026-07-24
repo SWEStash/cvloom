@@ -12,10 +12,14 @@ Required env vars (all optional — feature is disabled when BASE_URL is unset):
 
 from __future__ import annotations
 
+import json
 import os
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 _DEFAULT_MODEL = "gpt-4o"
+
+_T = TypeVar("_T")
 
 
 class AINotConfiguredError(RuntimeError):
@@ -53,6 +57,38 @@ def get_client() -> Any:
 def get_model() -> str:
     """Return the configured model name, falling back to the default."""
     return os.environ.get("CVLOOM_AI_MODEL", _DEFAULT_MODEL).strip()
+
+
+def complete_json(
+    client: Any,
+    model: str,
+    *,
+    system: str,
+    prompt: str,
+    temperature: float,
+    parse: Callable[[str], _T],
+) -> _T:
+    """Run a JSON-mode chat completion and parse the response.
+
+    Shared by all AI orchestrators: sends *system* + *prompt* at *temperature*
+    with ``response_format={"type": "json_object"}``, then hands the raw content
+    to *parse*. Wraps a JSON decode failure in a RuntimeError carrying the raw
+    response for debugging.
+    """
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=temperature,
+        response_format={"type": "json_object"},
+    )
+    raw = response.choices[0].message.content or ""
+    try:
+        return parse(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc
 
 
 def get_config() -> dict[str, str | bool]:

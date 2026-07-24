@@ -18,7 +18,6 @@ class KeywordMatch:
     keyword: str
     found_in: list[str]
     frequency_jd: int
-    frequency_cv: int
 
 
 @dataclass
@@ -311,13 +310,11 @@ def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
 
     for keyword, freq in sorted(jd_kw.items(), key=lambda x: -x[1]):
         if keyword in cv_kw:
-            cv_freq = sum(1 for section in cv_kw[keyword] for _ in _TOKEN_RE.findall(keyword))
             matched.append(
                 KeywordMatch(
                     keyword=keyword,
                     found_in=sorted(cv_kw[keyword]),
                     frequency_jd=freq,
-                    frequency_cv=cv_freq,
                 )
             )
         else:

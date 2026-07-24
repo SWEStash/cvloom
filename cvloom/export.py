@@ -69,9 +69,7 @@ def _map_work(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if entry.get("location"):
             item["location"] = entry["location"]
         if entry.get("highlights"):
-            item["highlights"] = [
-                h if isinstance(h, str) else h.get("text", "") for h in entry["highlights"]
-            ]
+            item["highlights"] = [_hl(h) for h in entry["highlights"]]
         result.append(item)
     return result
 
@@ -92,9 +90,7 @@ def _map_education(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if entry.get("grade"):
             item["score"] = entry["grade"]
         if entry.get("highlights"):
-            item["highlights"] = [
-                h if isinstance(h, str) else h.get("text", "") for h in entry["highlights"]
-            ]
+            item["highlights"] = [_hl(h) for h in entry["highlights"]]
         result.append(item)
     return result
 
@@ -135,9 +131,7 @@ def _map_projects(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if entry.get("tags"):
             item["keywords"] = entry["tags"]
         if entry.get("highlights"):
-            item["highlights"] = [
-                h if isinstance(h, str) else h.get("text", "") for h in entry["highlights"]
-            ]
+            item["highlights"] = [_hl(h) for h in entry["highlights"]]
         result.append(item)
     return result
 

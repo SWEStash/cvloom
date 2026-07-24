@@ -129,12 +129,6 @@ def test_create_profile(project_dir: str) -> None:
     assert Path(result["created"]).exists()
 
 
-def test_create_profile_invalid(project_dir: str) -> None:
-    config = {"invalid_key": True}  # missing required 'template'
-    result = json.loads(create_profile("bad", config, project_root=project_dir))
-    assert "error" in result
-
-
 def test_upsert_project(project_dir: str) -> None:
     project = {"name": "gamma", "description": "New project.", "tags": ["rust"]}
     result = json.loads(upsert_project(project, project_root=project_dir))

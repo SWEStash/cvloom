@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import click
 import yaml
@@ -13,7 +14,6 @@ from rich.table import Table
 
 from cvloom import builder, export, importer, linter
 from cvloom import trim as trim_mod
-from cvloom.builder import _section_summary
 from cvloom.diff import compare
 
 _console = Console()
@@ -23,6 +23,20 @@ _err = Console(stderr=True)
 def _root() -> Path:
     """Return the project root — the directory from which cvloom is invoked."""
     return Path.cwd()
+
+
+def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
+    """Return a compact string summarising section item counts."""
+    parts: list[str] = []
+    if show.get("work") and data.get("work"):
+        parts.append(f"work×{len(data['work'])}")
+    if show.get("education") and data.get("education"):
+        parts.append(f"edu×{len(data['education'])}")
+    if show.get("skills") and data.get("skills"):
+        parts.append(f"skills×{len(data['skills'])}")
+    if show.get("projects") and data.get("projects"):
+        parts.append(f"projects×{len(data['projects'])}")
+    return "  ".join(parts)
 
 
 @click.group()
@@ -520,8 +534,8 @@ def match(profile: str, jd: str) -> None:
 def init(force: bool) -> None:
     """Scaffold project structure, install pre-commit hook, verify .gitignore."""
     root = _root()
-    _init_gitignore(root, force)
-    _init_directories(root, force)
+    _init_gitignore(root)
+    _init_directories(root)
     _init_data_files(root, force)
     _init_profile(root, force)
     _init_private(root, force)
@@ -972,7 +986,7 @@ def ai_align(profile: str, jd_file: str) -> None:
             _console.print(f"  {i}. {r}")
 
 
-def _init_gitignore(root: Path, force: bool) -> None:
+def _init_gitignore(root: Path) -> None:
     gi = root / ".gitignore"
     private_line = "private/"
     if gi.exists():
@@ -987,7 +1001,7 @@ def _init_gitignore(root: Path, force: bool) -> None:
         _console.print("[green]✓[/green] Created .gitignore")
 
 
-def _init_directories(root: Path, force: bool) -> None:
+def _init_directories(root: Path) -> None:
     for d in ("data/projects", "profiles", "dist", "templates"):
         (root / d).mkdir(parents=True, exist_ok=True)
     _console.print("[green]✓[/green] Created directory structure")

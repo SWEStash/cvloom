@@ -16,6 +16,7 @@ Agent-safety guarantees (see docs/reference/mcp-server.md):
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import unicodedata
@@ -437,23 +438,7 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
     except Exception as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps(
-        {
-            "overall_score": result.overall_score,
-            "sections": [
-                {
-                    "section": s.section,
-                    "score": s.score,
-                    "strengths": s.strengths,
-                    "weaknesses": s.weaknesses,
-                    "suggestions": s.suggestions,
-                }
-                for s in result.sections
-            ],
-            "top_priorities": result.top_priorities,
-        },
-        indent=2,
-    )
+    return json.dumps(dataclasses.asdict(result), indent=2)
 
 
 @mcp.tool()
@@ -486,14 +471,7 @@ def ai_generate_cover(
     except Exception as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps(
-        {
-            "letter": result.letter,
-            "word_count": result.word_count,
-            "key_alignments": result.key_alignments,
-        },
-        indent=2,
-    )
+    return json.dumps(dataclasses.asdict(result), indent=2)
 
 
 @mcp.tool()
@@ -508,8 +486,6 @@ def ai_suggest_improvements(
     Pass role to target suggestions for a specific position.
     Returns JSON with suggestions, missing_skills, and summary.
     """
-    import dataclasses
-
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.suggest import suggest
 
@@ -545,8 +521,6 @@ def ai_align_to_jd(
     jd_text is the full text of the job description.
     Returns JSON with alignment_score, narrative, repositioning, tone_gaps, strengths.
     """
-    import dataclasses
-
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.align import align
 

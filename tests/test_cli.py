@@ -275,8 +275,14 @@ def test_init_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.chdir(init_dir)
     runner = CliRunner()
     runner.invoke(cli, ["init"])
+    # Corrupt a scaffolded file, then prove --force restores it.
+    basics = init_dir / "data" / "basics.yaml"
+    original = basics.read_text()
+    basics.write_text("# clobbered\n")
     result = runner.invoke(cli, ["init", "--force"])
     assert result.exit_code == 0
+    assert basics.read_text() == original
+    assert "# clobbered" not in basics.read_text()
 
 
 # ── sync command ───────────────────────────────────────────────────

@@ -9,6 +9,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Internal slop-audit cleanup, phase 1 (no behavior change): removed a meaningless, never-surfaced `frequency_cv` field from `match`; factored the four AI orchestrators' identical LLM call-and-parse block into a shared `ai.provider.complete_json` helper; unified the four AI MCP tool responses on `dataclasses.asdict`; corrected `filters.register_filters` to a real `jinja2.Environment` type (dropping three `type: ignore`s); tightened several tests (real assertions for the unmatched-overlay warning, the `init --force` overwrite, and the `_suggest_section` "work" branch) and removed a dead fixture, a subsumed test, and dead code (a no-op contact `pop`, unused `_init_*` `force` params, a stale renderer comment). The `dev` extra now pulls `cvloom[docx]` instead of re-pinning `python-docx`
+
 ---
 
 ## [0.6.0] — 2026-07-18

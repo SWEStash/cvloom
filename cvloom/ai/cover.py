@@ -7,7 +7,7 @@ from typing import Any
 
 from cvloom.ai.models import CoverResult
 from cvloom.ai.prompts import SYSTEM_CREATIVE, cv_context_block, jd_context_block
-from cvloom.ai.provider import cv_to_text
+from cvloom.ai.provider import complete_json, cv_to_text
 from cvloom.models import ResolvedProfile
 
 
@@ -60,17 +60,11 @@ def generate_cover(resolved: ResolvedProfile, jd_text: str, client: Any, model: 
     job_context: dict[str, Any] = resolved.profile.get("job_context") or {}
     prompt = _build_cover_prompt(cv_text, jd_text, job_context)
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_CREATIVE},
-            {"role": "user", "content": prompt},
-        ],
+    return complete_json(
+        client,
+        model,
+        system=SYSTEM_CREATIVE,
+        prompt=prompt,
         temperature=0.7,
-        response_format={"type": "json_object"},
+        parse=_parse_cover_result,
     )
-    raw = response.choices[0].message.content or ""
-    try:
-        return _parse_cover_result(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc

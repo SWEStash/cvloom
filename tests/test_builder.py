@@ -9,10 +9,10 @@ import pytest
 from cvloom.builder import (
     _estimate_pages,
     _pdf_filename,
-    _section_summary,
     _word_count_by_section,
     resolve,
 )
+from cvloom.cli import _section_summary
 from cvloom.models import ResolvedProfile
 from cvloom.renderer import list_templates, template_exists
 

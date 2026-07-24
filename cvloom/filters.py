@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import jinja2
 from markdown_it import MarkdownIt
 
 _md = MarkdownIt()
@@ -31,8 +32,8 @@ def skill_level_bar(level: str) -> str:
     return f'<span class="skill-level skill-level-{n}" aria-label="{level}"></span>'
 
 
-def register_filters(env: object) -> None:  # env: jinja2.Environment
+def register_filters(env: jinja2.Environment) -> None:
     """Register all custom filters onto *env*."""
-    env.filters["md"] = md_to_html  # type: ignore[attr-defined]
-    env.filters["date_range"] = date_range  # type: ignore[attr-defined]
-    env.filters["skill_level_bar"] = skill_level_bar  # type: ignore[attr-defined]
+    env.filters["md"] = md_to_html
+    env.filters["date_range"] = date_range
+    env.filters["skill_level_bar"] = skill_level_bar

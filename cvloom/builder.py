@@ -21,20 +21,6 @@ def _estimate_pages(html: str) -> tuple[int, int]:
     return words, pages
 
 
-def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
-    """Return a compact string summarising section item counts."""
-    parts: list[str] = []
-    if show.get("work") and data.get("work"):
-        parts.append(f"work×{len(data['work'])}")
-    if show.get("education") and data.get("education"):
-        parts.append(f"edu×{len(data['education'])}")
-    if show.get("skills") and data.get("skills"):
-        parts.append(f"skills×{len(data['skills'])}")
-    if show.get("projects") and data.get("projects"):
-        parts.append(f"projects×{len(data['projects'])}")
-    return "  ".join(parts)
-
-
 def _apply_force_includes(
     data: dict[str, Any],
     unfiltered: dict[str, Any],

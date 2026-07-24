@@ -9,9 +9,7 @@ import jinja2
 
 from cvloom.filters import register_filters
 
-# Templates are resolved relative to the repo root's templates/ directory.
-# When installed as a package, the templates/ directory is included as package data
-# and resolved relative to this file's parent's parent.
+# Packaged templates live alongside this module in cvloom/templates/.
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
