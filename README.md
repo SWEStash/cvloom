@@ -50,7 +50,7 @@ example.
 | | Per-job overlays — patch highlights without duplicating data | `overlays:` in profile |
 | | Section reordering and force-include per profile | `section_order:` |
 | | Public mode with placeholder contact data | `--public` |
-| **Analyse** | Writing lint — 17 rules across writing / structure / ats-parse axes | `cvloom check` |
+| **Analyse** | Writing lint — 18 rules across writing / structure / ats-parse axes | `cvloom check` |
 | | Per-axis lint breakdown inline after build (no fake "ATS score") | `--check` / `--strict N` |
 | | Per-section word breakdown and trim guidance | `cvloom trim` |
 | | Side-by-side profile comparison | `cvloom diff A B` |
@@ -295,7 +295,7 @@ my-cv/
 
 | Guide | What's covered |
 |---|---|
-| [Writing Lint Rules](docs/reference/ats-linter-rules.md) | All 17 rules with categories, examples, and fix hints |
+| [Writing Lint Rules](docs/reference/ats-linter-rules.md) | All 18 rules with categories, examples, and fix hints |
 | [ATS-readiness model](docs/reference/ats-readiness.md) | The three honest axes, and why there is no single "ATS score" |
 | [MCP Server](docs/reference/mcp-server.md) | Setup, all 16 tools, and example workflows |
 | [Profiles and Overlays](docs/reference/profiles-and-overlays.md) | Full overlay system reference |

@@ -133,26 +133,13 @@ def resolve(
             loader.flatten_highlights(entries)
 
     # Apply section visibility
-    section_defaults = {
-        "work": True,
-        "education": True,
-        "skills": True,
-        "projects": True,
-        "publications": True,
-        "certifications": True,
+    show_sections = {
+        **dict.fromkeys(sections.DEFAULT_SECTION_ORDER, True),
+        **sections_cfg,
     }
-    show_sections = {**section_defaults, **sections_cfg}
 
     # Section ordering
-    default_order = [
-        "skills",
-        "work",
-        "education",
-        "projects",
-        "publications",
-        "certifications",
-    ]
-    section_order = profile.get("section_order", default_order)
+    section_order = profile.get("section_order", list(sections.DEFAULT_SECTION_ORDER))
 
     # Validate data
     data_errors = schema.validate_all(data, private_path=str(private_dir / "contact.yaml"))

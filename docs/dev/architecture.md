@@ -28,11 +28,12 @@ cvloom/
 ├── builder.py          # Core pipeline: resolve() and build()
 ├── models.py           # ResolvedProfile, BuildResult dataclasses
 ├── loader.py           # YAML loading, tag filtering, public/private contact
+├── sections.py         # Section registry + shared CV data walk
 ├── schema.py           # JSON Schema validation (Draft 2020-12)
 ├── overlays.py         # Match-and-patch system for per-job customization
 ├── renderer.py         # Jinja2 rendering, template discovery
 ├── filters.py          # Custom Jinja2 filters: md, date_range, skill_level_bar
-├── linter.py           # Writing lint: 17 categorized rules, LintFinding, lint()
+├── linter.py           # Writing lint: 18 categorized rules, LintFinding, lint()
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
@@ -118,6 +119,38 @@ Loads and merges YAML from `data/` and `private/`. Key responsibilities:
 - `normalize_highlights()` — converts `{id, text}` dicts to plain strings while retaining IDs for overlay matching
 - `normalize_optional_fields()` — fills each entry's schema-optional keys with typed empties. Templates render under `StrictUndefined`, where an *absent* key raises rather than evaluating falsy, so `{% if edu.field %}` needs the key to exist. `contact` is excluded on purpose: its templates guard with `is defined` so `--public` redaction stays invisible.
 
+### `sections.py` — the section registry
+
+`SECTIONS` is a tuple of frozen `Section` records: the single source of truth for
+cvloom's five entry-list sections (work, education, projects, publications,
+certifications). Each record carries what the pipeline needs:
+
+| Field | Drives |
+|---|---|
+| `name` | data key; profile `sections` / `section_order` key |
+| `schema` | which `cvloom/schemas/*.json` validates one entry |
+| `label_key` | entry labels in diff and trim reports |
+| `heading` | Markdown / DOCX export headings |
+| `summary_label` | the CLI's post-build section summary |
+| `from_directory` | `data/<name>/*.yaml` (projects) vs one `data/<name>.yaml` |
+| `warn_if_missing` | whether an absent file warns; false for opt-in sections |
+| `strict_tags` | under `include_tags`, drop untagged entries (projects only) |
+
+`loader`, `schema.validate_all`, `builder`, `cli`, `export`, `trim` and `diff` all derive
+from it, so adding a section is a table entry plus its schema, template macros and
+export/import mapping — not an edit across a dozen files where forgetting one fails
+silently.
+
+`skills` and `basics` are deliberately **not** in the registry: their entry shapes are
+genuinely different, and forcing them in would buy uniformity at the price of exceptions
+everywhere. Consumers that need them name them explicitly.
+
+It also owns the shared data walk — `highlight_text`, `skill_name`, `entry_label`,
+`iter_entry_text` / `count_words`, and `slugify`.
+
+`tests/test_sections_registry.py` guards the two things the registry cannot derive:
+`profile.json`'s `sections` / `section_order`, and the existence of each entry schema.
+
 ### `schema.py`
 
 Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `certifications`, `profile`, `contact`.
@@ -125,18 +158,6 @@ Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cove
 `entry_defaults(name, prop=None)` — returns the typed empty value (`""` / `[]` / `{}`) for every *optional* property a schema declares. Single source of truth for `loader.normalize_optional_fields()` and for `job_context` defaults in `builder.build()`.
 
 `validate_all(data, raise_on_error=False)` — returns `list[str]` of error messages. When `raise_on_error=True` (the default in build), raises `SchemaError` on the first failure.
-
-### `export.py`
-
-Field mapping to JSON Resume is table-driven: `_Field(src, dest, kind)` tuples per
-section, applied by `_map_entry`. `kind` controls emptiness handling — `date` fields
-are dropped unless they match ISO 8601 (JSON Resume has no `"Present"` sentinel; a
-current role omits `endDate`). Fields with no spec equivalent are emitted under the
-`x-cvloom-*` namespace and read back by `importer._restore_extensions`, so a
-round-trip is lossless.
-
-`tests/test_export_jsonresume_conformance.py` validates exports against a vendored
-copy of the official schema (`tests/fixtures/jsonresume-schema.json`).
 
 ### `overlays.py`
 
@@ -197,6 +218,17 @@ Tokenizes CV content and JD text, removes stop words, classifies keywords as mat
 - `to_markdown(resolved)` — plain Markdown
 - `to_linkedin(resolved)` — plain text structured for LinkedIn sections
 - `to_docx(resolved)` — Word document via `python-docx` (optional dependency)
+
+Field mapping to JSON Resume is table-driven: `_Field(src, dest, kind)` tuples per
+section, applied by `_map_entry`. `kind` controls emptiness handling — `date` fields
+are dropped unless they match ISO 8601 (JSON Resume has no `"Present"` sentinel; a
+current role omits `endDate`). Fields with no spec equivalent are emitted under the
+`x-cvloom-*` namespace and read back by `importer._restore_extensions`, so a
+round-trip is lossless.
+
+`tests/test_export_jsonresume_conformance.py` validates exports against a vendored
+copy of the official schema (`tests/fixtures/jsonresume-schema.json`).
+
 
 ### `mcp_server.py`
 

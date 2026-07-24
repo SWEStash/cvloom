@@ -9,7 +9,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from cvloom import builder, export, importer, linter, projects, scaffold
+from cvloom import builder, export, importer, linter, projects, scaffold, sections
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
 from cvloom.models import ResolvedProfile
@@ -48,19 +48,12 @@ def _resolve(root: Path, profile: str, *, public: bool) -> ResolvedProfile:
 
 def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
     """Return a compact string summarising section item counts."""
-    parts: list[str] = []
-    if show.get("work") and data.get("work"):
-        parts.append(f"work×{len(data['work'])}")
-    if show.get("education") and data.get("education"):
-        parts.append(f"edu×{len(data['education'])}")
-    if show.get("skills") and data.get("skills"):
-        parts.append(f"skills×{len(data['skills'])}")
-    if show.get("projects") and data.get("projects"):
-        parts.append(f"projects×{len(data['projects'])}")
-    if show.get("publications") and data.get("publications"):
-        parts.append(f"pubs×{len(data['publications'])}")
-    if show.get("certifications") and data.get("certifications"):
-        parts.append(f"certs×{len(data['certifications'])}")
+    labels = {"skills": "skills", **{s.name: s.summary_label for s in sections.SECTIONS}}
+    parts = [
+        f"{labels[name]}×{len(data[name])}"
+        for name in ("work", "education", "skills", "projects", "publications", "certifications")
+        if show.get(name) and data.get(name)
+    ]
     return "  ".join(parts)
 
 

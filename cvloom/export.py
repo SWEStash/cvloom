@@ -8,19 +8,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cvloom import sections
 from cvloom.models import ResolvedProfile
 from cvloom.sections import highlight_text as _hl
 from cvloom.sections import skill_name as _skill_name
 
 _LINKEDIN_ABOUT_LIMIT = 2600
 
+# Registry headings plus `skills`, whose shape is bespoke and so is not in it.
 _SECTION_HEADINGS: dict[str, str] = {
-    "work": "Work Experience",
-    "education": "Education",
+    **{s.name: s.heading for s in sections.SECTIONS},
     "skills": "Skills",
-    "projects": "Projects",
-    "publications": "Publications",
-    "certifications": "Certifications",
 }
 
 

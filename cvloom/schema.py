@@ -9,6 +9,8 @@ from typing import Any
 
 import jsonschema
 
+from cvloom import sections
+
 _SCHEMAS_DIR = Path(__file__).parent / "schemas"
 
 # Empty value to stand in for each JSON Schema type we default.
@@ -68,30 +70,41 @@ def validate_all(
     """
     all_errors: list[str] = []
 
-    section_schemas = {
-        "basics": "basics",
-        "work": "work",
-        "education": "education",
-        "skills": "skills",
-        "publications": "publications",
-        "certifications": "certifications",
-    }
-    for key, schema_name in section_schemas.items():
-        if key in data:
-            errs = validate(schema_name, data[key], source_path=f"data/{key}.yaml")
-            all_errors.extend(errs)
+    # basics and skills have bespoke shapes; the rest come from the registry.
+    for name in ("basics", "skills"):
+        if name in data:
+            all_errors.extend(validate(name, data[name], source_path=f"data/{name}.yaml"))
+
+    for section in sections.SECTIONS:
+        if section.name not in data:
+            continue
+        if section.from_directory:
+            # One file per entry — report against the file the entry came from.
+            for entry in data[section.name]:
+                slug = entry.get(section.label_key, "?")
+                all_errors.extend(
+                    validate(
+                        section.schema,
+                        entry,
+                        source_path=f"data/{section.name}/{slug}.yaml",
+                    )
+                )
+        else:
+            all_errors.extend(
+                validate(
+                    section.schema,
+                    data[section.name],
+                    source_path=f"data/{section.name}.yaml",
+                )
+            )
 
     if "contact" in data:
-        errs = validate(
-            "contact",
-            data["contact"],
-            source_path=private_path or "private/contact.yaml",
+        all_errors.extend(
+            validate(
+                "contact",
+                data["contact"],
+                source_path=private_path or "private/contact.yaml",
+            )
         )
-        all_errors.extend(errs)
-
-    for project in data.get("projects", []):
-        slug = project.get("name", "?")
-        errs = validate("project", project, source_path=f"data/projects/{slug}.yaml")
-        all_errors.extend(errs)
 
     return all_errors

@@ -15,15 +15,84 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 from cvloom.models import ResolvedProfile
 
-# Array sections of entry dicts. All but ``publications`` carry highlights;
-# the helpers below tolerate their absence.
-ARRAY_SECTIONS = ("work", "education", "projects", "publications", "certifications")
 
-# Text-bearing scalar fields on an array-section entry.
+@dataclass(frozen=True)
+class Section:
+    """One entry-list CV section, and what the pipeline needs to know about it.
+
+    These five sections share a shape — a YAML list of entry dicts — so loading,
+    tag filtering, validation, word counting, section visibility and export
+    headings can all be driven from this one table instead of being restated in
+    each module. ``skills`` and ``basics`` are deliberately absent: their entry
+    shapes are genuinely different, and pretending otherwise would buy uniformity
+    with a pile of exceptions.
+    """
+
+    name: str
+    """Data key, and the key used in a profile's ``sections`` / ``section_order``."""
+
+    schema: str
+    """JSON schema in ``cvloom/schemas/`` describing a single entry."""
+
+    label_key: str
+    """Field that labels an entry in diffs and trim reports."""
+
+    heading: str
+    """Human-readable heading used by the Markdown and DOCX exports."""
+
+    summary_label: str
+    """Short label for the CLI's post-build section summary."""
+
+    from_directory: bool = False
+    """Entries live in ``data/<name>/*.yaml`` rather than one ``data/<name>.yaml``."""
+
+    warn_if_missing: bool = False
+    """Warn when the data file is absent. False for opt-in sections."""
+
+    strict_tags: bool = False
+    """Under ``include_tags``, drop entries with no tags at all.
+
+    Only true for projects, where ``tags`` is a required field so an untagged
+    project cannot exist. Everywhere else an untagged entry is treated as
+    universally relevant and always included.
+    """
+
+
+SECTIONS: tuple[Section, ...] = (
+    Section("work", "work", "company", "Work Experience", "work", warn_if_missing=True),
+    Section("education", "education", "institution", "Education", "edu", warn_if_missing=True),
+    Section(
+        "projects",
+        "project",
+        "name",
+        "Projects",
+        "projects",
+        from_directory=True,
+        strict_tags=True,
+    ),
+    Section("publications", "publications", "name", "Publications", "pubs"),
+    Section("certifications", "certifications", "name", "Certifications", "certs"),
+)
+
+SECTIONS_BY_NAME: dict[str, Section] = {s.name: s for s in SECTIONS}
+
+# Entry-list section names, in data-model order.
+ARRAY_SECTIONS: tuple[str, ...] = tuple(s.name for s in SECTIONS)
+
+# Every section a profile can toggle or order, including the ones with bespoke
+# shapes. Order is the default render order.
+DEFAULT_SECTION_ORDER: tuple[str, ...] = ("skills", *ARRAY_SECTIONS)
+
+# Which field labels an entry of a given array section.
+SECTION_LABEL_KEY: dict[str, str] = {s.name: s.label_key for s in SECTIONS}
+
+# Text-bearing scalar fields on an array-section entry. A flat union across
+# sections: cheap, and harmless since a missing key simply yields nothing.
 ENTRY_TEXT_FIELDS = (
     "title",
     "company",
@@ -37,15 +106,6 @@ ENTRY_TEXT_FIELDS = (
     "summary",
     "issuer",
 )
-
-# Which field labels an entry of a given array section.
-SECTION_LABEL_KEY: dict[str, str] = {
-    "work": "company",
-    "education": "institution",
-    "projects": "name",
-    "publications": "name",
-    "certifications": "name",
-}
 
 
 def highlight_text(hl: Any) -> str:

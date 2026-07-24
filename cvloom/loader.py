@@ -9,18 +9,9 @@ from typing import Any
 import yaml
 from rich.console import Console
 
-from cvloom import schema
+from cvloom import schema, sections
 
 _console = Console(stderr=True)
-
-# Data section → the JSON schema describing one of its entries.
-_ENTRY_SCHEMAS: dict[str, str] = {
-    "work": "work",
-    "education": "education",
-    "projects": "project",
-    "publications": "publications",
-    "certifications": "certifications",
-}
 
 # Placeholder contact used when private/contact.yaml is absent
 _PLACEHOLDER_CONTACT: dict[str, Any] = {
@@ -57,7 +48,7 @@ def normalize_optional_fields(section: str, entries: list[dict[str, Any]]) -> No
     defined`` precisely so a public build — which *deletes* email and phone —
     renders nothing rather than a blank field.
     """
-    defaults = schema.entry_defaults(_ENTRY_SCHEMAS[section])
+    defaults = schema.entry_defaults(sections.SECTIONS_BY_NAME[section].schema)
     for entry in entries:
         for key, value in defaults.items():
             entry.setdefault(key, copy.deepcopy(value))
@@ -105,51 +96,47 @@ def load_data(
     """
     result: dict[str, Any] = {}
 
-    for section in ("basics", "work", "education", "skills"):
-        path = data_dir / f"{section}.yaml"
+    # basics and skills have bespoke shapes; the entry-list sections come from
+    # the shared registry.
+    for name, empty in (("basics", {}), ("skills", [])):
+        path = data_dir / f"{name}.yaml"
         if path.exists():
-            result[section] = _load_yaml(path)
+            result[name] = _load_yaml(path)
         else:
             _console.print(f"[yellow]Warning:[/yellow] {path} not found — section will be empty.")
-            result[section] = [] if section in ("work", "education", "skills") else {}
+            result[name] = copy.deepcopy(empty)
 
-    # Publications and certifications are opt-in: most CVs have neither, so a
-    # missing file is normal and must not warn the way a missing work.yaml does.
-    for section in ("publications", "certifications"):
-        path = data_dir / f"{section}.yaml"
-        result[section] = _load_yaml(path) or [] if path.exists() else []
+    for section in sections.SECTIONS:
+        if section.from_directory:
+            entries: list[dict[str, Any]] = []
+            section_dir = data_dir / section.name
+            if section_dir.exists():
+                for entry_file in sorted(section_dir.glob("*.yaml")):
+                    entry = _load_yaml(entry_file)
+                    if entry:
+                        entries.append(entry)
+            result[section.name] = entries
+            continue
 
-    # Load projects from data/projects/*.yaml
-    projects_dir = data_dir / "projects"
-    projects: list[dict[str, Any]] = []
-    if projects_dir.exists():
-        for project_file in sorted(projects_dir.glob("*.yaml")):
-            project = _load_yaml(project_file)
-            if project:
-                projects.append(project)
-    result["projects"] = projects
+        path = data_dir / f"{section.name}.yaml"
+        if path.exists():
+            result[section.name] = _load_yaml(path) or []
+        else:
+            if section.warn_if_missing:
+                _console.print(
+                    f"[yellow]Warning:[/yellow] {path} not found — section will be empty."
+                )
+            result[section.name] = []
 
     # Apply tag filtering
     if include_tags:
         tag_set = set(include_tags)
-        result["projects"] = [p for p in result["projects"] if set(p.get("tags", [])) & tag_set]
-        result["work"] = [
-            w
-            for w in result.get("work", [])
-            if not w.get("tags") or set(w.get("tags", [])) & tag_set
-        ]
-        # Untagged education entries survive filtering, same as untagged work.
-        result["education"] = [
-            e
-            for e in result.get("education", [])
-            if not e.get("tags") or set(e.get("tags", [])) & tag_set
-        ]
-        # Untagged publications/certifications survive, same as untagged work.
-        for section in ("publications", "certifications"):
-            result[section] = [
-                e
-                for e in result.get(section, [])
-                if not e.get("tags") or set(e.get("tags", [])) & tag_set
+        for section in sections.SECTIONS:
+            result[section.name] = [
+                entry
+                for entry in result.get(section.name, [])
+                if (set(entry.get("tags", [])) & tag_set)
+                or (not section.strict_tags and not entry.get("tags"))
             ]
 
     # Contact data
