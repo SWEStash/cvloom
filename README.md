@@ -8,9 +8,9 @@ diffable and reviewable.
 
 > RenderCV renders one CV beautifully; cvloom manages twenty tailored variants of one dataset — with an agent-safe MCP layer.
 
+![PyPI](https://img.shields.io/pypi/v/cvloom)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
-![Version 0.5.0](https://img.shields.io/badge/version-0.5.0-informational)
 
 ---
 

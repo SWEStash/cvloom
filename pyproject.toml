@@ -4,11 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cvloom"
-version = "0.5.0"
+version = "0.6.0"
 description = "CLI tool to manage CV/resume content as a single source of truth in YAML, generate tailored PDF/HTML outputs per job application."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+keywords = [
+    "cv",
+    "resume",
+    "yaml",
+    "ats",
+    "job-application",
+    "mcp",
+    "cover-letter",
+    "json-resume",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -28,6 +38,12 @@ dependencies = [
     "markdown-it-py>=3.0",
     "rich>=13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SWEStash/cvloom"
+Repository = "https://github.com/SWEStash/cvloom"
+Issues = "https://github.com/SWEStash/cvloom/issues"
+Changelog = "https://github.com/SWEStash/cvloom/blob/main/CHANGELOG.md"
 
 [project.scripts]
 cvloom = "cvloom.cli:cli"
@@ -55,6 +71,22 @@ ai = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["cvloom"]
+
+# Deny-by-default: the sdist ships ONLY these paths. Without an explicit allowlist
+# hatchling walks the tree and would include private, globally-gitignored dirs
+# (e.g. .local/, .claude/) that its sdist builder does not treat as ignored.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/cvloom",
+    "/tests",
+    "/docs",
+    "/examples",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/LICENSE",
+]
 
 [tool.ruff]
 target-version = "py311"

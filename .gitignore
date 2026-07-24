@@ -220,3 +220,7 @@ private/
 
 # local folder
 local/
+.local/
+
+# Claude Code local settings
+.claude/settings.local.json

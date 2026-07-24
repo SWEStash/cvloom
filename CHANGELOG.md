@@ -9,6 +9,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] — 2026-07-18
+
+First public release on PyPI. Install with `pip install cvloom` or `uv tool install cvloom`.
+This is a pre-1.0 release: the CV/profile schema and CLI are still free to change on MINOR
+version bumps. Note the **breaking changes** below if migrating from a pre-release checkout.
+
 ### Added
 - `SECURITY.md` — private vulnerability disclosure process (GitHub Security Advisories) and a note that any real-contact-data leak (tracked file, `--public` build, Pages artifact, or MCP response) is treated as a security issue
 - `cvloom sync` — refresh cvloom-managed scaffold files (the pre-commit hook and the Pages publish workflow) to the installed package's versions after `uv tool upgrade cvloom`. Reports `up to date` / `out of date` / `missing` by default and writes nothing; `--force` applies. `init` and `sync` now share one managed-file registry. New guide: [keeping your instance updated](docs/user/keeping-updated.md)
