@@ -139,11 +139,19 @@ def resolve(
         "skills": True,
         "projects": True,
         "publications": True,
+        "certifications": True,
     }
     show_sections = {**section_defaults, **sections_cfg}
 
     # Section ordering
-    default_order = ["skills", "work", "education", "projects", "publications"]
+    default_order = [
+        "skills",
+        "work",
+        "education",
+        "projects",
+        "publications",
+        "certifications",
+    ]
     section_order = profile.get("section_order", default_order)
 
     # Validate data

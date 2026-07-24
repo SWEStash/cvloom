@@ -791,3 +791,33 @@ def test_category_counts_covers_all_axes() -> None:
         CATEGORY_STRUCTURE: 0,
         CATEGORY_ATS_PARSE: 0,
     }
+
+
+# ── wl-018: education size ───────────────────────────────────────────
+
+
+def _education(n: int) -> list[dict]:
+    return [
+        {"institution": f"Inst {i}", "degree": "Course", "start_date": "2020"} for i in range(n)
+    ]
+
+
+def test_wl018_flags_oversized_education() -> None:
+    resolved = make_resolved(education=_education(23))
+    findings = lint(resolved, rule_ids=["wl-018"])
+    assert len(findings) == 1
+    assert "23 education entries" in findings[0].message
+    assert "certifications.yaml" in findings[0].fix_hint
+    assert findings[0].category == "structure"
+
+
+def test_wl018_silent_at_threshold() -> None:
+    assert lint(make_resolved(education=_education(6)), rule_ids=["wl-018"]) == []
+
+
+def test_wl018_skipped_when_education_hidden() -> None:
+    resolved = make_resolved(
+        education=_education(23),
+        show={"work": True, "education": False, "skills": True, "projects": True},
+    )
+    assert lint(resolved, rule_ids=["wl-018"]) == []

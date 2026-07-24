@@ -18,6 +18,7 @@ _SECTION_HEADINGS: dict[str, str] = {
     "skills": "Skills",
     "projects": "Projects",
     "publications": "Publications",
+    "certifications": "Certifications",
 }
 
 
@@ -147,6 +148,37 @@ def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def _certification_line(entry: dict[str, Any]) -> str:
+    """One-line rendering of a certification: name, issuer, dates, ID."""
+    dates = entry.get("date", "")
+    if dates and entry.get("expiry_date"):
+        dates = f"{dates} – {entry['expiry_date']}"
+    parts = [p for p in (entry.get("issuer"), dates, entry.get("identifier")) if p]
+    suffix = f" — {' · '.join(parts)}" if parts else ""
+    return f"**{entry.get('name', '')}**{suffix}"
+
+
+def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map certification entries to the JSON Resume certificates array.
+
+    JSON Resume's certificate object is only {name, date, issuer, url}, so
+    ``expiry_date`` and ``identifier`` have nowhere to go — unlike a
+    publication's ``identifier``, there is no ``summary`` field to fold them
+    into. They are cvloom extensions and do not survive a round-trip.
+    """
+    result: list[dict[str, Any]] = []
+    for entry in entries:
+        item: dict[str, Any] = {"name": entry.get("name", "")}
+        if entry.get("issuer"):
+            item["issuer"] = entry["issuer"]
+        if entry.get("date"):
+            item["date"] = entry["date"]
+        if entry.get("url"):
+            item["url"] = entry["url"]
+        result.append(item)
+    return result
+
+
 def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     """Convert resolved cvloom data to JSON Resume schema."""
     data = resolved.data
@@ -194,6 +226,10 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     publications = data.get("publications", [])
     if publications:
         result["publications"] = _map_publications(publications)
+
+    certifications = data.get("certifications", [])
+    if certifications:
+        result["certificates"] = _map_certifications(certifications)
 
     return result
 
@@ -313,6 +349,11 @@ def to_markdown(resolved: ResolvedProfile) -> str:
                 lines += [f"*{meta}*", ""] if meta else [""]
                 if entry.get("summary"):
                     lines += [str(entry["summary"]), ""]
+
+        elif section == "certifications":
+            for entry in data.get("certifications", []):
+                lines.append(f"- {_certification_line(entry)}")
+            lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -518,6 +559,19 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
                     p.runs[0].italic = True
                 if entry.get("summary"):
                     doc.add_paragraph(str(entry["summary"]), style="Body Text")
+
+        elif section == "certifications":
+            for entry in data.get("certifications", []):
+                dates = entry.get("date", "")
+                if dates and entry.get("expiry_date"):
+                    dates = f"{dates} – {entry['expiry_date']}"
+                parts = [
+                    p for p in (entry.get("issuer"), dates, entry.get("identifier")) if p
+                ]
+                text = entry.get("name", "")
+                if parts:
+                    text = f"{text} — {' · '.join(parts)}"
+                doc.add_paragraph(text, style="List Bullet")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_path))

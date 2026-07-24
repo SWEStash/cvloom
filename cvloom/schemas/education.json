@@ -15,6 +15,11 @@
       "start_date": {"type": "string"},
       "end_date": {"type": "string"},
       "grade": {"type": "string"},
+      "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Technology/domain tags for profile filtering"
+      },
       "highlights": {
         "type": "array",
         "items": {

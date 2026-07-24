@@ -15,6 +15,7 @@ This guide covers everything you need to know to use cvloom effectively: data fi
    - [skills.yaml](#skillsyaml)
    - [projects/*.yaml](#projectsyaml)
    - [publications.yaml](#publicationsyaml)
+   - [certifications.yaml](#certificationsyaml)
    - [private/contact.yaml](#privatecontactyaml)
 2. [Profile Keys Reference](#profile-keys-reference)
 3. [Templates](#templates)
@@ -110,8 +111,14 @@ A list of education entries.
 | `location` | No | City or country |
 | `start_date` | Yes | `YYYY-MM` or `YYYY` |
 | `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
+| `grade` | No | GPA or classification |
 | `highlights` | No | Notable achievements, GPA, awards |
-| `tags` | No | Used for profile filtering |
+| `tags` | No | Used for profile filtering (untagged entries are always included) |
+
+If your education section has grown a long tail of certifications and short
+courses, put those in [`certifications.yaml`](#certificationsyaml) instead — they
+render compactly as their own section rather than competing with your degrees.
+The `wl-018` lint rule flags this once the section passes 6 entries.
 
 ---
 
@@ -206,6 +213,40 @@ rather than dropped — which means it does not survive a round-trip back into
 
 ---
 
+### certifications.yaml
+
+Optional — omit the file entirely if you have none. Certifications, licences,
+and short courses, rendered as a compact **Certifications** section by every CV
+template (one line per entry, unlike the full entries used for education).
+
+```yaml
+- name: "AWS Certified Solutions Architect – Associate"  # required
+  issuer: "Amazon Web Services"                          # optional
+  date: "2023-04"                                        # optional — YYYY or YYYY-MM
+  expiry_date: "2026-04"                                 # optional
+  identifier: "AWS-PSA-12345"                            # optional — credential/licence ID
+  url: "https://example.com/verify/12345"                # optional
+  tags: [cloud, aws]                                     # optional — profile filtering
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | Yes | Credential title |
+| `issuer` | No | Issuing organisation |
+| `date` | No | Date earned — `YYYY` or `YYYY-MM` |
+| `expiry_date` | No | Expiry date, if the credential expires |
+| `identifier` | No | Credential or licence ID |
+| `url` | No | Verification link |
+| `tags` | No | Used for profile filtering (untagged entries are always included) |
+
+Exports to JSON Resume's native `certificates` array. That object is only
+`{name, date, issuer, url}`, so **`expiry_date` and `identifier` are dropped on
+JSON Resume export** and are never populated on import — unlike a publication's
+`identifier`, there is no `summary` field to fold them into. Markdown and DOCX
+export keep them.
+
+---
+
 ### private/contact.yaml
 
 Your personal contact info. This file is gitignored and never committed.
@@ -246,7 +287,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `include_tags` | `[]` (all) | Only include data entries whose `tags` overlap with this list |
 | `include_entries` | — | Force-include specific entries excluded by tag filtering |
-| `section_order` | `[skills, work, education, projects, publications]` | Override the rendering order of sections |
+| `section_order` | `[skills, work, education, projects, publications, certifications]` | Override the rendering order of sections |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 

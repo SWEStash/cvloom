@@ -326,3 +326,53 @@ def test_markdown_includes_publications():
     assert "## Publications" in md
     assert _PUBLICATION["name"] in md
     assert "Journal of Systems Research · 2018 · ISBN 978-0-0000-0000-1" in md
+
+
+# ── certifications ───────────────────────────────────────────────────
+
+_CERTIFICATION = {
+    "name": "AWS Certified Solutions Architect",
+    "issuer": "Amazon Web Services",
+    "date": "2023-04",
+    "expiry_date": "2026-04",
+    "identifier": "AWS-PSA-12345",
+    "url": "https://example.com/verify",
+}
+
+
+def _resolved_with_certifications():
+    resolved = _make_resolved(certifications=[dict(_CERTIFICATION)])
+    resolved.show_sections["certifications"] = True
+    resolved.section_order.append("certifications")
+    return resolved
+
+
+def test_certifications_map_to_json_resume_certificates():
+    result = to_json_resume(_resolved_with_certifications())
+    assert result["certificates"] == [
+        {
+            "name": "AWS Certified Solutions Architect",
+            "issuer": "Amazon Web Services",
+            "date": "2023-04",
+            "url": "https://example.com/verify",
+        }
+    ]
+
+
+def test_certifications_extensions_dropped_on_export():
+    """expiry_date and identifier have no JSON Resume home — documented loss."""
+    cert = to_json_resume(_resolved_with_certifications())["certificates"][0]
+    assert "expiry_date" not in cert
+    assert "identifier" not in cert
+
+
+def test_certificates_omitted_when_empty():
+    assert "certificates" not in to_json_resume(_make_resolved())
+
+
+def test_markdown_keeps_certification_extensions():
+    """Markdown is lossless where JSON Resume is not."""
+    md = to_markdown(_resolved_with_certifications())
+    assert "## Certifications" in md
+    assert "2023-04 – 2026-04" in md
+    assert "AWS-PSA-12345" in md

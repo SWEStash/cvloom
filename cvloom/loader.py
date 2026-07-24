@@ -19,6 +19,7 @@ _ENTRY_SCHEMAS: dict[str, str] = {
     "education": "education",
     "projects": "project",
     "publications": "publications",
+    "certifications": "certifications",
 }
 
 # Placeholder contact used when private/contact.yaml is absent
@@ -98,7 +99,9 @@ def load_data(
         data_dir: Path to the ``data/`` directory.
         private_dir: Path to the ``private/`` directory (may not exist).
         public: If True, use placeholder contact data instead of private/contact.yaml.
-        include_tags: If given, filter projects/work to entries with at least one matching tag.
+        include_tags: If given, filter projects/work/education/publications to entries
+            with at least one matching tag. Only projects are filtered strictly:
+            elsewhere an entry with no tags at all is always included.
     """
     result: dict[str, Any] = {}
 
@@ -110,12 +113,11 @@ def load_data(
             _console.print(f"[yellow]Warning:[/yellow] {path} not found — section will be empty.")
             result[section] = [] if section in ("work", "education", "skills") else {}
 
-    # Publications are opt-in: most CVs have none, so a missing file is normal
-    # and must not warn the way a missing work.yaml does.
-    publications_path = data_dir / "publications.yaml"
-    result["publications"] = (
-        _load_yaml(publications_path) or [] if publications_path.exists() else []
-    )
+    # Publications and certifications are opt-in: most CVs have neither, so a
+    # missing file is normal and must not warn the way a missing work.yaml does.
+    for section in ("publications", "certifications"):
+        path = data_dir / f"{section}.yaml"
+        result[section] = _load_yaml(path) or [] if path.exists() else []
 
     # Load projects from data/projects/*.yaml
     projects_dir = data_dir / "projects"
@@ -136,12 +138,19 @@ def load_data(
             for w in result.get("work", [])
             if not w.get("tags") or set(w.get("tags", [])) & tag_set
         ]
-        # Untagged publications survive filtering, same as untagged work.
-        result["publications"] = [
-            p
-            for p in result.get("publications", [])
-            if not p.get("tags") or set(p.get("tags", [])) & tag_set
+        # Untagged education entries survive filtering, same as untagged work.
+        result["education"] = [
+            e
+            for e in result.get("education", [])
+            if not e.get("tags") or set(e.get("tags", [])) & tag_set
         ]
+        # Untagged publications/certifications survive, same as untagged work.
+        for section in ("publications", "certifications"):
+            result[section] = [
+                e
+                for e in result.get(section, [])
+                if not e.get("tags") or set(e.get("tags", [])) & tag_set
+            ]
 
     # Contact data
     contact_path = (private_dir / "contact.yaml") if private_dir else None

@@ -74,6 +74,7 @@ def validate_all(
         "education": "education",
         "skills": "skills",
         "publications": "publications",
+        "certifications": "certifications",
     }
     for key, schema_name in section_schemas.items():
         if key in data:

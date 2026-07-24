@@ -112,7 +112,7 @@ def build(data_dir, private_dir, profiles_dir, output_dir, profile_name, ...) ->
 ### `loader.py`
 
 Loads and merges YAML from `data/` and `private/`. Key responsibilities:
-- Tag-based filtering of work, project, and publication entries
+- Tag-based filtering of work, education, project, publication, and certification entries (strict for projects, lenient elsewhere — see `docs/reference/profiles-and-overlays.md`)
 - Public/private contact mode (removes `email` and `phone` in `--public`)
 - `apply_force_includes()` — second unfiltered load to retrieve excluded entries and merge them back
 - `normalize_highlights()` — converts `{id, text}` dicts to plain strings while retaining IDs for overlay matching
@@ -120,7 +120,7 @@ Loads and merges YAML from `data/` and `private/`. Key responsibilities:
 
 ### `schema.py`
 
-Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `profile`, `contact`.
+Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `certifications`, `profile`, `contact`.
 
 `entry_defaults(name, prop=None)` — returns the typed empty value (`""` / `[]` / `{}`) for every *optional* property a schema declares. Single source of truth for `loader.normalize_optional_fields()` and for `job_context` defaults in `builder.build()`.
 
@@ -205,7 +205,7 @@ AI tools check `ai.provider.is_configured()` and return `{"error": "..."}` if no
 @dataclass
 class ResolvedProfile:
     profile: dict[str, Any]          # raw profile YAML
-    data: dict[str, Any]             # resolved CV data (work, education, skills, projects, publications, basics, contact)
+    data: dict[str, Any]             # resolved CV data (work, education, skills, projects, publications, certifications, basics, contact)
     show_sections: dict[str, bool]   # section visibility flags
     section_order: list[str]         # render order
     template_name: str               # e.g. "cv/ats-single"

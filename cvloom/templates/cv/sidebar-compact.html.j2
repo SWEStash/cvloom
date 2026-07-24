@@ -231,11 +231,26 @@
 {% endif %}
 {% endmacro %}
 
+{% macro sidebar_certifications() %}
+{% if show.certifications and certifications %}
+<div class="section-title">Certifications</div>
+{% for cert in certifications %}
+<div class="entry cert-entry">
+  <div class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</div>
+  {% if cert.issuer or cert.identifier %}<div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
+  {% if cert.date %}<div class="entry-date">{{ cert.date }}
+  {%- if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</div>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
 {# ── Section dispatch maps ──────────────────────────────────────── #}
 
 {% set _sidebar_macros = {
   "skills": sidebar_skills,
   "education": sidebar_education,
+  "certifications": sidebar_certifications,
 } %}
 
 {% set _main_macros = {
@@ -261,7 +276,7 @@
       {% if contact.website is defined %}<li><span class="contact-label">Web</span><span class="contact-value">{{ contact.website }}</span></li>{% endif %}
     </ul>
 
-    {% for sec in section_order | default(["skills", "work", "education", "projects", "publications"]) if sec in _sidebar_macros %}
+    {% for sec in section_order | default(["skills", "work", "education", "projects", "publications", "certifications"]) if sec in _sidebar_macros %}
     {{ _sidebar_macros[sec]() }}
     {% endfor %}
   </aside>
@@ -272,7 +287,7 @@
     <p style="margin-bottom: 12px;">{{ basics.summary | md }}</p>
     {% endif %}
 
-    {% for sec in section_order | default(["skills", "work", "education", "projects", "publications"]) if sec in _main_macros %}
+    {% for sec in section_order | default(["skills", "work", "education", "projects", "publications", "certifications"]) if sec in _main_macros %}
     {{ _main_macros[sec]() }}
     {% endfor %}
   </main>

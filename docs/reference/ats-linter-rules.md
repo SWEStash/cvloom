@@ -63,6 +63,7 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | `wl-015` | action-result           | writing    | suggestion | work, projects             | Metric present but no result-framing phrase |
 | `wl-016` | readability             | writing    | suggestion | work, projects             | Flesch-Kincaid grade outside target range 6–12 |
 | `wl-017` | tech-mentions-in-work   | ats-parse  | suggestion | work                       | Work entry highlights mention no skill item |
+| `wl-018` | education-size          | structure  | warning    | education                  | More than 6 education entries — degrees and short courses rendering with equal weight |
 
 ---
 
@@ -335,3 +336,22 @@ keyword retrieval.
 **Good:** At least one highlight references a tool, language, or framework from the skills section.
 
 **Fix hint:** Reference at least one tool, language, or framework from your skills section.
+
+### wl-018: education-size
+
+**Category:** structure | **Sections checked:** education | **Severity:** warning
+
+Fires when the education section has more than 6 entries. Skipped when the education
+section is hidden for the profile.
+
+**Basis (structure):** an education list that long is almost always a couple of real degrees
+plus a tail of certifications and short courses. Every CV template renders education entries
+with equal weight, so the tail visually competes with the degrees and pushes them down the page.
+
+**Bad:** 2 degrees and 21 vendor certifications in one flat `education.yaml`.
+
+**Good:** degrees in `education.yaml`; certifications and short courses in
+`certifications.yaml`, which renders as a compact one-line-per-entry section.
+
+**Fix hint:** Move certifications and short courses to `data/certifications.yaml`. Alternatively
+tag the tail (e.g. `tags: [certification]`) and filter it out per profile with `include_tags`.

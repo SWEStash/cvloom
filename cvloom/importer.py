@@ -35,6 +35,7 @@ class ImportedData:
     skills: list[dict[str, Any]] = field(default_factory=list)
     projects: list[dict[str, Any]] = field(default_factory=list)
     publications: list[dict[str, Any]] = field(default_factory=list)
+    certifications: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -219,6 +220,26 @@ def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map a JSON Resume certificates array to cvloom certification entries.
+
+    JSON Resume has no expiry or credential-ID field, so ``expiry_date`` and
+    ``identifier`` are never populated on import.
+    """
+    result: list[dict[str, Any]] = []
+    for entry in entries:
+        _require(entry, "object", "certificate entry")
+        item: dict[str, Any] = {"name": str(entry.get("name", ""))}
+        if entry.get("issuer"):
+            item["issuer"] = str(entry["issuer"])
+        if entry.get("date"):
+            item["date"] = str(entry["date"])
+        if entry.get("url"):
+            item["url"] = str(entry["url"])
+        result.append(item)
+    return result
+
+
 def from_json_resume(doc: Any) -> ImportedData:
     """Parse a JSON Resume document into cvloom sections.
 
@@ -234,11 +255,13 @@ def from_json_resume(doc: Any) -> ImportedData:
     skills = doc.get("skills") or []
     projects = doc.get("projects") or []
     publications = doc.get("publications") or []
+    certificates = doc.get("certificates") or []
     _require(work, "array", "work")
     _require(education, "array", "education")
     _require(skills, "array", "skills")
     _require(projects, "array", "projects")
     _require(publications, "array", "publications")
+    _require(certificates, "array", "certificates")
 
     return ImportedData(
         contact=_map_contact(basics),
@@ -248,6 +271,7 @@ def from_json_resume(doc: Any) -> ImportedData:
         skills=_map_skills(skills),
         projects=_map_projects(projects),
         publications=_map_publications(publications),
+        certifications=_map_certifications(certificates),
     )
 
 
@@ -266,6 +290,8 @@ def validate_imported(imported: ImportedData) -> list[str]:
         payload["projects"] = imported.projects
     if imported.publications:
         payload["publications"] = imported.publications
+    if imported.certifications:
+        payload["certifications"] = imported.certifications
     return schema.validate_all(payload)
 
 
@@ -301,6 +327,8 @@ def plan_writes(imported: ImportedData, data_dir: Path, private_dir: Path) -> li
         add(data_dir / "skills.yaml", False)
     if imported.publications:
         add(data_dir / "publications.yaml", False)
+    if imported.certifications:
+        add(data_dir / "certifications.yaml", False)
     for stem in _project_stems(imported.projects):
         add(data_dir / "projects" / f"{stem}.yaml", False)
     return plans
@@ -334,6 +362,7 @@ def write_imported(imported: ImportedData, data_dir: Path, private_dir: Path) ->
         ("education", imported.education),
         ("skills", imported.skills),
         ("publications", imported.publications),
+        ("certifications", imported.certifications),
     ):
         if entries:
             path = data_dir / f"{section}.yaml"

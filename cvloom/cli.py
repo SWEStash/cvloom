@@ -59,6 +59,8 @@ def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
         parts.append(f"projects×{len(data['projects'])}")
     if show.get("publications") and data.get("publications"):
         parts.append(f"pubs×{len(data['publications'])}")
+    if show.get("certifications") and data.get("certifications"):
+        parts.append(f"certs×{len(data['certifications'])}")
     return "  ".join(parts)
 
 

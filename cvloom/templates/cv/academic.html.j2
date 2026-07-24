@@ -142,6 +142,21 @@ h2 {
 {% endif %}
 {% endmacro %}
 
+{% macro section_certifications() %}
+{% if show.certifications and certifications %}
+<h2>Certifications</h2>
+{% for cert in certifications %}
+<div class="entry cert-entry">
+  <div class="entry-header clearfix">
+    <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
+    {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</span>{% endif %}
+  </div>
+  {% if cert.issuer or cert.identifier %}<div class="entry-location">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
 {# ── Section dispatch ──────────────────────────────────────────── #}
 
 {% set _section_macros = {
@@ -150,6 +165,7 @@ h2 {
   "education": section_education,
   "projects": section_projects,
   "publications": section_publications,
+  "certifications": section_certifications,
 } %}
 
 {% block body %}
@@ -181,7 +197,7 @@ h2 {
 {% endif %}
 
 <!-- SECTIONS (ordered — academic default: education first) -->
-{% for sec in section_order | default(["education", "publications", "work", "projects", "skills"]) %}
+{% for sec in section_order | default(["education", "publications", "work", "projects", "skills", "certifications"]) %}
 {{ _section_macros[sec]() }}
 {% endfor %}
 {% endblock %}

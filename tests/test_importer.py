@@ -353,3 +353,46 @@ def test_publications_absent_writes_no_file(tmp_path: Path) -> None:
 def test_from_json_resume_rejects_non_array_publications() -> None:
     with pytest.raises(importer.ImportProblem):
         importer.from_json_resume({"basics": {"name": "Jane"}, "publications": {"name": "x"}})
+
+
+# ── certifications ───────────────────────────────────────────────────
+
+
+def test_from_json_resume_maps_certificates() -> None:
+    imported = importer.from_json_resume(
+        {
+            "basics": {"name": "Jane"},
+            "certificates": [
+                {
+                    "name": "CKA",
+                    "issuer": "CNCF",
+                    "date": "2022-09",
+                    "url": "https://example.com/v",
+                }
+            ],
+        }
+    )
+    assert imported.certifications == [
+        {"name": "CKA", "issuer": "CNCF", "date": "2022-09", "url": "https://example.com/v"}
+    ]
+    assert importer.validate_imported(imported) == []
+
+
+def test_certifications_written_to_data_dir(tmp_path: Path) -> None:
+    imported = importer.from_json_resume(
+        {"basics": {"name": "Jane"}, "certificates": [{"name": "CKA"}]}
+    )
+    data_dir, private_dir = tmp_path / "data", tmp_path / "private"
+    plan = next(
+        p
+        for p in importer.plan_writes(imported, data_dir, private_dir)
+        if p.path.name == "certifications.yaml"
+    )
+    assert plan.is_private is False
+    importer.write_imported(imported, data_dir, private_dir)
+    assert yaml.safe_load((data_dir / "certifications.yaml").read_text()) == [{"name": "CKA"}]
+
+
+def test_from_json_resume_rejects_non_array_certificates() -> None:
+    with pytest.raises(importer.ImportProblem):
+        importer.from_json_resume({"basics": {"name": "Jane"}, "certificates": {"name": "x"}})

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "certifications",
+  "title": "CV Certifications",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["name"],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Credential title — e.g. 'AWS Certified Solutions Architect'"
+      },
+      "issuer": {
+        "type": "string",
+        "description": "Issuing organisation — e.g. 'Amazon Web Services'"
+      },
+      "date": {"type": "string", "description": "Date earned — YYYY or YYYY-MM"},
+      "expiry_date": {
+        "type": "string",
+        "description": "Expiry date, if the credential expires — YYYY or YYYY-MM. No JSON Resume equivalent; dropped on export."
+      },
+      "identifier": {
+        "type": "string",
+        "description": "Credential/licence ID. No JSON Resume equivalent; dropped on export."
+      },
+      "url": {"type": "string", "format": "uri", "description": "Verification link"},
+      "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Technology/domain tags for profile filtering"
+      }
+    }
+  }
+}

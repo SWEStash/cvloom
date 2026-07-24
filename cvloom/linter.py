@@ -162,6 +162,9 @@ _MIN_BULLETS = 3
 _MAX_BULLETS = 8
 _MIN_SKILLS = 8
 _MAX_SKILLS = 25
+# Past this, an education section is almost always a degree list plus a tail of
+# short courses/certs, which reads better as a separate certifications section.
+_MAX_EDUCATION_ENTRIES = 6
 _WORDS_PER_PAGE = 500
 
 _DATE_YYYY_MM_RE = re.compile(r"^\d{4}-\d{2}$")
@@ -749,6 +752,34 @@ def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
     return []
 
 
+def _check_education_size(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-018: Warn if the education section has grown into a course list."""
+    if not resolved.show_sections.get("education"):
+        return []
+    entries = resolved.data.get("education", [])
+    if len(entries) <= _MAX_EDUCATION_ENTRIES:
+        return []
+    return [
+        LintFinding(
+            rule_id="wl-018",
+            severity="warning",
+            section="education",
+            entry="total",
+            bullet_index=None,
+            bullet_text=None,
+            message=(
+                f"{len(entries)} education entries (over {_MAX_EDUCATION_ENTRIES}). "
+                "Degrees and short courses are rendering with equal weight."
+            ),
+            fix_hint=(
+                "Move certifications and short courses to data/certifications.yaml, "
+                "which renders compactly as its own section. Alternatively tag the "
+                "tail (e.g. tags: [certification]) and filter it out per profile."
+            ),
+        )
+    ]
+
+
 def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
     """wl-010: Warn if no LinkedIn or GitHub link is present."""
     contact = resolved.data.get("contact", {})
@@ -1018,6 +1049,13 @@ RULES: list[LintRule] = [
         "Flag work entries with no skill items mentioned in highlights",
         CATEGORY_ATS_PARSE,
         _check_tech_mentions_in_work,
+    ),
+    LintRule(
+        "wl-018",
+        "education-size",
+        f"Flag an education section with more than {_MAX_EDUCATION_ENTRIES} entries",
+        CATEGORY_STRUCTURE,
+        _check_education_size,
     ),
 ]
 

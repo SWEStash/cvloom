@@ -404,3 +404,125 @@ def test_every_cv_template_renders_publications(
     assert "A paper on automata" in result.html
     assert "Journal of Systems Research" in result.html
     assert "978-0-0000-0000-2" in result.html
+
+
+# ── education tags ───────────────────────────────────────────────────
+
+_EDUCATION_TAGGED_YAML = (
+    '- institution: Uni\n  degree: BSc\n  start_date: "2016"\n  tags: [degree]\n'
+    '- institution: Cloud Academy\n  degree: Cert\n  start_date: "2023"\n'
+    "  tags: [certification]\n"
+    '- institution: Old School\n  degree: Diploma\n  start_date: "2012"\n'
+)
+
+
+@pytest.fixture
+def tagged_education_dir(tmp_path: Path) -> Path:
+    return make_project(tmp_path, extra={"data/education.yaml": _EDUCATION_TAGGED_YAML})
+
+
+def _degrees_only(root: Path) -> list[str]:
+    (root / "profiles" / "degrees.yaml").write_text(
+        "template: cv/ats-single\ninclude_tags: [degree]\n"
+    )
+    result = resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name="degrees",
+        public=True,
+    )
+    return [e["institution"] for e in result.data["education"]]
+
+
+def test_education_tag_filter_drops_non_matching(tagged_education_dir: Path) -> None:
+    assert "Cloud Academy" not in _degrees_only(tagged_education_dir)
+
+
+def test_education_tag_filter_keeps_untagged(tagged_education_dir: Path) -> None:
+    """Untagged education survives include_tags, matching work's semantics."""
+    assert _degrees_only(tagged_education_dir) == ["Uni", "Old School"]
+
+
+# ── certifications section ───────────────────────────────────────────
+
+_CERTIFICATIONS_YAML = (
+    "- name: AWS Certified Solutions Architect\n  issuer: Amazon Web Services\n"
+    '  date: "2023-04"\n  expiry_date: "2026-04"\n  identifier: "AWS-PSA-12345"\n'
+    "  tags: [cloud]\n"
+    "- name: Certified Kubernetes Administrator\n  issuer: CNCF\n"
+)
+
+
+@pytest.fixture
+def certifications_project_dir(tmp_path: Path) -> Path:
+    return make_project(tmp_path, extra={"data/certifications.yaml": _CERTIFICATIONS_YAML})
+
+
+def test_resolve_without_certifications_file(project_dir: Path) -> None:
+    result = resolve(
+        data_dir=project_dir / "data",
+        private_dir=project_dir / "private",
+        profiles_dir=project_dir / "profiles",
+        public=True,
+    )
+    assert result.data["certifications"] == []
+    assert "certifications" in result.section_order
+
+
+def test_resolve_loads_certifications(certifications_project_dir: Path) -> None:
+    result = resolve(
+        data_dir=certifications_project_dir / "data",
+        private_dir=certifications_project_dir / "private",
+        profiles_dir=certifications_project_dir / "profiles",
+        public=True,
+    )
+    certs = result.data["certifications"]
+    assert [c["name"] for c in certs] == [
+        "AWS Certified Solutions Architect",
+        "Certified Kubernetes Administrator",
+    ]
+    assert certs[1]["expiry_date"] == ""  # schema-optional key filled
+
+
+def test_certifications_tag_filter_keeps_untagged(certifications_project_dir: Path) -> None:
+    (certifications_project_dir / "profiles" / "tagged.yaml").write_text(
+        "template: cv/ats-single\ninclude_tags: [python]\n"
+    )
+    result = resolve(
+        data_dir=certifications_project_dir / "data",
+        private_dir=certifications_project_dir / "private",
+        profiles_dir=certifications_project_dir / "profiles",
+        profile_name="tagged",
+        public=True,
+    )
+    assert [c["name"] for c in result.data["certifications"]] == [
+        "Certified Kubernetes Administrator"
+    ]
+
+
+def test_certifications_section_can_be_hidden(certifications_project_dir: Path) -> None:
+    (certifications_project_dir / "profiles" / "nocerts.yaml").write_text(
+        "template: cv/ats-single\nsections:\n  certifications: false\n"
+    )
+    result = build_project(
+        certifications_project_dir, profile_name="nocerts", public=True, skip_pdf=True
+    )
+    assert "AWS Certified" not in result.html
+
+
+@pytest.mark.parametrize("template", [t for t in list_templates() if t.startswith("cv/")])
+def test_every_cv_template_renders_certifications(
+    certifications_project_dir: Path, template: str
+) -> None:
+    result = build_project(
+        certifications_project_dir,
+        profile_name="general",
+        template_override=template,
+        public=True,
+        skip_pdf=True,
+    )
+    assert "Certifications" in result.html
+    assert "AWS Certified Solutions Architect" in result.html
+    assert "CNCF" in result.html
+    assert "AWS-PSA-12345" in result.html
