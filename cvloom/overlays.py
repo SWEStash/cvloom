@@ -6,14 +6,9 @@ from typing import Any
 
 from rich.console import Console
 
-_console = Console(stderr=True)
+from cvloom import sections
 
-# Match keys used to identify entries in each array section.
-_MATCH_KEYS: dict[str, str] = {
-    "work": "company",
-    "education": "institution",
-    "projects": "name",
-}
+_console = Console(stderr=True)
 
 
 def apply_overlays(data: dict[str, Any], profile: dict[str, Any]) -> None:
@@ -153,17 +148,10 @@ def _apply_skills_overlay(data: dict[str, Any], overlay: dict[str, Any]) -> None
         exclude_items = set(override.get("exclude_items", []))
         if exclude_items:
             group["items"] = [
-                item for item in group["items"] if (_item_name(item) not in exclude_items)
+                item for item in group["items"] if (sections.skill_name(item) not in exclude_items)
             ]
 
     data["skills"] = skills
-
-
-def _item_name(item: Any) -> str:
-    """Extract the display name from a skill item (string or {name, level})."""
-    if isinstance(item, str):
-        return item
-    return str(item.get("name", ""))
 
 
 # ── Validation ───────────────────────────────────────────────────────
@@ -247,7 +235,7 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
                 if mode in ("pick", "exclude") and items:
                     for item_id in items:
                         if item_id not in available_ids:
-                            label = _entry_label(section, entry)
+                            label = sections.entry_label(section, entry)
                             warnings.append(
                                 f"{section} overlay for {label}: highlight ID '{item_id}' "
                                 f"not found (available: {', '.join(sorted(available_ids))})."
@@ -255,16 +243,10 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
 
                 for rid in replace_map:
                     if rid not in available_ids:
-                        label = _entry_label(section, entry)
+                        label = sections.entry_label(section, entry)
                         warnings.append(
                             f"{section} overlay for {label}: replace ID '{rid}' "
                             f"not found (available: {', '.join(sorted(available_ids))})."
                         )
 
     return warnings
-
-
-def _entry_label(section: str, entry: dict[str, Any]) -> str:
-    """Return a human-readable label for an entry."""
-    key = _MATCH_KEYS.get(section, "name")
-    return str(entry.get(key, "?"))

@@ -16,8 +16,8 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
+from cvloom import sections
 from cvloom.models import ResolvedProfile
 
 # Rule categories — the three honest axes of writing/ATS readiness.
@@ -296,17 +296,6 @@ def _fk_grade(text: str) -> float:
     return 0.39 * len(words) + 11.8 * (syllables / len(words)) - 15.59
 
 
-def _entry_label(section: str, entry: dict[str, Any]) -> str:
-    """Return a human-readable label for an entry."""
-    if section == "work":
-        return str(entry.get("company", "?"))
-    if section == "education":
-        return str(entry.get("institution", "?"))
-    if section == "projects":
-        return str(entry.get("name", "?"))
-    return "?"
-
-
 def _check_highlights(
     resolved: ResolvedProfile,
     section: str,
@@ -319,11 +308,11 @@ def _check_highlights(
         return findings
     for entry in resolved.data.get(section, []):
         for i, hl in enumerate(entry.get("highlights", [])):
-            text = hl if isinstance(hl, str) else hl.get("text", "")
+            text = sections.highlight_text(hl)
             finding = test(text, i)
             if finding:
                 finding.section = section
-                finding.entry = _entry_label(section, entry)
+                finding.entry = sections.entry_label(section, entry)
                 finding.bullet_index = i
                 finding.bullet_text = text
                 findings.append(finding)
@@ -386,7 +375,7 @@ def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
     for group in resolved.data.get("skills", []):
         category = group.get("category", "?")
         for item in group.get("items", []):
-            name = item if isinstance(item, str) else item.get("name", "")
+            name = sections.skill_name(item)
             if name.lower() in _NOISE_SKILLS:
                 findings.append(
                     LintFinding(
@@ -513,7 +502,7 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
         company = str(entry.get("company", "?"))
 
         for i, hl in enumerate(entry.get("highlights", [])):
-            text = hl if isinstance(hl, str) else hl.get("text", "")
+            text = sections.highlight_text(hl)
             if not text:
                 continue
             first_word = text.lstrip("- ").split()[0].lower() if text.split() else ""
@@ -797,12 +786,12 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
     for section in ("work", "education", "projects"):
         for entry in resolved.data.get(section, []):
             for hl in entry.get("highlights", []):
-                text = hl if isinstance(hl, str) else hl.get("text", "")
+                text = sections.highlight_text(hl)
                 if text:
                     texts.append(text)
     for group in resolved.data.get("skills", []):
         for item in group.get("items", []):
-            name = item if isinstance(item, str) else item.get("name", "")
+            name = sections.skill_name(item)
             if name:
                 texts.append(name)
 
@@ -876,7 +865,7 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
     skill_names: set[str] = set()
     for group in resolved.data.get("skills", []):
         for item in group.get("items", []):
-            name = item if isinstance(item, str) else item.get("name", "")
+            name = sections.skill_name(item)
             if name:
                 skill_names.add(name.lower())
 
@@ -888,9 +877,7 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
         highlights = entry.get("highlights", [])
         if not highlights:
             continue
-        hl_text = " ".join(
-            h if isinstance(h, str) else h.get("text", "") for h in highlights
-        ).lower()
+        hl_text = " ".join(sections.highlight_text(h) for h in highlights).lower()
         if not any(skill in hl_text for skill in skill_names):
             findings.append(
                 LintFinding(

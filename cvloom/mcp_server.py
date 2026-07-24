@@ -18,15 +18,13 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import re
-import unicodedata
 from pathlib import Path
 from typing import Any
 
 import yaml
 from mcp.server.fastmcp import FastMCP
 
-from cvloom import builder, linter, loader, schema
+from cvloom import builder, linter, loader, projects, schema, sections
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
 from cvloom.export import to_json_resume
@@ -43,23 +41,11 @@ def _root(project_root: str | None) -> Path:
 def list_profiles(project_root: str | None = None) -> str:
     """List all build profiles with their configuration."""
     root = _root(project_root)
-    profiles_dir = root / "profiles"
-    if not profiles_dir.exists():
+    try:
+        summaries = projects.list_profiles(root)
+    except FileNotFoundError:
         return json.dumps({"error": "No profiles/ directory found."})
-
-    result: list[dict[str, Any]] = []
-    for pf in sorted(profiles_dir.glob("*.yaml")):
-        data = yaml.safe_load(pf.read_text()) or {}
-        result.append(
-            {
-                "name": pf.stem,
-                "template": data.get("template", ""),
-                "output_filename": data.get("output_filename", pf.stem),
-                "include_tags": data.get("include_tags", []),
-                "job_context": data.get("job_context"),
-            }
-        )
-    return json.dumps(result, indent=2)
+    return json.dumps([dataclasses.asdict(s) for s in summaries], indent=2)
 
 
 @mcp.tool()
@@ -69,26 +55,11 @@ def list_projects(
 ) -> str:
     """List all projects, optionally filtered by tags."""
     root = _root(project_root)
-    projects_dir = root / "data" / "projects"
-    if not projects_dir.exists():
+    try:
+        summaries = projects.list_projects(root, tags)
+    except FileNotFoundError:
         return json.dumps({"error": "No data/projects/ directory found."})
-
-    result: list[dict[str, Any]] = []
-    tag_set = set(tags) if tags else None
-
-    for pf in sorted(projects_dir.glob("*.yaml")):
-        data = yaml.safe_load(pf.read_text()) or {}
-        ptags = data.get("tags", [])
-        if tag_set and not (set(ptags) & tag_set):
-            continue
-        result.append(
-            {
-                "name": data.get("name", pf.stem),
-                "description": data.get("description", ""),
-                "tags": ptags,
-            }
-        )
-    return json.dumps(result, indent=2)
+    return json.dumps([dataclasses.asdict(s) for s in summaries], indent=2)
 
 
 @mcp.tool()
@@ -131,11 +102,8 @@ def build_cv(
     """Build CV for a profile and return build statistics."""
     root = _root(project_root)
     try:
-        result = builder.build(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            output_dir=root / "dist",
+        result = builder.build_project(
+            root,
             profile_name=profile,
             public=public,
             skip_pdf=skip_pdf,
@@ -175,13 +143,6 @@ def create_profile(
     return json.dumps({"created": str(path)})
 
 
-def _slugify(name: str) -> str:
-    """Convert a project name to a safe filename slug."""
-    text = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
-    text = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return text or "untitled"
-
-
 @mcp.tool()
 def upsert_project(
     project: dict[str, Any],
@@ -196,7 +157,7 @@ def upsert_project(
         return json.dumps({"error": "Validation failed", "details": errors})
 
     name = project.get("name", "untitled")
-    slug = _slugify(name)
+    slug = sections.slugify(name)
     projects_dir = root / "data" / "projects"
     projects_dir.mkdir(parents=True, exist_ok=True)
     path = projects_dir / f"{slug}.yaml"
@@ -237,13 +198,7 @@ def export_json_resume(
     """
     root = _root(project_root)
     try:
-        resolved = builder.resolve(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            profile_name=profile,
-            public=public,
-        )
+        resolved = builder.resolve_project(root, profile, public=public)
         resume = to_json_resume(resolved)
         return json.dumps(resume, indent=2, ensure_ascii=False)
     except SystemExit as e:
@@ -263,13 +218,7 @@ def check_cv(
     """
     root = _root(project_root)
     try:
-        resolved = builder.resolve(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            profile_name=profile,
-            public=True,
-        )
+        resolved = builder.resolve_project(root, profile, public=True)
         findings = linter.lint(resolved, rule_ids=rule_ids)
         return json.dumps(
             [
@@ -299,13 +248,7 @@ def trim_report(
     """Get per-section word count breakdown and trim recommendations."""
     root = _root(project_root)
     try:
-        resolved = builder.resolve(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            profile_name=profile,
-            public=True,
-        )
+        resolved = builder.resolve_project(root, profile, public=True)
         report = trim_mod.analyze(resolved, target_pages=target_pages)
         return json.dumps(
             {
@@ -339,20 +282,8 @@ def diff_profiles(
     """Compare two profiles side by side. Returns structural differences."""
     root = _root(project_root)
     try:
-        resolved_a = builder.resolve(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            profile_name=profile_a,
-            public=True,
-        )
-        resolved_b = builder.resolve(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            profile_name=profile_b,
-            public=True,
-        )
+        resolved_a = builder.resolve_project(root, profile_a, public=True)
+        resolved_b = builder.resolve_project(root, profile_b, public=True)
         result = compare(resolved_a, resolved_b, name_a=profile_a, name_b=profile_b)
         return json.dumps(
             {
@@ -382,13 +313,7 @@ def match_jd(
     """Analyze keyword gaps between CV and a job description text."""
     root = _root(project_root)
     try:
-        resolved = builder.resolve(
-            data_dir=root / "data",
-            private_dir=root / "private",
-            profiles_dir=root / "profiles",
-            profile_name=profile,
-            public=True,
-        )
+        resolved = builder.resolve_project(root, profile, public=True)
         report = analyze_match(resolved, jd_text)
         return json.dumps(
             {
@@ -425,13 +350,7 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         client = get_client()
         result = review(resolved, client, get_model())
@@ -458,13 +377,7 @@ def ai_generate_cover(
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         client = get_client()
         result = generate_cover(resolved, jd_text, client, get_model())
@@ -493,13 +406,7 @@ def ai_suggest_improvements(
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         client = get_client()
         result = suggest(resolved, client, get_model(), role_context=role)
@@ -528,13 +435,7 @@ def ai_align_to_jd(
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         result = align(resolved, jd_text, get_client(), get_model())
     except Exception as exc:

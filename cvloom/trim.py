@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from cvloom import sections
 from cvloom.models import ResolvedProfile
 
 _WORDS_PER_PAGE = 350
@@ -50,24 +51,6 @@ def _count_words(text: str) -> int:
     return len(text.split())
 
 
-def _highlight_text(hl: object) -> str:
-    if isinstance(hl, str):
-        return hl
-    if isinstance(hl, dict):
-        return str(hl.get("text", ""))
-    return ""
-
-
-def _entry_label(section: str, entry: dict) -> str:  # type: ignore[type-arg]
-    if section == "work":
-        return str(entry.get("company", "?"))
-    if section == "education":
-        return str(entry.get("institution", "?"))
-    if section == "projects":
-        return str(entry.get("name", "?"))
-    return "?"
-
-
 def _analyze_array_section(
     section: str,
     entries: list[dict],  # type: ignore[type-arg]
@@ -77,31 +60,17 @@ def _analyze_array_section(
     entry_counts: list[EntryWordCount] = []
 
     for entry in entries:
-        words = 0
-        for key in (
-            "title",
-            "company",
-            "institution",
-            "name",
-            "description",
-            "location",
-            "degree",
-            "field",
-        ):
-            val = entry.get(key)
-            if isinstance(val, str):
-                words += _count_words(val)
+        words = sum(_count_words(text) for text in sections.iter_entry_text(entry))
 
         highlights = entry.get("highlights", [])
-        longest_hl = 0
-        for hl in highlights:
-            hw = _count_words(_highlight_text(hl))
-            words += hw
-            longest_hl = max(longest_hl, hw)
+        longest_hl = max(
+            (_count_words(sections.highlight_text(hl)) for hl in highlights),
+            default=0,
+        )
 
         entry_counts.append(
             EntryWordCount(
-                label=_entry_label(section, entry),
+                label=sections.entry_label(section, entry),
                 total_words=words,
                 highlight_count=len(highlights),
                 longest_highlight_words=longest_hl,
@@ -118,10 +87,7 @@ def _analyze_skills(skills: list[dict]) -> SectionWordCount:  # type: ignore[typ
     for group in skills:
         total += _count_words(group.get("category", ""))
         for item in group.get("items", []):
-            if isinstance(item, str):
-                total += _count_words(item)
-            else:
-                total += _count_words(item.get("name", ""))
+            total += _count_words(sections.skill_name(item))
     return SectionWordCount(section="skills", total_words=total)
 
 

@@ -9,12 +9,12 @@ import pytest
 from cvloom.builder import (
     _estimate_pages,
     _pdf_filename,
-    _word_count_by_section,
     resolve,
 )
 from cvloom.cli import _section_summary
 from cvloom.models import ResolvedProfile
 from cvloom.renderer import list_templates, template_exists
+from cvloom.sections import count_words
 
 # ── _estimate_pages ─────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ def test_section_summary_empty_data():
     assert result == ""
 
 
-# ── _word_count_by_section ──────────────────────────────────────────
+# ── sections.count_words ────────────────────────────────────────────
 
 
 def test_word_count_by_section():
@@ -97,7 +97,15 @@ def test_word_count_by_section():
         "projects": [],
     }
     show = {"work": True, "education": True, "skills": True, "projects": True}
-    counts = _word_count_by_section(data, show)
+    resolved = ResolvedProfile(
+        profile={},
+        data=data,
+        show_sections=show,
+        section_order=[],
+        template_name="cv/ats-single",
+        output_filename="cv",
+    )
+    counts = count_words(resolved)
     assert counts["basics"] > 0
     assert counts["work"] > 0
     assert counts["skills"] > 0

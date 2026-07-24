@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from cvloom import sections
 from cvloom.models import ResolvedProfile
 
 # ── Data structures ────────────────────────────────────────────────
@@ -221,8 +222,7 @@ def _extract_cv_keywords(
                 if isinstance(val, str):
                     _ingest(val, section)
             for h in entry.get("highlights", []):
-                text = h if isinstance(h, str) else h.get("text", "")
-                _ingest(text, section)
+                _ingest(sections.highlight_text(h), section)
             for tag in entry.get("tags", []):
                 _ingest(tag, section)
 
@@ -231,8 +231,7 @@ def _extract_cv_keywords(
         for group in data.get("skills", []):
             _ingest(group.get("category", ""), "skills")
             for item in group.get("items", []):
-                name = item if isinstance(item, str) else item.get("name", "")
-                _ingest(name, "skills")
+                _ingest(sections.skill_name(item), "skills")
 
     return result
 
@@ -260,7 +259,7 @@ def _score_entry_jd(entry: dict[str, Any], jd_keywords: set[str]) -> int:
     """Count JD keywords appearing in an entry's title, company, and highlights."""
     parts: list[str] = [entry.get("title", ""), entry.get("company", "")]
     for h in entry.get("highlights", []):
-        parts.append(h if isinstance(h, str) else h.get("text", ""))
+        parts.append(sections.highlight_text(h))
     text = " ".join(parts).lower()
     return sum(1 for kw in jd_keywords if kw in text)
 

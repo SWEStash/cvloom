@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from cvloom import loader, overlays, renderer, schema
+from cvloom import loader, overlays, renderer, schema, sections
 from cvloom.models import BuildResult, ResolvedProfile
 
 
@@ -40,55 +40,6 @@ def _apply_force_includes(
                     existing.append(entry)
                     break
         data[section] = existing
-
-
-def _word_count_by_section(data: dict[str, Any], show: dict[str, bool]) -> dict[str, int]:
-    """Count words per visible section from the data model."""
-    counts: dict[str, int] = {}
-    for section in ("work", "education", "projects"):
-        if not show.get(section):
-            continue
-        words = 0
-        for entry in data.get(section, []):
-            for key in (
-                "title",
-                "company",
-                "institution",
-                "name",
-                "description",
-                "location",
-                "degree",
-                "field",
-            ):
-                val = entry.get(key)
-                if isinstance(val, str):
-                    words += len(val.split())
-            for hl in entry.get("highlights", []):
-                text = hl if isinstance(hl, str) else hl.get("text", "")
-                words += len(text.split())
-        counts[section] = words
-
-    if show.get("skills"):
-        words = 0
-        for group in data.get("skills", []):
-            words += len(group.get("category", "").split())
-            for item in group.get("items", []):
-                if isinstance(item, str):
-                    words += len(item.split())
-                else:
-                    words += len(item.get("name", "").split())
-        counts["skills"] = words
-
-    # basics (headline + summary)
-    basics = data.get("basics", {})
-    bw = 0
-    for key in ("headline", "summary"):
-        val = basics.get(key)
-        if isinstance(val, str):
-            bw += len(val.split())
-    counts["basics"] = bw
-
-    return counts
 
 
 def resolve(
@@ -197,6 +148,56 @@ def resolve(
     )
 
 
+def resolve_project(
+    root: Path,
+    profile_name: str = "general",
+    *,
+    template_override: str | None = None,
+    public: bool = False,
+) -> ResolvedProfile:
+    """Resolve a profile using the conventional ``data/``, ``private/``,
+    ``profiles/`` layout under a project *root*.
+
+    Thin wrapper over :func:`resolve` that fixes the fixed directory
+    convention so callers don't re-type it.
+    """
+    return resolve(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        profile_name=profile_name,
+        template_override=template_override,
+        public=public,
+    )
+
+
+def build_project(
+    root: Path,
+    *,
+    output_dir: Path | None = None,
+    profile_name: str = "general",
+    template_override: str | None = None,
+    public: bool = False,
+    templates_dir: Path | None = None,
+    skip_pdf: bool = False,
+) -> BuildResult:
+    """Build a profile using the conventional project layout under *root*.
+
+    Thin wrapper over :func:`build`; *output_dir* defaults to ``root/"dist"``.
+    """
+    return build(
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
+        output_dir=output_dir if output_dir is not None else root / "dist",
+        profile_name=profile_name,
+        template_override=template_override,
+        public=public,
+        templates_dir=templates_dir,
+        skip_pdf=skip_pdf,
+    )
+
+
 def _pdf_filename(resolved: ResolvedProfile) -> str:
     """Derive the PDF output stem from profile format string or contact name."""
     fmt = resolved.profile.get("pdf_filename_format")
@@ -265,7 +266,7 @@ def build(
         _render_pdf(html, pdf_path)
 
     words, pages = _estimate_pages(html)
-    section_word_counts = _word_count_by_section(resolved.data, resolved.show_sections)
+    section_word_counts = sections.count_words(resolved)
 
     return BuildResult(
         resolved=resolved,

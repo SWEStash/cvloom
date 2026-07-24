@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from cvloom.models import ResolvedProfile
+from cvloom.sections import highlight_text as _hl
+from cvloom.sections import skill_name as _skill_name
 
 _LINKEDIN_ABOUT_LIMIT = 2600
 
@@ -16,15 +18,6 @@ _SECTION_HEADINGS: dict[str, str] = {
     "skills": "Skills",
     "projects": "Projects",
 }
-
-
-def _hl(h: Any) -> str:
-    """Extract plain text from a highlight (str or dict with 'text' key)."""
-    return h if isinstance(h, str) else h.get("text", "")
-
-
-def _skill_name(item: Any) -> str:
-    return item if isinstance(item, str) else item.get("name", "")
 
 
 def _map_profiles(contact: dict[str, Any]) -> list[dict[str, str]]:
@@ -99,12 +92,7 @@ def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Map skill groups to JSON Resume skills array."""
     result: list[dict[str, Any]] = []
     for group in groups:
-        keywords: list[str] = []
-        for item in group.get("items", []):
-            if isinstance(item, str):
-                keywords.append(item)
-            else:
-                keywords.append(item.get("name", ""))
+        keywords: list[str] = [_skill_name(item) for item in group.get("items", [])]
         result.append(
             {
                 "name": group.get("category", ""),

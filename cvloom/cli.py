@@ -8,11 +8,10 @@ from pathlib import Path
 from typing import Any
 
 import click
-import yaml
 from rich.console import Console
 from rich.table import Table
 
-from cvloom import builder, export, importer, linter
+from cvloom import builder, export, importer, linter, projects
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
 
@@ -114,10 +113,8 @@ def build(
 ) -> None:
     """Build CV outputs for a given profile."""
     root = _root()
-    result = builder.build(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
+    result = builder.build_project(
+        root,
         output_dir=root / output_dir,
         profile_name=profile,
         template_override=template,
@@ -167,13 +164,7 @@ def check(profile: str) -> None:
     ats-parse — with no single "ATS score". See docs/reference/ats-readiness.md.
     """
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     findings = linter.lint(resolved)
     if not findings:
         _console.print("[green]✓ No issues found.[/green]")
@@ -231,13 +222,7 @@ def check(profile: str) -> None:
 def trim(profile: str, target_pages: int) -> None:
     """Show per-section word breakdown and trim recommendations."""
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     report = trim_mod.analyze(resolved, target_pages=target_pages)
 
     table = Table(
@@ -281,20 +266,8 @@ def trim(profile: str, target_pages: int) -> None:
 def diff(profile_a: str, profile_b: str) -> None:
     """Compare two profiles side by side."""
     root = _root()
-    resolved_a = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile_a,
-        public=True,
-    )
-    resolved_b = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile_b,
-        public=True,
-    )
+    resolved_a = builder.resolve_project(root, profile_a, public=True)
+    resolved_b = builder.resolve_project(root, profile_b, public=True)
     result = compare(resolved_a, resolved_b, profile_a, profile_b)
 
     # Template
@@ -359,13 +332,7 @@ def diff(profile_a: str, profile_b: str) -> None:
 def export_cmd(profile: str, fmt: str, output: str | None) -> None:
     """Export CV data to an external format."""
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=False,
-    )
+    resolved = builder.resolve_project(root, profile, public=False)
     if fmt == "json-resume":
         out_path = Path(output) if output else root / "dist" / f"{profile}.resume.json"
         export.export_json_resume(resolved, out_path)
@@ -472,13 +439,7 @@ def match(profile: str, jd: str) -> None:
     from cvloom.match import analyze_match
 
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
 
     jd_text = Path(jd).read_text(encoding="utf-8")
     report = analyze_match(resolved, jd_text)
@@ -609,35 +570,29 @@ def sync(force: bool) -> None:
 def list_projects(tag: tuple[str, ...]) -> None:
     """List all projects in data/projects/, optionally filtered by tag."""
     root = _root()
-    projects_dir = root / "data" / "projects"
-    if not projects_dir.exists():
+    try:
+        summaries = projects.list_projects(root, list(tag) if tag else None)
+    except FileNotFoundError:
         _err.print("[yellow]No data/projects/ directory found.[/yellow]")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
-    files = sorted(projects_dir.glob("*.yaml"))
-    if not files:
-        _console.print("[dim]No projects found in data/projects/.[/dim]")
+    if not summaries:
+        if tag:
+            _console.print(f"[dim]No projects match tag(s): {', '.join(tag)}[/dim]")
+        else:
+            _console.print("[dim]No projects found in data/projects/.[/dim]")
         return
 
-    count = 0
-    for pf in files:
-        p = yaml.safe_load(pf.read_text()) or {}
-        ptags: list[str] = p.get("tags", []) or []
-        if tag and not (set(ptags) & set(tag)):
-            continue
-        tags_str = ("  [dim]" + ", ".join(ptags) + "[/dim]") if ptags else ""
-        _console.print(f"[bold]{p.get('name', pf.stem)}[/bold]{tags_str}")
-        if p.get("description"):
-            desc = str(p["description"]).strip()
+    for p in summaries:
+        tags_str = ("  [dim]" + ", ".join(p.tags) + "[/dim]") if p.tags else ""
+        _console.print(f"[bold]{p.name}[/bold]{tags_str}")
+        if p.description:
+            desc = p.description.strip()
             if len(desc) > 80:
                 desc = desc[:77] + "..."
             _console.print(f"  [dim]{desc}[/dim]")
-        count += 1
 
-    if count == 0:
-        _console.print(f"[dim]No projects match tag(s): {', '.join(tag)}[/dim]")
-    else:
-        _console.print(f"\n[dim]{count} project(s)[/dim]")
+    _console.print(f"\n[dim]{len(summaries)} project(s)[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -649,13 +604,13 @@ def list_projects(tag: tuple[str, ...]) -> None:
 def list_profiles() -> None:
     """List all build profiles in profiles/."""
     root = _root()
-    profiles_dir = root / "profiles"
-    if not profiles_dir.exists():
+    try:
+        summaries = projects.list_profiles(root)
+    except FileNotFoundError:
         _err.print("[yellow]No profiles/ directory found.[/yellow]")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
-    files = sorted(profiles_dir.glob("*.yaml"))
-    if not files:
+    if not summaries:
         _console.print("[dim]No profiles found in profiles/.[/dim]")
         return
 
@@ -666,27 +621,24 @@ def list_profiles() -> None:
     table.add_column("Tags")
     table.add_column("Job context")
 
-    for pf in files:
-        p = yaml.safe_load(pf.read_text()) or {}
-        tmpl = p.get("template", "")
-        out = p.get("output_filename") or pf.stem
-        tags = ", ".join(p.get("include_tags") or []) or "—"
-        jctx = p.get("job_context") or {}
+    for p in summaries:
+        tags = ", ".join(p.include_tags) or "—"
+        jctx = p.job_context or {}
         job_str = ""
         if jctx.get("role") and jctx.get("company"):
             job_str = f"{jctx['role']} @ {jctx['company']}"
         elif jctx.get("company"):
             job_str = jctx["company"]
         table.add_row(
-            f"[bold]{pf.stem}[/bold]",
-            tmpl,
-            out,
+            f"[bold]{p.name}[/bold]",
+            p.template,
+            p.output_filename,
             tags,
             job_str or "—",
         )
 
     _console.print(table)
-    _console.print(f"\n[dim]{len(files)} profile(s)  ·  run: cvloom build --profile NAME[/dim]")
+    _console.print(f"\n[dim]{len(summaries)} profile(s)  ·  run: cvloom build --profile NAME[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -748,13 +700,7 @@ def ai_review(profile: str) -> None:
         raise SystemExit(1)
 
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         client = get_client()
         result = review(resolved, client, get_model())
@@ -821,13 +767,7 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         client = get_client()
         result = generate_cover(resolved, jd_text, client, get_model())
@@ -877,13 +817,7 @@ def ai_suggest(profile: str, role_context: str) -> None:
         raise SystemExit(1)
 
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
 
     effective_role = role_context or (resolved.profile.get("job_context") or {}).get("role", "")
 
@@ -949,13 +883,7 @@ def ai_align(profile: str, jd_file: str) -> None:
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
     root = _root()
-    resolved = builder.resolve(
-        data_dir=root / "data",
-        private_dir=root / "private",
-        profiles_dir=root / "profiles",
-        profile_name=profile,
-        public=True,
-    )
+    resolved = builder.resolve_project(root, profile, public=True)
     try:
         client = get_client()
         result = align(resolved, jd_text, client, get_model())

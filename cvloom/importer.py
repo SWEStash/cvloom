@@ -8,14 +8,13 @@ handles) in ``private/contact.yaml`` and everything else under ``data/``.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from cvloom import schema
+from cvloom import schema, sections
 
 # JSON Resume profile networks that map to dedicated contact fields.
 _CONTACT_PROFILE_NETWORKS = {"linkedin": "linkedin", "github": "github"}
@@ -241,10 +240,17 @@ def validate_imported(imported: ImportedData) -> list[str]:
     return schema.validate_all(payload, raise_on_error=False)
 
 
-def _slugify(name: str) -> str:
-    """Turn a project name into a safe file stem."""
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    return slug or "project"
+def _project_stems(projects: list[dict[str, Any]]) -> list[str]:
+    """Unique, order-stable file stems for project entries."""
+    seen: set[str] = set()
+    stems: list[str] = []
+    for project in projects:
+        stem = sections.slugify(str(project.get("name", "")), fallback="project")
+        while stem in seen:
+            stem += "-1"
+        seen.add(stem)
+        stems.append(stem)
+    return stems
 
 
 def plan_writes(imported: ImportedData, data_dir: Path, private_dir: Path) -> list[WritePlan]:
@@ -264,12 +270,7 @@ def plan_writes(imported: ImportedData, data_dir: Path, private_dir: Path) -> li
         add(data_dir / "education.yaml", False)
     if imported.skills:
         add(data_dir / "skills.yaml", False)
-    seen: set[str] = set()
-    for project in imported.projects:
-        stem = _slugify(str(project.get("name", "")))
-        while stem in seen:
-            stem += "-1"
-        seen.add(stem)
+    for stem in _project_stems(imported.projects):
         add(data_dir / "projects" / f"{stem}.yaml", False)
     return plans
 
@@ -306,12 +307,7 @@ def write_imported(imported: ImportedData, data_dir: Path, private_dir: Path) ->
             path = data_dir / f"{section}.yaml"
             _dump(path, entries)
             written.append(path)
-    seen: set[str] = set()
-    for project in imported.projects:
-        stem = _slugify(str(project.get("name", "")))
-        while stem in seen:
-            stem += "-1"
-        seen.add(stem)
+    for project, stem in zip(imported.projects, _project_stems(imported.projects), strict=True):
         path = data_dir / "projects" / f"{stem}.yaml"
         _dump(path, project)
         written.append(path)

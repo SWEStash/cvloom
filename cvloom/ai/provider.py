@@ -17,6 +17,8 @@ import os
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+from cvloom import sections
+
 _DEFAULT_MODEL = "gpt-4o"
 
 _T = TypeVar("_T")
@@ -144,7 +146,7 @@ def cv_to_text(data: dict[str, Any], show_sections: dict[str, bool]) -> str:
                 loc_str = f" ({location})" if location else ""
                 parts.append(f"\n{company} — {title}{loc_str} | {start} – {end}")
                 for h in entry.get("highlights") or []:
-                    text = h if isinstance(h, str) else h.get("text", "")
+                    text = sections.highlight_text(h)
                     if text:
                         parts.append(f"- {text}")
 
@@ -162,7 +164,7 @@ def cv_to_text(data: dict[str, Any], show_sections: dict[str, bool]) -> str:
                 date_str = f" | {start}–{end}" if start else ""
                 parts.append(f"\n{institution} — {degree}{field_str}{date_str}")
                 for h in entry.get("highlights") or []:
-                    text = h if isinstance(h, str) else h.get("text", "")
+                    text = sections.highlight_text(h)
                     if text:
                         parts.append(f"- {text}")
 
@@ -173,12 +175,7 @@ def cv_to_text(data: dict[str, Any], show_sections: dict[str, bool]) -> str:
             for cat in skills:
                 category = cat.get("category", "")
                 items = cat.get("items") or []
-                item_names = []
-                for item in items:
-                    if isinstance(item, str):
-                        item_names.append(item)
-                    else:
-                        item_names.append(item.get("name", ""))
+                item_names = [sections.skill_name(item) for item in items]
                 if item_names:
                     parts.append(f"{category}: {', '.join(item_names)}")
 
@@ -195,7 +192,7 @@ def cv_to_text(data: dict[str, Any], show_sections: dict[str, bool]) -> str:
                 if description:
                     parts.append(description.strip())
                 for h in entry.get("highlights") or []:
-                    text = h if isinstance(h, str) else h.get("text", "")
+                    text = sections.highlight_text(h)
                     if text:
                         parts.append(f"- {text}")
 

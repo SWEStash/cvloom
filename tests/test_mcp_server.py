@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from cvloom.mcp_server import (
-    _slugify,
     ai_align_to_jd,
     ai_generate_cover,
     ai_review_cv,
@@ -26,6 +25,7 @@ from cvloom.mcp_server import (
     upsert_project,
     validate_data,
 )
+from cvloom.sections import slugify as _slugify
 from tests.ai_fakes import FakeClient
 
 

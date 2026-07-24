@@ -5,13 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from cvloom import sections
 from cvloom.models import ResolvedProfile
-
-_MATCH_KEYS: dict[str, str] = {
-    "work": "company",
-    "education": "institution",
-    "projects": "name",
-}
 
 
 @dataclass
@@ -37,54 +32,15 @@ def _visible_sections(resolved: ResolvedProfile) -> set[str]:
 
 
 def _entry_labels(data: dict[str, Any], section: str) -> set[str]:
-    key = _MATCH_KEYS.get(section)
-    if not key:
+    if section not in sections.SECTION_LABEL_KEY:
         return set()
-    return {str(e.get(key, "?")) for e in data.get(section, [])}
+    return {sections.entry_label(section, e) for e in data.get(section, [])}
 
 
-def _count_words(data: dict[str, Any], sections: set[str]) -> int:
+def _count_highlights(data: dict[str, Any], visible: set[str]) -> int:
     total = 0
-    for section in ("work", "education", "projects"):
-        if section not in sections:
-            continue
-        for entry in data.get(section, []):
-            for k in (
-                "title",
-                "company",
-                "institution",
-                "name",
-                "description",
-                "location",
-                "degree",
-                "field",
-            ):
-                val = entry.get(k)
-                if isinstance(val, str):
-                    total += len(val.split())
-            for hl in entry.get("highlights", []):
-                text = hl if isinstance(hl, str) else hl.get("text", "")
-                total += len(text.split())
-    if "skills" in sections:
-        for group in data.get("skills", []):
-            total += len(group.get("category", "").split())
-            for item in group.get("items", []):
-                if isinstance(item, str):
-                    total += len(item.split())
-                else:
-                    total += len(item.get("name", "").split())
-    basics = data.get("basics", {})
-    for k in ("headline", "summary"):
-        val = basics.get(k)
-        if isinstance(val, str):
-            total += len(val.split())
-    return total
-
-
-def _count_highlights(data: dict[str, Any], sections: set[str]) -> int:
-    total = 0
-    for section in ("work", "education", "projects"):
-        if section not in sections:
+    for section in sections.ARRAY_SECTIONS:
+        if section not in visible:
             continue
         for entry in data.get(section, []):
             total += len(entry.get("highlights", []))
@@ -112,7 +68,7 @@ def compare(
 
     # Compare entries in shared sections
     for section in vis_a & vis_b:
-        if section not in _MATCH_KEYS:
+        if section not in sections.SECTION_LABEL_KEY:
             continue
         labels_a = _entry_labels(resolved_a.data, section)
         labels_b = _entry_labels(resolved_b.data, section)
@@ -123,8 +79,8 @@ def compare(
         if only_b:
             diff.entries_only_in_b[section] = only_b
 
-    diff.word_count_a = _count_words(resolved_a.data, vis_a)
-    diff.word_count_b = _count_words(resolved_b.data, vis_b)
+    diff.word_count_a = sum(sections.count_words(resolved_a).values())
+    diff.word_count_b = sum(sections.count_words(resolved_b).values())
     diff.highlight_count_a = _count_highlights(resolved_a.data, vis_a)
     diff.highlight_count_b = _count_highlights(resolved_b.data, vis_b)
 
