@@ -10,6 +10,7 @@ from click.testing import CliRunner
 from cvloom.cli import cli
 from cvloom.match import MatchReport, _extract_keywords, _suggest_section, analyze_match
 from cvloom.models import ResolvedProfile
+from tests.conftest import make_resolved
 
 
 def _make_resolved(
@@ -17,20 +18,11 @@ def _make_resolved(
     skills: list | None = None,
     projects: list | None = None,
 ) -> ResolvedProfile:
-    return ResolvedProfile(
-        profile={},
-        data={
-            "basics": {"headline": "Senior Python Engineer", "summary": "Backend specialist."},
-            "work": work or [],
-            "education": [],
-            "skills": skills or [],
-            "projects": projects or [],
-            "contact": {"name": "Test", "email": "t@t.com"},
-        },
-        show_sections={"work": True, "education": True, "skills": True, "projects": True},
-        section_order=["skills", "work", "education", "projects"],
-        template_name="cv/ats-single",
-        output_filename="cv",
+    return make_resolved(
+        basics={"headline": "Senior Python Engineer", "summary": "Backend specialist."},
+        work=work,
+        skills=skills,
+        projects=projects,
     )
 
 

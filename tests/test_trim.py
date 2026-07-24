@@ -4,27 +4,14 @@ from __future__ import annotations
 
 from cvloom.models import ResolvedProfile
 from cvloom.trim import analyze
+from tests.conftest import make_resolved
 
 
 def _make_resolved(
     work: list | None = None,
     skills: list | None = None,
 ) -> ResolvedProfile:
-    return ResolvedProfile(
-        profile={},
-        data={
-            "basics": {"headline": "Engineer", "summary": "A summary."},
-            "work": work or [],
-            "education": [],
-            "skills": skills or [],
-            "projects": [],
-            "contact": {"name": "Test", "email": "t@t.com"},
-        },
-        show_sections={"work": True, "education": True, "skills": True, "projects": True},
-        section_order=["skills", "work", "education", "projects"],
-        template_name="cv/ats-single",
-        output_filename="cv",
-    )
+    return make_resolved(work=work, skills=skills)
 
 
 def test_analyze_empty():

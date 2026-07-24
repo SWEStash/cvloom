@@ -16,6 +16,7 @@ from cvloom.cli import _section_summary
 from cvloom.models import ResolvedProfile
 from cvloom.renderer import list_templates, template_exists
 from cvloom.sections import count_words
+from tests.conftest import make_project, make_resolved
 
 # ── _estimate_pages ─────────────────────────────────────────────────
 
@@ -123,12 +124,11 @@ def _make_resolved_for_pdf(
     profile: dict = {}
     if pdf_filename_format:
         profile["pdf_filename_format"] = pdf_filename_format
-    return ResolvedProfile(
+    return make_resolved(
         profile=profile,
-        data={"contact": {"name": contact_name}},
-        show_sections={},
+        contact={"name": contact_name},
+        show={},
         section_order=[],
-        template_name="cv/ats-single",
         output_filename=output_filename,
     )
 
@@ -170,30 +170,7 @@ def test_pdf_filename_fallback_on_empty_name():
 @pytest.fixture
 def project_dir(tmp_path: Path) -> Path:
     """Create a minimal project structure for resolve() tests."""
-    data = tmp_path / "data"
-    data.mkdir()
-    (data / "basics.yaml").write_text('headline: "Test Engineer"\nsummary: "A test summary."\n')
-    (data / "work.yaml").write_text(
-        '- company: Acme\n  title: Engineer\n  start_date: "2020-01"\n'
-        "  highlights:\n    - Built things.\n"
-    )
-    (data / "education.yaml").write_text(
-        '- institution: Uni\n  degree: BSc\n  start_date: "2016"\n'
-    )
-    (data / "skills.yaml").write_text("- category: Languages\n  items: [Python]\n")
-    projects = data / "projects"
-    projects.mkdir()
-    (projects / "alpha.yaml").write_text('name: alpha\ndescription: "A project."\ntags: [python]\n')
-
-    private = tmp_path / "private"
-    private.mkdir()
-    (private / "contact.yaml").write_text('name: Test\nemail: "test@example.com"\n')
-
-    profiles = tmp_path / "profiles"
-    profiles.mkdir()
-    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
-
-    return tmp_path
+    return make_project(tmp_path)
 
 
 def test_resolve_returns_resolved_profile(project_dir: Path) -> None:

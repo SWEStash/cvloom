@@ -9,6 +9,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (internal / tests)
+- Slop-audit cleanup, phase 4: added `tests/conftest.py` with shared `make_resolved` and `make_project` factories. The six per-file `_make_resolved` copies now delegate to one `ResolvedProfile` builder (defaults no longer drift), and the duplicated on-disk project scaffolds for the builder and MCP suites are single-sourced through `make_project`. (Bespoke fixtures whose content is load-bearing for their own assertions — loader, match, CLI-list — keep their tailored data.)
+
 ### Fixed
 - MCP tools now surface **real validation errors**. Previously every pipeline failure collapsed to the unactionable string `"exit code 1"`; the tools now return `{"error": "resolve failed", "details": [...]}` with the actual schema/profile messages an agent needs. The four AI tools also resolve inside their `try` block (a resolve failure no longer escapes uncaught) and catch specific error types instead of a blanket `except Exception`.
 

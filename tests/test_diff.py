@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from cvloom.diff import compare
 from cvloom.models import ResolvedProfile
+from tests.conftest import make_resolved
 
 
 def _make_resolved(
@@ -13,26 +14,8 @@ def _make_resolved(
     show: dict | None = None,
     template: str = "cv/ats-single",
 ) -> ResolvedProfile:
-    return ResolvedProfile(
-        profile={},
-        data={
-            "basics": {"headline": "Engineer", "summary": "A summary."},
-            "work": work or [],
-            "education": [],
-            "skills": skills or [],
-            "projects": projects or [],
-            "contact": {"name": "Test", "email": "t@t.com"},
-        },
-        show_sections=show
-        or {
-            "work": True,
-            "education": True,
-            "skills": True,
-            "projects": True,
-        },
-        section_order=["skills", "work", "education", "projects"],
-        template_name=template,
-        output_filename="cv",
+    return make_resolved(
+        work=work, projects=projects, skills=skills, show=show, template_name=template
     )
 
 

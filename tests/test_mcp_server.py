@@ -27,54 +27,25 @@ from cvloom.mcp_server import (
 )
 from cvloom.sections import slugify as _slugify
 from tests.ai_fakes import FakeClient
+from tests.conftest import make_project
 
 
 @pytest.fixture
 def project_dir(tmp_path: Path) -> str:
     """Create a minimal project structure for MCP tests."""
-    data = tmp_path / "data"
-    data.mkdir()
-    (data / "basics.yaml").write_text('headline: "Test Engineer"\nsummary: "A test summary."\n')
-    (data / "work.yaml").write_text(
-        "- company: Acme\n  title: Engineer\n  location: Remote\n"
-        '  start_date: "2020-01"\n  end_date: Present\n'
-        "  highlights:\n    - Designed and built a distributed system handling 10k requests.\n"
-        "  tags: [python]\n"
+    make_project(
+        tmp_path,
+        extra={
+            "data/projects/beta.yaml": (
+                'name: beta\ndescription: "Another project."\ntags: [go]\n'
+                'url: "https://example.com/beta"\nstart_date: "2024-01"\n'
+                "highlights:\n  - Implemented a high-performance parser.\n"
+            ),
+            "profiles/backend.yaml": (
+                "template: cv/modern-single\noutput_filename: backend-cv\ninclude_tags: [python]\n"
+            ),
+        },
     )
-    (data / "education.yaml").write_text(
-        '- institution: Uni\n  degree: BSc\n  field: CS\n  location: "City"\n'
-        '  start_date: "2016"\n  end_date: "2020"\n'
-        "  highlights:\n    - Graduated with honours in computer science program.\n"
-    )
-    (data / "skills.yaml").write_text("- category: Languages\n  items: [Python]\n")
-    projects = data / "projects"
-    projects.mkdir()
-    (projects / "alpha.yaml").write_text(
-        'name: alpha\ndescription: "A project."\ntags: [python]\n'
-        'url: "https://example.com/alpha"\nstart_date: "2023-01"\n'
-        "highlights:\n  - Built a CLI tool used by 500 developers daily.\n"
-    )
-    (projects / "beta.yaml").write_text(
-        'name: beta\ndescription: "Another project."\ntags: [go]\n'
-        'url: "https://example.com/beta"\nstart_date: "2024-01"\n'
-        "highlights:\n  - Implemented a high-performance parser.\n"
-    )
-
-    private = tmp_path / "private"
-    private.mkdir()
-    (private / "contact.yaml").write_text(
-        'name: Test\nemail: "test@example.com"\nphone: "+1 (555) 000-0000"\n'
-        'location: "Test City"\nlinkedin: testuser\ngithub: testuser\n'
-        'website: "https://example.com"\n'
-    )
-
-    profiles = tmp_path / "profiles"
-    profiles.mkdir()
-    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
-    (profiles / "backend.yaml").write_text(
-        "template: cv/modern-single\noutput_filename: backend-cv\ninclude_tags: [python]\n"
-    )
-
     return str(tmp_path)
 
 

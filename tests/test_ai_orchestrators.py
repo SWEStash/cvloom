@@ -18,32 +18,29 @@ from cvloom.ai.prompts import SYSTEM_ANALYSIS, SYSTEM_CREATIVE
 from cvloom.ai.suggest import suggest
 from cvloom.models import ResolvedProfile
 from tests.ai_fakes import FakeClient
+from tests.conftest import make_resolved
 
 
 def _make_resolved() -> ResolvedProfile:
-    return ResolvedProfile(
+    return make_resolved(
         profile={"job_context": {"company": "Acme", "role": "Backend Engineer"}},
-        data={
-            "basics": {
-                "headline": "Backend Engineer",
-                "summary": "Engineer with Python and cloud experience.",
-            },
-            "contact": {"name": "Jane Doe"},
-            "work": [
-                {
-                    "company": "Acme",
-                    "title": "Engineer",
-                    "start_date": "2020-01",
-                    "end_date": "Present",
-                    "highlights": ["Designed a distributed system handling 10k requests."],
-                }
-            ],
-            "skills": [{"category": "Languages", "items": ["Python"]}],
+        basics={
+            "headline": "Backend Engineer",
+            "summary": "Engineer with Python and cloud experience.",
         },
-        show_sections={"work": True, "skills": True},
+        contact={"name": "Jane Doe"},
+        work=[
+            {
+                "company": "Acme",
+                "title": "Engineer",
+                "start_date": "2020-01",
+                "end_date": "Present",
+                "highlights": ["Designed a distributed system handling 10k requests."],
+            }
+        ],
+        skills=[{"category": "Languages", "items": ["Python"]}],
+        show={"work": True, "skills": True},
         section_order=["work", "skills"],
-        template_name="cv/ats-single",
-        output_filename="cv",
     )
 
 

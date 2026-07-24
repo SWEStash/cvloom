@@ -11,6 +11,7 @@ from cvloom.linter import (
     lint,
 )
 from cvloom.models import ResolvedProfile
+from tests.conftest import make_resolved
 
 
 def _make_resolved(
@@ -23,20 +24,14 @@ def _make_resolved(
     template_name: str = "cv/ats-single",
 ) -> ResolvedProfile:
     """Create a minimal ResolvedProfile for linter testing."""
-    return ResolvedProfile(
-        profile={},
-        data={
-            "basics": basics or {"headline": "Engineer", "summary": "A summary."},
-            "work": work or [],
-            "education": education or [],
-            "skills": skills or [],
-            "projects": projects or [],
-            "contact": contact or {"name": "Test", "email": "t@t.com"},
-        },
-        show_sections={"work": True, "education": True, "skills": True, "projects": True},
-        section_order=["skills", "work", "education", "projects"],
+    return make_resolved(
+        work=work,
+        education=education,
+        projects=projects,
+        skills=skills,
+        basics=basics,
+        contact=contact,
         template_name=template_name,
-        output_filename="cv",
     )
 
 
