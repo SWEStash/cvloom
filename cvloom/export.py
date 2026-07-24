@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -50,79 +52,133 @@ def _map_location(contact: dict[str, Any]) -> dict[str, str]:
     return {"address": loc} if loc else {}
 
 
-def _map_work(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Map work entries to JSON Resume work array."""
-    result: list[dict[str, Any]] = []
-    for entry in entries:
-        item: dict[str, Any] = {
-            "name": entry.get("company", ""),
-            "position": entry.get("title", ""),
-            "startDate": entry.get("start_date", ""),
-        }
-        if entry.get("end_date"):
-            item["endDate"] = entry["end_date"]
-        if entry.get("location"):
-            item["location"] = entry["location"]
-        if entry.get("highlights"):
-            item["highlights"] = [_hl(h) for h in entry["highlights"]]
-        result.append(item)
-    return result
+# ── JSON Resume field mapping ────────────────────────────────────────
+#
+# Each cvloom section maps to a JSON Resume array by renaming fields. These
+# tables replace what used to be five near-identical hand-rolled mappers, so a
+# new section (or a new field on an existing one) is a table edit rather than
+# another copy of the same conditional-assignment block.
+
+# JSON Resume requires ISO 8601 with flexible granularity.
+_ISO_DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
+
+# cvloom's tags drive profile filtering but have no JSON Resume home outside
+# projects (which map to the spec's `keywords`). A namespaced extension keeps
+# them through a round-trip; conforming consumers ignore unknown x- keys.
+TAGS_EXTENSION_KEY = "x-cvloom-tags"
 
 
-def _map_education(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Map education entries to JSON Resume education array."""
-    result: list[dict[str, Any]] = []
-    for entry in entries:
-        item: dict[str, Any] = {
-            "institution": entry.get("institution", ""),
-            "studyType": entry.get("degree", ""),
-            "startDate": entry.get("start_date", ""),
-        }
-        if entry.get("field"):
-            item["area"] = entry["field"]
-        if entry.get("end_date"):
-            item["endDate"] = entry["end_date"]
-        if entry.get("grade"):
-            item["score"] = entry["grade"]
-        if entry.get("highlights"):
-            item["highlights"] = [_hl(h) for h in entry["highlights"]]
-        result.append(item)
-    return result
+@dataclass(frozen=True)
+class _Field:
+    """One cvloom key → JSON Resume key mapping."""
+
+    src: str
+    dest: str
+    kind: str = "text"  # text | date | list | highlights
+
+
+def _iso_date(value: Any) -> str | None:
+    """Return *value* if it is a valid JSON Resume date, else None.
+
+    cvloom allows free text here — most importantly ``"Present"``. JSON Resume
+    has no such sentinel: a current role is expressed by *omitting* endDate.
+    Anything non-conforming is dropped rather than emitted invalid.
+    """
+    text = str(value or "")
+    return text if _ISO_DATE_RE.match(text) else None
+
+
+def _map_entry(entry: dict[str, Any], fields: tuple[_Field, ...]) -> dict[str, Any]:
+    """Apply *fields* to one entry, omitting anything empty or non-conforming."""
+    item: dict[str, Any] = {}
+    for f in fields:
+        value = entry.get(f.src)
+        if f.kind == "date":
+            iso = _iso_date(value)
+            if iso:
+                item[f.dest] = iso
+        elif f.kind == "highlights":
+            if value:
+                item[f.dest] = [_hl(h) for h in value]
+        elif f.kind == "list":
+            if value:
+                item[f.dest] = list(value)
+        elif value:
+            item[f.dest] = value
+    if entry.get("tags") and not any(f.src == "tags" for f in fields):
+        item[TAGS_EXTENSION_KEY] = list(entry["tags"])
+    return item
+
+
+def _map_entries(entries: list[dict[str, Any]], fields: tuple[_Field, ...]) -> list[dict[str, Any]]:
+    return [_map_entry(entry, fields) for entry in entries]
+
+
+_WORK_FIELDS = (
+    _Field("company", "name"),
+    _Field("title", "position"),
+    _Field("location", "location"),
+    _Field("start_date", "startDate", "date"),
+    _Field("end_date", "endDate", "date"),
+    _Field("highlights", "highlights", "highlights"),
+)
+
+_EDUCATION_FIELDS = (
+    _Field("institution", "institution"),
+    _Field("degree", "studyType"),
+    _Field("field", "area"),
+    _Field("start_date", "startDate", "date"),
+    _Field("end_date", "endDate", "date"),
+    _Field("grade", "score"),
+    # JSON Resume education has no `highlights`; `courses` is the nearest field.
+    _Field("highlights", "courses", "highlights"),
+)
+
+_PROJECT_FIELDS = (
+    _Field("name", "name"),
+    _Field("description", "description"),
+    _Field("url", "url"),
+    _Field("start_date", "startDate", "date"),
+    _Field("end_date", "endDate", "date"),
+    _Field("tags", "keywords", "list"),
+    _Field("highlights", "highlights", "highlights"),
+)
+
+_PUBLICATION_FIELDS = (
+    _Field("name", "name"),
+    _Field("publisher", "publisher"),
+    _Field("release_date", "releaseDate", "date"),
+    _Field("url", "url"),
+)
+
+_CERTIFICATION_FIELDS = (
+    _Field("name", "name"),
+    _Field("issuer", "issuer"),
+    _Field("date", "date", "date"),
+    _Field("url", "url"),
+)
 
 
 def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Map skill groups to JSON Resume skills array."""
+    """Map skill groups to JSON Resume skills array.
+
+    Per-item proficiency has no JSON Resume home (its `level` sits on the
+    group, not the item), so it rides along in the tags extension namespace
+    rather than being silently lost.
+    """
     result: list[dict[str, Any]] = []
     for group in groups:
-        keywords: list[str] = [_skill_name(item) for item in group.get("items", [])]
-        result.append(
-            {
-                "name": group.get("category", ""),
-                "keywords": keywords,
-            }
-        )
-    return result
-
-
-def _map_projects(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Map project entries to JSON Resume projects array."""
-    result: list[dict[str, Any]] = []
-    for entry in entries:
-        item: dict[str, Any] = {
-            "name": entry.get("name", ""),
-            "description": entry.get("description", ""),
+        items = group.get("items", [])
+        entry: dict[str, Any] = {
+            "name": group.get("category", ""),
+            "keywords": [_skill_name(item) for item in items],
         }
-        if entry.get("url"):
-            item["url"] = entry["url"]
-        if entry.get("start_date"):
-            item["startDate"] = entry["start_date"]
-        if entry.get("end_date"):
-            item["endDate"] = entry["end_date"]
-        if entry.get("tags"):
-            item["keywords"] = entry["tags"]
-        if entry.get("highlights"):
-            item["highlights"] = [_hl(h) for h in entry["highlights"]]
-        result.append(item)
+        levels = {
+            _skill_name(i): i["level"] for i in items if isinstance(i, dict) and i.get("level")
+        }
+        if levels:
+            entry["x-cvloom-levels"] = levels
+        result.append(entry)
     return result
 
 
@@ -132,20 +188,27 @@ def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ``identifier`` (ISBN/DOI) has no JSON Resume counterpart, so it is folded
     into ``summary`` rather than dropped on export.
     """
-    result: list[dict[str, Any]] = []
-    for entry in entries:
-        item: dict[str, Any] = {"name": entry.get("name", "")}
-        if entry.get("publisher"):
-            item["publisher"] = entry["publisher"]
-        if entry.get("release_date"):
-            item["releaseDate"] = entry["release_date"]
-        if entry.get("url"):
-            item["url"] = entry["url"]
-        summary_parts = [p for p in (entry.get("summary"), entry.get("identifier")) if p]
-        if summary_parts:
-            item["summary"] = " ".join(summary_parts)
-        result.append(item)
-    return result
+    items = _map_entries(entries, _PUBLICATION_FIELDS)
+    for item, entry in zip(items, entries, strict=True):
+        parts = [p for p in (entry.get("summary"), entry.get("identifier")) if p]
+        if parts:
+            item["summary"] = " ".join(parts)
+    return items
+
+
+def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map certification entries to the JSON Resume certificates array.
+
+    JSON Resume's certificate object is only {name, date, issuer, url}. Unlike
+    a publication's ``identifier`` there is no ``summary`` to fold into, so
+    ``expiry_date`` and ``identifier`` ride in the extension namespace.
+    """
+    items = _map_entries(entries, _CERTIFICATION_FIELDS)
+    for item, entry in zip(items, entries, strict=True):
+        for key in ("expiry_date", "identifier"):
+            if entry.get(key):
+                item[f"x-cvloom-{key}"] = entry[key]
+    return items
 
 
 def _certification_line(entry: dict[str, Any]) -> str:
@@ -158,46 +221,26 @@ def _certification_line(entry: dict[str, Any]) -> str:
     return f"**{entry.get('name', '')}**{suffix}"
 
 
-def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Map certification entries to the JSON Resume certificates array.
-
-    JSON Resume's certificate object is only {name, date, issuer, url}, so
-    ``expiry_date`` and ``identifier`` have nowhere to go — unlike a
-    publication's ``identifier``, there is no ``summary`` field to fold them
-    into. They are cvloom extensions and do not survive a round-trip.
-    """
-    result: list[dict[str, Any]] = []
-    for entry in entries:
-        item: dict[str, Any] = {"name": entry.get("name", "")}
-        if entry.get("issuer"):
-            item["issuer"] = entry["issuer"]
-        if entry.get("date"):
-            item["date"] = entry["date"]
-        if entry.get("url"):
-            item["url"] = entry["url"]
-        result.append(item)
-    return result
-
-
 def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     """Convert resolved cvloom data to JSON Resume schema."""
     data = resolved.data
     contact = data.get("contact", {})
     basics_data = data.get("basics", {})
 
-    result: dict[str, Any] = {
-        "basics": {
-            "name": contact.get("name", ""),
-            "label": basics_data.get("headline", ""),
-            "email": contact.get("email", ""),
-            "summary": basics_data.get("summary", ""),
-        },
-    }
-
-    if contact.get("phone"):
-        result["basics"]["phone"] = contact["phone"]
-    if contact.get("website"):
-        result["basics"]["url"] = contact["website"]
+    # Only emit fields that carry a value: a --public build strips email, and
+    # an empty string fails JSON Resume's `email` format constraint.
+    basics: dict[str, Any] = {}
+    for key, value in (
+        ("name", contact.get("name")),
+        ("label", basics_data.get("headline")),
+        ("email", contact.get("email")),
+        ("phone", contact.get("phone")),
+        ("url", contact.get("website")),
+        ("summary", basics_data.get("summary")),
+    ):
+        if value:
+            basics[key] = value
+    result: dict[str, Any] = {"basics": basics}
 
     location = _map_location(contact)
     if location:
@@ -209,11 +252,11 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
 
     work = data.get("work", [])
     if work:
-        result["work"] = _map_work(work)
+        result["work"] = _map_entries(work, _WORK_FIELDS)
 
     education = data.get("education", [])
     if education:
-        result["education"] = _map_education(education)
+        result["education"] = _map_entries(education, _EDUCATION_FIELDS)
 
     skills = data.get("skills", [])
     if skills:
@@ -221,7 +264,7 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
 
     projects = data.get("projects", [])
     if projects:
-        result["projects"] = _map_projects(projects)
+        result["projects"] = _map_entries(projects, _PROJECT_FIELDS)
 
     publications = data.get("publications", [])
     if publications:
@@ -565,9 +608,7 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
                 dates = entry.get("date", "")
                 if dates and entry.get("expiry_date"):
                     dates = f"{dates} – {entry['expiry_date']}"
-                parts = [
-                    p for p in (entry.get("issuer"), dates, entry.get("identifier")) if p
-                ]
+                parts = [p for p in (entry.get("issuer"), dates, entry.get("identifier")) if p]
                 text = entry.get("name", "")
                 if parts:
                     text = f"{text} — {' · '.join(parts)}"

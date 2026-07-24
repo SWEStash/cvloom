@@ -108,9 +108,23 @@ def test_work_mapping():
     assert work["name"] == "Acme Corp"
     assert work["position"] == "Senior Engineer"
     assert work["startDate"] == "2021-03"
-    assert work["endDate"] == "Present"
     assert work["location"] == "Remote"
     assert "Built scalable systems." in work["highlights"]
+
+
+def test_current_role_omits_end_date():
+    """JSON Resume has no "Present" sentinel — a current role omits endDate."""
+    work = to_json_resume(_make_resolved())["work"][0]
+    assert "endDate" not in work
+
+
+def test_non_iso_dates_are_omitted_not_emitted_invalid():
+    resolved = _make_resolved(
+        work=[{"company": "A", "title": "T", "start_date": "summer 2020", "end_date": "2021"}]
+    )
+    work = to_json_resume(resolved)["work"][0]
+    assert "startDate" not in work
+    assert work["endDate"] == "2021"
 
 
 def test_education_mapping():
@@ -120,7 +134,9 @@ def test_education_mapping():
     assert edu["studyType"] == "BSc"
     assert edu["area"] == "Computer Science"
     assert edu["score"] == "3.9"
-    assert "Dean's list." in edu["highlights"]
+    # JSON Resume education has no `highlights` field; `courses` is the nearest.
+    assert "Dean's list." in edu["courses"]
+    assert "highlights" not in edu
 
 
 def test_skills_mapping():
@@ -348,22 +364,19 @@ def _resolved_with_certifications():
 
 
 def test_certifications_map_to_json_resume_certificates():
-    result = to_json_resume(_resolved_with_certifications())
-    assert result["certificates"] == [
-        {
-            "name": "AWS Certified Solutions Architect",
-            "issuer": "Amazon Web Services",
-            "date": "2023-04",
-            "url": "https://example.com/verify",
-        }
-    ]
-
-
-def test_certifications_extensions_dropped_on_export():
-    """expiry_date and identifier have no JSON Resume home — documented loss."""
     cert = to_json_resume(_resolved_with_certifications())["certificates"][0]
-    assert "expiry_date" not in cert
-    assert "identifier" not in cert
+    assert cert["name"] == "AWS Certified Solutions Architect"
+    assert cert["issuer"] == "Amazon Web Services"
+    assert cert["date"] == "2023-04"
+    assert cert["url"] == "https://example.com/verify"
+
+
+def test_certification_extensions_ride_in_namespace():
+    """expiry_date and identifier have no spec home — keep them namespaced
+    rather than dropping them, so a round-trip is lossless."""
+    cert = to_json_resume(_resolved_with_certifications())["certificates"][0]
+    assert cert["x-cvloom-expiry_date"] == "2026-04"
+    assert cert["x-cvloom-identifier"] == "AWS-PSA-12345"
 
 
 def test_certificates_omitted_when_empty():
@@ -371,7 +384,6 @@ def test_certificates_omitted_when_empty():
 
 
 def test_markdown_keeps_certification_extensions():
-    """Markdown is lossless where JSON Resume is not."""
     md = to_markdown(_resolved_with_certifications())
     assert "## Certifications" in md
     assert "2023-04 – 2026-04" in md

@@ -396,3 +396,68 @@ def test_certifications_written_to_data_dir(tmp_path: Path) -> None:
 def test_from_json_resume_rejects_non_array_certificates() -> None:
     with pytest.raises(importer.ImportProblem):
         importer.from_json_resume({"basics": {"name": "Jane"}, "certificates": {"name": "x"}})
+
+
+# ── lossless round-trip via x-cvloom-* extensions ────────────────────
+
+
+def _roundtrip(resolved: ResolvedProfile) -> importer.ImportedData:
+    return importer.from_json_resume(to_json_resume(resolved))
+
+
+def test_roundtrip_preserves_tags_outside_projects() -> None:
+    """Tags drive profile filtering. JSON Resume has no home for them on
+    work/education/publications/certifications, so they ride in x-cvloom-tags —
+    without that, a round-trip silently strips every profile's filtering."""
+    from tests.conftest import make_resolved
+
+    resolved = make_resolved(
+        work=[{"company": "Acme", "title": "Eng", "start_date": "2020", "tags": ["python"]}],
+        education=[
+            {"institution": "Uni", "degree": "BSc", "start_date": "2016", "tags": ["degree"]}
+        ],
+        publications=[{"name": "A paper", "tags": ["research"]}],
+        certifications=[{"name": "CKA", "tags": ["cloud"]}],
+    )
+    back = _roundtrip(resolved)
+    assert back.work[0]["tags"] == ["python"]
+    assert back.education[0]["tags"] == ["degree"]
+    assert back.publications[0]["tags"] == ["research"]
+    assert back.certifications[0]["tags"] == ["cloud"]
+    assert importer.validate_imported(back) == []
+
+
+def test_roundtrip_preserves_certification_extensions() -> None:
+    from tests.conftest import make_resolved
+
+    resolved = make_resolved(
+        certifications=[
+            {
+                "name": "CKA",
+                "issuer": "CNCF",
+                "date": "2022-09",
+                "expiry_date": "2025-09",
+                "identifier": "CKA-123",
+            }
+        ]
+    )
+    cert = _roundtrip(resolved).certifications[0]
+    assert cert["expiry_date"] == "2025-09"
+    assert cert["identifier"] == "CKA-123"
+
+
+def test_roundtrip_preserves_education_bullets() -> None:
+    """Export writes them to `courses` (the spec has no education highlights)."""
+    from tests.conftest import make_resolved
+
+    resolved = make_resolved(
+        education=[
+            {
+                "institution": "Uni",
+                "degree": "BSc",
+                "start_date": "2016",
+                "highlights": ["Dean's list."],
+            }
+        ]
+    )
+    assert _roundtrip(resolved).education[0]["highlights"] == ["Dean's list."]

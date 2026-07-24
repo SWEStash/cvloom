@@ -436,7 +436,11 @@ def test_no_profile_links():
 
 def test_profile_link_in_contact():
     resolved = _make_resolved(
-        contact={"name": "Test", "email": "t@example.com", "linkedin": "https://linkedin.com/in/test"},
+        contact={
+            "name": "Test",
+            "email": "t@example.com",
+            "linkedin": "https://linkedin.com/in/test",
+        },
     )
     findings = lint(resolved, rule_ids=["wl-010"])
     assert len(findings) == 0

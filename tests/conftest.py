@@ -19,8 +19,11 @@ from cvloom.models import ResolvedProfile
 
 _DEFAULT_BASICS: dict[str, Any] = {"headline": "Engineer", "summary": "A summary."}
 _DEFAULT_CONTACT: dict[str, Any] = {"name": "Test", "email": "t@example.com"}
-_DEFAULT_SHOW: dict[str, bool] = {"work": True, "education": True, "skills": True, "projects": True}
-_DEFAULT_ORDER = ["skills", "work", "education", "projects"]
+# Mirrors builder.resolve()'s defaults so the factory can't drift from the
+# real data model — every array section, shown, in render order.
+_DEFAULT_SECTIONS = ("skills", "work", "education", "projects", "publications", "certifications")
+_DEFAULT_SHOW: dict[str, bool] = dict.fromkeys(_DEFAULT_SECTIONS, True)
+_DEFAULT_ORDER = list(_DEFAULT_SECTIONS)
 
 
 def make_resolved(
@@ -32,6 +35,8 @@ def make_resolved(
     education: list[Any] | None = None,
     skills: list[Any] | None = None,
     projects: list[Any] | None = None,
+    publications: list[Any] | None = None,
+    certifications: list[Any] | None = None,
     show: dict[str, bool] | None = None,
     section_order: list[str] | None = None,
     template_name: str = "cv/ats-single",
@@ -48,6 +53,8 @@ def make_resolved(
             "education": education or [],
             "skills": skills or [],
             "projects": projects or [],
+            "publications": publications or [],
+            "certifications": certifications or [],
         },
         show_sections=show if show is not None else dict(_DEFAULT_SHOW),
         section_order=section_order if section_order is not None else list(_DEFAULT_ORDER),

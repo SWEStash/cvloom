@@ -943,4 +943,3 @@ def ai_align(profile: str, jd_file: str) -> None:
         _console.print("\n[bold]Repositioning Actions:[/bold]")
         for i, r in enumerate(result.repositioning, 1):
             _console.print(f"  {i}. {r}")
-

@@ -240,10 +240,9 @@ template (one line per entry, unlike the full entries used for education).
 | `tags` | No | Used for profile filtering (untagged entries are always included) |
 
 Exports to JSON Resume's native `certificates` array. That object is only
-`{name, date, issuer, url}`, so **`expiry_date` and `identifier` are dropped on
-JSON Resume export** and are never populated on import — unlike a publication's
-`identifier`, there is no `summary` field to fold them into. Markdown and DOCX
-export keep them.
+`{name, date, issuer, url}`, so `expiry_date` and `identifier` are carried as
+[namespaced extensions](#json-resume-conformance-and-extensions) — they survive
+a cvloom round-trip and are ignored by other JSON Resume tools.
 
 ---
 
@@ -343,6 +342,38 @@ uv sync --extra docx
 ```
 
 The `linkedin` format warns if your About section exceeds LinkedIn's 2600-character limit.
+
+### JSON Resume conformance and extensions
+
+Exported documents are validated against the official JSON Resume schema in CI, so
+`json-resume` output is guaranteed to conform. Two consequences worth knowing:
+
+- **Dates must be ISO 8601** (`YYYY`, `YYYY-MM`, or `YYYY-MM-DD`). cvloom allows free
+  text — most importantly `end_date: Present`. JSON Resume has no such sentinel: a
+  current role is expressed by *omitting* `endDate`. Any date that isn't ISO 8601 is
+  omitted from the export rather than emitted invalid, so check `wl-012` findings if
+  you expect dates to appear.
+- **Empty fields are omitted**, not exported as `""`. A `--public` build strips your
+  email, and an empty string fails the schema's `email` format.
+
+cvloom carries a few fields JSON Resume has no home for. Rather than drop them, they
+are exported under an `x-cvloom-*` namespace, which the schema permits and other tools
+ignore. These survive an `export` → `import` round-trip:
+
+| cvloom field | Exported as |
+|---|---|
+| `tags` on work / education / publications / certifications | `x-cvloom-tags` |
+| `expiry_date` on certifications | `x-cvloom-expiry_date` |
+| `identifier` on certifications | `x-cvloom-identifier` |
+| per-item skill `level` | `x-cvloom-levels` on the skill group |
+
+Project `tags` are *not* namespaced — they map to the spec's own `keywords` field.
+Publication `identifier` is folded into `summary`, since a citation reads naturally
+that way; it does not split back out on import.
+
+Without this, a round-trip would silently strip the tag taxonomy that
+[profile filtering](../reference/profiles-and-overlays.md) depends on — you would get
+your content back and quietly lose every profile.
 
 ---
 

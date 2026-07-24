@@ -126,6 +126,18 @@ Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cove
 
 `validate_all(data, raise_on_error=False)` — returns `list[str]` of error messages. When `raise_on_error=True` (the default in build), raises `SchemaError` on the first failure.
 
+### `export.py`
+
+Field mapping to JSON Resume is table-driven: `_Field(src, dest, kind)` tuples per
+section, applied by `_map_entry`. `kind` controls emptiness handling — `date` fields
+are dropped unless they match ISO 8601 (JSON Resume has no `"Present"` sentinel; a
+current role omits `endDate`). Fields with no spec equivalent are emitted under the
+`x-cvloom-*` namespace and read back by `importer._restore_extensions`, so a
+round-trip is lossless.
+
+`tests/test_export_jsonresume_conformance.py` validates exports against a vendored
+copy of the official schema (`tests/fixtures/jsonresume-schema.json`).
+
 ### `overlays.py`
 
 Applies profile overlays after loading. Three overlay types:

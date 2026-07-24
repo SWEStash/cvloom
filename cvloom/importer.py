@@ -15,6 +15,7 @@ from typing import Any
 import yaml
 
 from cvloom import schema, sections
+from cvloom.export import TAGS_EXTENSION_KEY
 
 # JSON Resume profile networks that map to dedicated contact fields.
 _CONTACT_PROFILE_NETWORKS = {"linkedin": "linkedin", "github": "github"}
@@ -116,6 +117,22 @@ def _map_basics(basics: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _restore_extensions(item: dict[str, Any], entry: dict[str, Any], *keys: str) -> None:
+    """Read back cvloom's namespaced extensions (see ``export.TAGS_EXTENSION_KEY``).
+
+    Fields cvloom carries that JSON Resume has no home for are exported under
+    ``x-cvloom-*``. Reading them back is what makes an export → import
+    round-trip lossless — without this, a round-trip silently strips the tag
+    taxonomy that profile filtering depends on.
+    """
+    if entry.get(TAGS_EXTENSION_KEY):
+        item["tags"] = [str(t) for t in entry[TAGS_EXTENSION_KEY]]
+    for key in keys:
+        value = entry.get(f"x-cvloom-{key}")
+        if value:
+            item[key] = str(value)
+
+
 def _map_work(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for entry in entries:
@@ -132,6 +149,7 @@ def _map_work(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         highlights = _highlights(entry)
         if highlights:
             item["highlights"] = highlights
+        _restore_extensions(item, entry)
         result.append(item)
     return result
 
@@ -151,9 +169,12 @@ def _map_education(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["end_date"] = str(entry["endDate"])
         if entry.get("score"):
             item["grade"] = str(entry["score"])
-        highlights = _highlights(entry)
+        # Export writes education bullets to `courses` (the spec has no
+        # `highlights` here); accept either so third-party documents import too.
+        highlights = _highlights(entry) or [str(c) for c in entry.get("courses") or []]
         if highlights:
             item["highlights"] = highlights
+        _restore_extensions(item, entry)
         result.append(item)
     return result
 
@@ -216,6 +237,7 @@ def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["url"] = str(entry["url"])
         if entry.get("summary"):
             item["summary"] = str(entry["summary"])
+        _restore_extensions(item, entry)
         result.append(item)
     return result
 
@@ -236,6 +258,7 @@ def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["date"] = str(entry["date"])
         if entry.get("url"):
             item["url"] = str(entry["url"])
+        _restore_extensions(item, entry, "expiry_date", "identifier")
         result.append(item)
     return result
 
