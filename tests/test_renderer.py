@@ -43,7 +43,7 @@ def test_render_missing_template(templates_dir: Path) -> None:
 _FULL_CONTEXT = {
     "contact": {
         "name": "Jane",
-        "email": "jane@test.com",
+        "email": "jane@example.com",
         "phone": "+1 555",
         "location": "SF",
         "linkedin": "jane",

@@ -25,13 +25,30 @@ cvloom/
 
 ## Pre-commit hook
 
-Installed by `cvloom init`. It scans every staged file for:
-- Email addresses (regex)
-- Phone numbers (regex)
+Installed by `cvloom init` (refresh it later with `cvloom sync`). Two rules:
 
-If a match is found outside `private/`, the commit is blocked with a clear error message.
+1. **Anything staged under `private/` blocks the commit outright.** That directory should be gitignored; staging a file from it is the failure the hook exists to catch.
+2. **Added lines are scanned for email addresses and phone numbers.** A match outside `private/` blocks the commit and prints the offending value.
 
-To bypass (e.g. for a placeholder in a template):
+### Why added lines, not whole files
+
+The hook diffs what you are introducing. Re-scanning entire files means every commit touching a file that has always held a placeholder gets blocked — which trains you to reach for `--no-verify` by reflex, the exact habit that eventually lets real PII through.
+
+### Reserved placeholder values
+
+Values reserved for documentation and testing are never real contact data, so the hook allows them:
+
+| Kind | Allowed | Source |
+|---|---|---|
+| Email | `example.com`, `example.org`, `example.net` | RFC 2606 |
+| Email | any `.example`, `.test`, `.invalid` domain | RFC 2606 |
+| Email | any `.localhost` domain | RFC 6761 |
+| Phone | North American `555` exchange — e.g. `+1 (555) 123-4567` | NANP fiction range |
+| Phone | UK Ofcom drama range — e.g. `+44 7700 900123` | Ofcom |
+
+Prefer these in sample data, docs, and tests. A placeholder the hook recognises is better than one you have to bypass.
+
+To bypass anyway:
 ```bash
 git commit --no-verify
 ```

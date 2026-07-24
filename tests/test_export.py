@@ -146,7 +146,7 @@ def test_minimal_contact():
         _make_resolved(
             contact={
                 "name": "Min",
-                "email": "min@test.com",
+                "email": "min@example.com",
             }
         )
     )

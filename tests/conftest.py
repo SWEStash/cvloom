@@ -18,7 +18,7 @@ from typing import Any
 from cvloom.models import ResolvedProfile
 
 _DEFAULT_BASICS: dict[str, Any] = {"headline": "Engineer", "summary": "A summary."}
-_DEFAULT_CONTACT: dict[str, Any] = {"name": "Test", "email": "t@t.com"}
+_DEFAULT_CONTACT: dict[str, Any] = {"name": "Test", "email": "t@example.com"}
 _DEFAULT_SHOW: dict[str, bool] = {"work": True, "education": True, "skills": True, "projects": True}
 _DEFAULT_ORDER = ["skills", "work", "education", "projects"]
 

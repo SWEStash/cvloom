@@ -128,7 +128,7 @@ def test_validate_all_valid_data():
         "education": [{"institution": "MIT", "degree": "BSc", "start_date": "2016"}],
         "skills": [{"category": "Languages", "items": ["Python"]}],
         "projects": [{"name": "proj", "description": "desc", "tags": ["py"]}],
-        "contact": {"name": "Jane", "email": "j@e.com"},
+        "contact": {"name": "Jane", "email": "j@example.com"},
     }
     errors = validate_all(data, private_path="dummy")
     assert errors == []
@@ -141,7 +141,7 @@ def test_validate_all_returns_errors_no_raise():
         "education": [],
         "skills": [],
         "projects": [],
-        "contact": {"name": "Jane", "email": "j@e.com"},
+        "contact": {"name": "Jane", "email": "j@example.com"},
     }
     errors = validate_all(data, private_path="dummy")
     assert len(errors) > 0

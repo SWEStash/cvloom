@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# cvloom pre-commit hook: block commits that contain PII outside private/
+# cvloom pre-commit hook: block commits that introduce PII outside private/
 #
-# Scans staged files for patterns that look like:
+# Scans the *added lines* of staged files for patterns that look like:
 #   - email addresses
 #   - phone numbers
-#   - physical addresses (street number + street name pattern)
+#
+# Two deliberate scoping rules keep this proportionate:
+#
+#   1. Only added lines are scanned, not whole files. A hook that re-scans
+#      entire files fires on every commit that touches a file which has
+#      always contained a placeholder, which trains you to pass --no-verify
+#      reflexively — the exact habit that lets real PII through.
+#
+#   2. Values reserved for documentation and tests are allowed. Real contact
+#      data never uses RFC 2606 / RFC 6761 reserved domains or the fictional
+#      phone ranges, so matching them is a false positive by definition.
 #
 # Files inside private/ are intentionally excluded from scanning because
 # they should already be gitignored. If a file inside private/ is staged,
@@ -36,41 +46,56 @@ if [[ -n "$PRIVATE_STAGED" ]]; then
   exit 1
 fi
 
-# 2. Scan staged files (outside private/) for PII patterns.
+# 2. Scan added lines for PII patterns.
 EMAIL_PATTERN='[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}'
 PHONE_PATTERN='(\+\d[\d \-()]{7,}\d|\(\d{3}\)\s*\d{3}[\- ]\d{4})'
+
+# Reserved-for-documentation values (never real contact data):
+#   RFC 2606 — example.com/.org/.net, .example, .test, .invalid
+#   RFC 6761 — .localhost
+EMAIL_ALLOW='@(example\.(com|org|net)|([a-zA-Z0-9\-]+\.)*(example|test|invalid|localhost))$'
+#   NANP 555 exchange (North American fiction), Ofcom drama range (UK fiction)
+PHONE_ALLOW='(\(555\)|[+ \-]555[ \-]|7700[ \-]?900)'
 
 FOUND_PII=()
 
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
-  [[ ! -f "$file" ]] && continue
 
-  # Get staged content (not working tree content)
-  CONTENT=$(git show ":$file" 2>/dev/null || true)
+  # Added lines only — strip the leading '+' and skip the '+++' file header.
+  ADDED=$(git diff --cached -U0 --diff-filter=ACMR -- "$file" \
+    | grep '^+' | grep -v '^+++' | cut -c2- || true)
+  [[ -z "$ADDED" ]] && continue
 
-  if echo "$CONTENT" | grep -qP "$EMAIL_PATTERN" 2>/dev/null; then
-    FOUND_PII+=("$file (email address detected)")
+  REAL_EMAILS=$(echo "$ADDED" | grep -oP "$EMAIL_PATTERN" 2>/dev/null \
+    | grep -vP "$EMAIL_ALLOW" || true)
+  if [[ -n "$REAL_EMAILS" ]]; then
+    FOUND_PII+=("$file (email address: $(echo "$REAL_EMAILS" | head -3 | tr '\n' ' '))")
   fi
 
-  if echo "$CONTENT" | grep -qP "$PHONE_PATTERN" 2>/dev/null; then
-    FOUND_PII+=("$file (phone number detected)")
+  REAL_PHONES=$(echo "$ADDED" | grep -oP "$PHONE_PATTERN" 2>/dev/null \
+    | grep -vP "$PHONE_ALLOW" || true)
+  if [[ -n "$REAL_PHONES" ]]; then
+    FOUND_PII+=("$file (phone number: $(echo "$REAL_PHONES" | head -3 | tr '\n' ' '))")
   fi
 done <<< "$STAGED"
 
 if [[ ${#FOUND_PII[@]} -gt 0 ]]; then
-  echo -e "${YELLOW}cvloom pre-commit: WARNING — possible PII detected in staged files${NC}"
+  echo -e "${YELLOW}cvloom pre-commit: WARNING — possible PII in staged changes${NC}"
   echo ""
-  echo "Files with suspected PII:"
+  echo "Added lines containing suspected PII:"
   for item in "${FOUND_PII[@]}"; do
     echo "  ✗ $item"
   done
   echo ""
-  echo "If this is intentional (e.g. a placeholder or public link), you can"
-  echo "bypass this check with:  git commit --no-verify"
-  echo ""
   echo "If this is real contact information, move it to private/contact.yaml"
   echo "and reference it from your data files using the build system."
+  echo ""
+  echo "If it is a placeholder, prefer a reserved value the hook recognises:"
+  echo "  email  someone@example.com     (also .example / .test / .invalid)"
+  echo "  phone  +1 (555) 123-4567       (also UK +44 7700 900123)"
+  echo ""
+  echo "To bypass anyway:  git commit --no-verify"
   exit 1
 fi
 
