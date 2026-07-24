@@ -1,0 +1,12 @@
+template: cover-letter/standard
+output_filename: cover-letter
+job_context:
+  company: "Target Company"
+  role: "Senior Software Engineer"
+  hiring_manager: "Hiring Manager"
+  notes: |
+    I am writing to express my interest in the **Senior Software Engineer** position
+    at Target Company.
+
+    My experience building scalable systems and developer tooling makes me a strong
+    fit for this role. I would welcome the opportunity to discuss further.

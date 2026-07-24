@@ -1,0 +1,14 @@
+- category: Languages
+  items:
+    - name: Python
+      level: expert
+    - name: Go
+      level: advanced
+    - name: SQL
+      level: advanced
+
+- category: Frameworks & Tools
+  items: [FastAPI, Django, PostgreSQL, Redis, Kafka, Docker, Kubernetes]
+
+- category: Cloud
+  items: [AWS, GCP, Terraform]

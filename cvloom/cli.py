@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +9,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from cvloom import builder, export, importer, linter, projects
+from cvloom import builder, export, importer, linter, projects, scaffold
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
 from cvloom.models import ResolvedProfile
@@ -524,13 +522,13 @@ def match(profile: str, jd: str) -> None:
 def init(force: bool) -> None:
     """Scaffold project structure, install pre-commit hook, verify .gitignore."""
     root = _root()
-    _init_gitignore(root)
-    _init_directories(root)
-    _init_data_files(root, force)
-    _init_profile(root, force)
-    _init_private(root, force)
-    for mf in _MANAGED_FILES:
-        _scaffold_managed(mf, root, force)
+    scaffold.init_gitignore(root)
+    scaffold.init_directories(root)
+    scaffold.init_data_files(root, force)
+    scaffold.init_profile(root, force)
+    scaffold.init_private(root, force)
+    for mf in scaffold.MANAGED_FILES:
+        scaffold.scaffold_managed(mf, root, force)
     _console.print("\n[bold green]✓ cvloom project initialised.[/bold green]")
     _console.print("  Next steps:")
     _console.print("  1. Edit files in [bold]data/[/bold] with your CV content.")
@@ -565,9 +563,9 @@ def sync(force: bool) -> None:
         "missing": ("yellow", "missing"),
         "unavailable": ("dim", "unavailable (not a git repo?)"),
     }
-    stale: list[_ManagedFile] = []
-    for mf in _MANAGED_FILES:
-        status = _managed_status(mf, root)
+    stale: list[scaffold.ManagedFile] = []
+    for mf in scaffold.MANAGED_FILES:
+        status = scaffold.managed_status(mf, root)
         color, text = _status_style[status]
         _console.print(f"[{color}]•[/{color}] {mf.dest_rel} — {text}")
         if status in ("outdated", "missing"):
@@ -585,7 +583,7 @@ def sync(force: bool) -> None:
         return
 
     for mf in stale:
-        _write_managed(mf, root)
+        scaffold.write_managed(mf, root)
         _console.print(f"[green]✓[/green] Updated {mf.dest_rel}")
 
 
@@ -942,249 +940,3 @@ def ai_align(profile: str, jd_file: str) -> None:
         for i, r in enumerate(result.repositioning, 1):
             _console.print(f"  {i}. {r}")
 
-
-def _init_gitignore(root: Path) -> None:
-    gi = root / ".gitignore"
-    private_line = "private/"
-    if gi.exists():
-        content = gi.read_text()
-        if private_line not in content:
-            gi.write_text(private_line + "\n" + content)
-            _console.print(f"[green]✓[/green] Prepended '{private_line}' to .gitignore")
-        else:
-            _console.print(f"[dim]  .gitignore already contains '{private_line}'[/dim]")
-    else:
-        gi.write_text(f"{private_line}\ndist/\n__pycache__/\n*.pyc\n")
-        _console.print("[green]✓[/green] Created .gitignore")
-
-
-def _init_directories(root: Path) -> None:
-    for d in ("data/projects", "profiles", "dist", "templates"):
-        (root / d).mkdir(parents=True, exist_ok=True)
-    _console.print("[green]✓[/green] Created directory structure")
-
-
-def _init_data_files(root: Path, force: bool) -> None:
-    files = {
-        "data/basics.yaml": _SAMPLE_BASICS,
-        "data/work.yaml": _SAMPLE_WORK,
-        "data/education.yaml": _SAMPLE_EDUCATION,
-        "data/skills.yaml": _SAMPLE_SKILLS,
-    }
-    for rel, content in files.items():
-        path = root / rel
-        if not path.exists() or force:
-            path.write_text(content)
-            _console.print(f"[green]✓[/green] Created {rel}")
-        else:
-            _console.print(f"[dim]  {rel} already exists, skipping[/dim]")
-
-
-def _init_profile(root: Path, force: bool) -> None:
-    profiles = {
-        "profiles/general.yaml": _SAMPLE_PROFILE,
-        "profiles/cover-letter.yaml": _SAMPLE_COVER_LETTER_PROFILE,
-    }
-    for rel, content in profiles.items():
-        path = root / rel
-        if not path.exists() or force:
-            path.write_text(content)
-            _console.print(f"[green]✓[/green] Created {rel}")
-        else:
-            _console.print(f"[dim]  {rel} already exists, skipping[/dim]")
-
-
-def _init_private(root: Path, force: bool) -> None:
-    private_dir = root / "private"
-    private_dir.mkdir(exist_ok=True)
-    contact = private_dir / "contact.yaml"
-    if not contact.exists() or force:
-        contact.write_text(_SAMPLE_CONTACT)
-        _console.print("[green]✓[/green] Created private/contact.yaml (GITIGNORED)")
-    else:
-        _console.print("[dim]  private/contact.yaml already exists, skipping[/dim]")
-
-    cover_letters = private_dir / "cover-letters"
-    cover_letters.mkdir(exist_ok=True)
-
-    gitignore_private = private_dir / ".gitignore"
-    if not gitignore_private.exists():
-        gitignore_private.write_text("*\n")
-
-
-# ---------------------------------------------------------------------------
-# Managed scaffold files (shared by `init` and `sync`)
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class _ManagedFile:
-    """A file cvloom scaffolds into a project and can later re-sync."""
-
-    label: str
-    src: Path  # source inside the installed package
-    dest_rel: str  # destination relative to the project root
-    executable: bool = False
-    requires_git_dir: bool = False  # dest lives under .git/ (per-clone; needs a git repo)
-
-
-_PKG_DIR = Path(__file__).parent
-
-_MANAGED_FILES: list[_ManagedFile] = [
-    _ManagedFile(
-        "pre-commit PII scanner hook",
-        _PKG_DIR / "hooks" / "pre-commit",
-        ".git/hooks/pre-commit",
-        executable=True,
-        requires_git_dir=True,
-    ),
-    _ManagedFile(
-        "GitHub Pages publish workflow",
-        _PKG_DIR / "scaffold" / "workflows" / "publish-cv.yml",
-        ".github/workflows/publish-cv.yml",
-    ),
-]
-
-
-def _managed_status(mf: _ManagedFile, root: Path) -> str:
-    """Status of a managed file: unavailable / missing / current / outdated."""
-    if not mf.src.exists():
-        return "unavailable"
-    if mf.requires_git_dir and not (root / ".git" / "hooks").exists():
-        return "unavailable"
-    dest = root / mf.dest_rel
-    if not dest.exists():
-        return "missing"
-    if dest.read_bytes() == mf.src.read_bytes():
-        return "current"
-    return "outdated"
-
-
-def _write_managed(mf: _ManagedFile, root: Path) -> None:
-    dest = root / mf.dest_rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(mf.src, dest)
-    if mf.executable:
-        dest.chmod(0o755)
-
-
-def _scaffold_managed(mf: _ManagedFile, root: Path, force: bool) -> None:
-    """Write a managed file during `init` (create-if-absent; overwrite on --force)."""
-    status = _managed_status(mf, root)
-    if status == "unavailable":
-        if mf.requires_git_dir:
-            _console.print(
-                f"[yellow]Warning:[/yellow] .git/hooks not found — skipping {mf.label}"
-                " (not a git repo?)."
-            )
-        else:
-            _console.print(f"[yellow]Warning:[/yellow] {mf.label} source not found, skipping.")
-        return
-    if status in ("current", "outdated") and not force:
-        _console.print(f"[dim]  {mf.dest_rel} already exists, skipping[/dim]")
-        return
-    _write_managed(mf, root)
-    _console.print(f"[green]✓[/green] Created {mf.dest_rel}")
-
-
-# ---------------------------------------------------------------------------
-# Sample file content
-# ---------------------------------------------------------------------------
-
-_SAMPLE_BASICS = """\
-headline: "Senior Software Engineer"
-summary: >
-  Experienced backend engineer with 8+ years building scalable distributed systems.
-  Passionate about developer tooling, open-source, and clean architecture.
-public_links:
-  - label: GitHub
-    url: https://github.com/SWEStash
-  - label: Website
-    url: https://yourwebsite.example.com
-"""
-
-_SAMPLE_WORK = """\
-- company: Acme Corp
-  title: Senior Backend Engineer
-  location: Remote
-  start_date: "2021-03"
-  end_date: Present
-  highlights:
-    - Led migration of monolith to microservices, reducing deploy time by 60%.
-    - Designed event-driven pipeline processing 50k events/sec with Kafka.
-  tags: [python, kafka, microservices, aws]
-
-- company: Previous Inc
-  title: Software Engineer
-  location: "New York, USA"
-  start_date: "2018-06"
-  end_date: "2021-02"
-  highlights:
-    - Built REST API serving 2M daily active users.
-    - Reduced p99 latency from 800ms to 120ms through query optimization.
-  tags: [python, postgresql, redis]
-"""
-
-_SAMPLE_EDUCATION = """\
-- institution: State University
-  degree: "Bachelor of Science"
-  field: Computer Science
-  location: "Anytown, USA"
-  start_date: "2014"
-  end_date: "2018"
-  highlights:
-    - GPA 3.8/4.0
-    - Teaching assistant for Data Structures course
-"""
-
-_SAMPLE_SKILLS = """\
-- category: Languages
-  items:
-    - name: Python
-      level: expert
-    - name: Go
-      level: advanced
-    - name: SQL
-      level: advanced
-
-- category: Frameworks & Tools
-  items: [FastAPI, Django, PostgreSQL, Redis, Kafka, Docker, Kubernetes]
-
-- category: Cloud
-  items: [AWS, GCP, Terraform]
-"""
-
-_SAMPLE_PROFILE = """\
-template: cv/ats-single
-output_filename: cv
-sections:
-  work: true
-  education: true
-  skills: true
-  projects: true
-"""
-
-_SAMPLE_COVER_LETTER_PROFILE = """\
-template: cover-letter/standard
-output_filename: cover-letter
-job_context:
-  company: "Target Company"
-  role: "Senior Software Engineer"
-  hiring_manager: "Hiring Manager"
-  notes: |
-    I am writing to express my interest in the **Senior Software Engineer** position
-    at Target Company.
-
-    My experience building scalable systems and developer tooling makes me a strong
-    fit for this role. I would welcome the opportunity to discuss further.
-"""
-
-_SAMPLE_CONTACT = """\
-name: "Your Name"
-email: "your.email@example.com"
-phone: "+1 (555) 000-0000"
-location: "City, Country"
-website: "https://yourwebsite.example.com"
-linkedin: "yourlinkedin"
-github: "SWEStash"
-"""

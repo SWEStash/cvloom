@@ -10,6 +10,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed (internal / tests)
+- Slop-audit cleanup, phase 5 (SLOP-024, no behavior change): decomposed the `cli.py` God-file. The project-scaffolding logic (`init`/`sync` file operations and the managed-file registry) moved into a new `cvloom.scaffold` package, and the ~100 lines of embedded sample-YAML string constants became real files under `cvloom/scaffold/samples/`, loaded at runtime. `cli.py` dropped from ~1,190 to ~940 lines and no longer mixes command definitions with scaffold internals and inline data. Verified: a fresh `cvloom init` scaffolds and builds identically.
 - Slop-audit cleanup, phase 4: added `tests/conftest.py` with shared `make_resolved` and `make_project` factories. The six per-file `_make_resolved` copies now delegate to one `ResolvedProfile` builder (defaults no longer drift), and the duplicated on-disk project scaffolds for the builder and MCP suites are single-sourced through `make_project`. (Bespoke fixtures whose content is load-bearing for their own assertions — loader, match, CLI-list — keep their tailored data.)
 
 ### Fixed

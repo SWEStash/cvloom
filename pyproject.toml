@@ -74,7 +74,7 @@ packages = ["cvloom"]
 
 # Deny-by-default: the sdist ships ONLY these paths. Without an explicit allowlist
 # hatchling walks the tree and would include private, globally-gitignored dirs
-# (e.g. .local/, .claude/) that its sdist builder does not treat as ignored.
+# (e.g. .local/, .git/) that its sdist builder does not treat as ignored.
 [tool.hatch.build.targets.sdist]
 include = [
     "/cvloom",
