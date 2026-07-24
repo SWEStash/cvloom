@@ -14,6 +14,7 @@ This guide covers everything you need to know to use cvloom effectively: data fi
    - [education.yaml](#educationyaml)
    - [skills.yaml](#skillsyaml)
    - [projects/*.yaml](#projectsyaml)
+   - [publications.yaml](#publicationsyaml)
    - [private/contact.yaml](#privatecontactyaml)
 2. [Profile Keys Reference](#profile-keys-reference)
 3. [Templates](#templates)
@@ -165,6 +166,46 @@ tags: [python, fastapi, open-source]       # required
 
 ---
 
+### publications.yaml
+
+Optional — omit the file entirely if you have no publications. A single list of
+papers, articles, or talks, rendered as a **Publications** section by every CV
+template.
+
+```yaml
+- name: "A model of distributed consensus under churn"   # required
+  publisher: "Journal of Systems Research"                              # optional — journal, conference, or publisher
+  release_date: "2018"                                  # optional — YYYY or YYYY-MM
+  identifier: "ISBN 978-0-0000-0000-1"                  # optional — ISBN, DOI, or arXiv ID
+  url: "https://example.com/paper"                      # optional
+  summary: "A short summary of the paper." # optional (Markdown supported)
+  tags: [research, modeling]                            # optional — used for profile filtering
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | Yes | Publication title |
+| `publisher` | No | Journal, conference, or publisher |
+| `release_date` | No | `YYYY` or `YYYY-MM` |
+| `identifier` | No | ISBN, DOI, or arXiv ID |
+| `url` | No | Link to the publication |
+| `summary` | No | Short description (Markdown supported) |
+| `tags` | No | Used for profile filtering |
+
+Tag filtering follows `work.yaml` semantics rather than `projects/`: an entry
+with **no** `tags` is always included, so `include_tags` never silently drops
+untagged publications.
+
+Hide the section for a given profile with `sections: { publications: false }`,
+or place it explicitly with `section_order`.
+
+On export to JSON Resume, entries map to the standard `publications` array.
+JSON Resume has no ISBN/DOI field, so `identifier` is appended to `summary`
+rather than dropped — which means it does not survive a round-trip back into
+`identifier` on import.
+
+---
+
 ### private/contact.yaml
 
 Your personal contact info. This file is gitignored and never committed.
@@ -205,7 +246,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `include_tags` | `[]` (all) | Only include data entries whose `tags` overlap with this list |
 | `include_entries` | — | Force-include specific entries excluded by tag filtering |
-| `section_order` | `[skills, work, education, projects]` | Override the rendering order of sections |
+| `section_order` | `[skills, work, education, projects, publications]` | Override the rendering order of sections |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 
@@ -222,7 +263,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `cv/timeline-clean` | Timeline-style work history with Roboto font. |
 | `cv/executive-dark` | Bold typographic hierarchy with dark headings. Good for senior roles. |
 | `cv/sidebar-compact` | Two-column with sidebar. Compact — fits more on one page. |
-| `cv/academic` | Education-first layout. Serif font. Supports research and publications sections. No page-count limit warning. |
+| `cv/academic` | Education-first layout. Serif font. Orders publications directly after education and labels projects "Research & Projects". No page-count limit warning. |
 
 ### Cover letter templates
 

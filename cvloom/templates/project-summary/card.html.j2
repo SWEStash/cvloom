@@ -65,7 +65,7 @@ h2 { display: none; }
   {% endif %}
 </div>
 
-<div class="card-author">{{ contact.name }}{% if contact.email %} · {{ contact.email }}{% endif %}</div>
+<div class="card-author">{{ contact.name }}{% if contact.email is defined and contact.email %} · {{ contact.email }}{% endif %}</div>
 {% else %}
 <p>No projects available.</p>
 {% endif %}

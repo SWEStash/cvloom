@@ -295,3 +295,61 @@ def test_cli_import_bad_json_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     result = CliRunner().invoke(cli, ["import", "resume.json"])
     assert result.exit_code == 1
     assert "Import failed" in result.output
+
+
+# ── publications ─────────────────────────────────────────────────────
+
+
+def test_from_json_resume_maps_publications() -> None:
+    imported = importer.from_json_resume(
+        {
+            "basics": {"name": "Jane"},
+            "publications": [
+                {
+                    "name": "A paper",
+                    "publisher": "Journal of Systems Research",
+                    "releaseDate": "2018",
+                    "url": "https://example.com/p",
+                    "summary": "About things.",
+                }
+            ],
+        }
+    )
+    assert imported.publications == [
+        {
+            "name": "A paper",
+            "publisher": "Journal of Systems Research",
+            "release_date": "2018",
+            "url": "https://example.com/p",
+            "summary": "About things.",
+        }
+    ]
+    assert importer.validate_imported(imported) == []
+
+
+def test_publications_written_to_data_dir(tmp_path: Path) -> None:
+    """Publications carry no PII, so they belong under data/, not private/."""
+    imported = importer.from_json_resume(
+        {"basics": {"name": "Jane"}, "publications": [{"name": "A paper"}]}
+    )
+    data_dir, private_dir = tmp_path / "data", tmp_path / "private"
+    plans = importer.plan_writes(imported, data_dir, private_dir)
+    pub_plan = next(p for p in plans if p.path.name == "publications.yaml")
+    assert pub_plan.is_private is False
+    assert pub_plan.path == data_dir / "publications.yaml"
+
+    written = importer.write_imported(imported, data_dir, private_dir)
+    assert data_dir / "publications.yaml" in written
+    assert yaml.safe_load((data_dir / "publications.yaml").read_text()) == [{"name": "A paper"}]
+
+
+def test_publications_absent_writes_no_file(tmp_path: Path) -> None:
+    imported = importer.from_json_resume({"basics": {"name": "Jane"}})
+    assert imported.publications == []
+    written = importer.write_imported(imported, tmp_path / "data", tmp_path / "private")
+    assert not any(p.name == "publications.yaml" for p in written)
+
+
+def test_from_json_resume_rejects_non_array_publications() -> None:
+    with pytest.raises(importer.ImportProblem):
+        importer.from_json_resume({"basics": {"name": "Jane"}, "publications": {"name": "x"}})

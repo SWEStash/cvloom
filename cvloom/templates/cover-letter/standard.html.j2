@@ -34,11 +34,11 @@ h2 { display: none; }
 <div class="sender">
   <div class="name">{{ contact.name }}</div>
   <div class="contact-line">
-    {% if contact.email %}<span>{{ contact.email }}</span>{% endif %}
-    {% if contact.phone %}<span>{{ contact.phone }}</span>{% endif %}
-    {% if contact.location %}<span>{{ contact.location }}</span>{% endif %}
-    {% if contact.linkedin %}<span>linkedin.com/in/{{ contact.linkedin }}</span>{% endif %}
-    {% if contact.website %}<span>{{ contact.website }}</span>{% endif %}
+    {% if contact.email is defined and contact.email %}<span>{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined and contact.phone %}<span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined and contact.location %}<span>{{ contact.location }}</span>{% endif %}
+    {% if contact.linkedin is defined and contact.linkedin %}<span>linkedin.com/in/{{ contact.linkedin }}</span>{% endif %}
+    {% if contact.website is defined and contact.website %}<span>{{ contact.website }}</span>{% endif %}
   </div>
 </div>
 
@@ -79,9 +79,9 @@ Dear {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else 
   <div class="closing">Sincerely,</div>
   <div class="sig-name">{{ contact.name }}</div>
   <div class="sig-links">
-    {% if contact.linkedin %}<div>linkedin.com/in/{{ contact.linkedin }}</div>{% endif %}
-    {% if contact.github %}<div>github.com/{{ contact.github }}</div>{% endif %}
-    {% if contact.website %}<div>{{ contact.website }}</div>{% endif %}
+    {% if contact.linkedin is defined and contact.linkedin %}<div>linkedin.com/in/{{ contact.linkedin }}</div>{% endif %}
+    {% if contact.github is defined and contact.github %}<div>github.com/{{ contact.github }}</div>{% endif %}
+    {% if contact.website is defined and contact.website %}<div>{{ contact.website }}</div>{% endif %}
   </div>
 </div>
 {% endblock %}

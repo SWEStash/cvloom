@@ -17,6 +17,7 @@ _SECTION_HEADINGS: dict[str, str] = {
     "education": "Education",
     "skills": "Skills",
     "projects": "Projects",
+    "publications": "Publications",
 }
 
 
@@ -124,6 +125,28 @@ def _map_projects(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map publication entries to the JSON Resume publications array.
+
+    ``identifier`` (ISBN/DOI) has no JSON Resume counterpart, so it is folded
+    into ``summary`` rather than dropped on export.
+    """
+    result: list[dict[str, Any]] = []
+    for entry in entries:
+        item: dict[str, Any] = {"name": entry.get("name", "")}
+        if entry.get("publisher"):
+            item["publisher"] = entry["publisher"]
+        if entry.get("release_date"):
+            item["releaseDate"] = entry["release_date"]
+        if entry.get("url"):
+            item["url"] = entry["url"]
+        summary_parts = [p for p in (entry.get("summary"), entry.get("identifier")) if p]
+        if summary_parts:
+            item["summary"] = " ".join(summary_parts)
+        result.append(item)
+    return result
+
+
 def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     """Convert resolved cvloom data to JSON Resume schema."""
     data = resolved.data
@@ -167,6 +190,10 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     projects = data.get("projects", [])
     if projects:
         result["projects"] = _map_projects(projects)
+
+    publications = data.get("publications", [])
+    if publications:
+        result["publications"] = _map_publications(publications)
 
     return result
 
@@ -270,6 +297,22 @@ def to_markdown(resolved: ResolvedProfile) -> str:
                 for h in entry.get("highlights", []):
                     lines.append(f"- {_hl(h)}")
                 lines.append("")
+
+        elif section == "publications":
+            for entry in data.get("publications", []):
+                meta = " · ".join(
+                    p
+                    for p in (
+                        entry.get("publisher"),
+                        entry.get("release_date"),
+                        entry.get("identifier"),
+                    )
+                    if p
+                )
+                lines.append(f"### {entry.get('name', '')}")
+                lines += [f"*{meta}*", ""] if meta else [""]
+                if entry.get("summary"):
+                    lines += [str(entry["summary"]), ""]
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -457,6 +500,24 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
                     doc.add_paragraph(description, style="Body Text")
                 for h in entry.get("highlights", []):
                     doc.add_paragraph(_hl(h), style="List Bullet")
+
+        elif section == "publications":
+            for entry in data.get("publications", []):
+                meta = " · ".join(
+                    part
+                    for part in (
+                        entry.get("publisher"),
+                        entry.get("release_date"),
+                        entry.get("identifier"),
+                    )
+                    if part
+                )
+                doc.add_heading(entry.get("name", ""), level=2)
+                if meta:
+                    p = doc.add_paragraph(meta, style="Body Text")
+                    p.runs[0].italic = True
+                if entry.get("summary"):
+                    doc.add_paragraph(str(entry["summary"]), style="Body Text")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_path))

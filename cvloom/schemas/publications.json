@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "publications",
+  "title": "CV Publications",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["name"],
+    "additionalProperties": false,
+    "properties": {
+      "name": {"type": "string", "description": "Publication title"},
+      "publisher": {
+        "type": "string",
+        "description": "Journal, conference, or publisher — e.g. 'Journal of Systems Research'"
+      },
+      "release_date": {"type": "string", "description": "YYYY or YYYY-MM"},
+      "identifier": {"type": "string", "description": "ISBN, DOI, or arXiv ID"},
+      "url": {"type": "string", "format": "uri"},
+      "summary": {"type": "string", "description": "Short description (Markdown supported)"},
+      "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Technology/domain tags for profile filtering"
+      }
+    }
+  }
+}

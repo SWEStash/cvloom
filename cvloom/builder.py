@@ -111,10 +111,12 @@ def resolve(
         )
         _apply_force_includes(data, unfiltered, include_entries)
 
-    # Normalize highlights to {id, text} for overlay processing
-    for section in ("work", "education", "projects"):
+    # Fill schema-optional keys, then normalize highlights to {id, text} for
+    # overlay processing.
+    for section in sections.ARRAY_SECTIONS:
         entries = data.get(section, [])
         if entries:
+            loader.normalize_optional_fields(section, entries)
             loader.normalize_highlights(entries)
 
     # Validate overlays before applying — warnings are returned to the caller,
@@ -125,17 +127,23 @@ def resolve(
     overlays.apply_overlays(data, profile)
 
     # Flatten highlights back to plain strings for templates
-    for section in ("work", "education", "projects"):
+    for section in sections.ARRAY_SECTIONS:
         entries = data.get(section, [])
         if entries:
             loader.flatten_highlights(entries)
 
     # Apply section visibility
-    section_defaults = {"work": True, "education": True, "skills": True, "projects": True}
+    section_defaults = {
+        "work": True,
+        "education": True,
+        "skills": True,
+        "projects": True,
+        "publications": True,
+    }
     show_sections = {**section_defaults, **sections_cfg}
 
     # Section ordering
-    default_order = ["skills", "work", "education", "projects"]
+    default_order = ["skills", "work", "education", "projects", "publications"]
     section_order = profile.get("section_order", default_order)
 
     # Validate data
@@ -245,7 +253,12 @@ def build(
         public=public,
     )
 
-    job_context: dict[str, Any] = resolved.profile.get("job_context", {}) or {}
+    # Same StrictUndefined contract as the data sections: cover-letter
+    # templates test job_context keys for truthiness, so they must all exist.
+    job_context: dict[str, Any] = {
+        **schema.entry_defaults("profile", "job_context"),
+        **(resolved.profile.get("job_context") or {}),
+    }
 
     # Build render context
     context: dict[str, Any] = {

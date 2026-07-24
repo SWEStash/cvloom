@@ -64,7 +64,10 @@ def list_projects(
 
 @mcp.tool()
 def get_section(section: str, project_root: str | None = None) -> str:
-    """Read raw YAML data for a section (basics, work, education, skills, projects, contact)."""
+    """Read raw YAML data for a section.
+
+    One of: basics, work, education, skills, projects, publications, contact.
+    """
     root = _root(project_root)
 
     if section == "contact":

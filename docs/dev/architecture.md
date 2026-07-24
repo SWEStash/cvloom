@@ -112,14 +112,17 @@ def build(data_dir, private_dir, profiles_dir, output_dir, profile_name, ...) ->
 ### `loader.py`
 
 Loads and merges YAML from `data/` and `private/`. Key responsibilities:
-- Tag-based filtering of work and project entries
+- Tag-based filtering of work, project, and publication entries
 - Public/private contact mode (removes `email` and `phone` in `--public`)
 - `apply_force_includes()` — second unfiltered load to retrieve excluded entries and merge them back
 - `normalize_highlights()` — converts `{id, text}` dicts to plain strings while retaining IDs for overlay matching
+- `normalize_optional_fields()` — fills each entry's schema-optional keys with typed empties. Templates render under `StrictUndefined`, where an *absent* key raises rather than evaluating falsy, so `{% if edu.field %}` needs the key to exist. `contact` is excluded on purpose: its templates guard with `is defined` so `--public` redaction stays invisible.
 
 ### `schema.py`
 
-Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `profile`, `contact`.
+Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `profile`, `contact`.
+
+`entry_defaults(name, prop=None)` — returns the typed empty value (`""` / `[]` / `{}`) for every *optional* property a schema declares. Single source of truth for `loader.normalize_optional_fields()` and for `job_context` defaults in `builder.build()`.
 
 `validate_all(data, raise_on_error=False)` — returns `list[str]` of error messages. When `raise_on_error=True` (the default in build), raises `SchemaError` on the first failure.
 
@@ -127,7 +130,7 @@ Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cove
 
 Applies profile overlays after loading. Three overlay types:
 - **Basics overlay** — shallow merge onto `data["basics"]`
-- **Array section overlays** (work, education, projects) — match by field, then apply: `exclude`, field overrides, highlight pick/exclude/replace/append
+- **Array section overlays** (work, education, projects) — match by field, then apply: `exclude`, field overrides, highlight pick/exclude/replace/append. `publications` is not overlay-addressable: entries carry no highlights, so there is nothing for the pick/exclude/replace machinery to act on.
 - **Skills overlay** — filter categories and exclude items within categories
 
 `validate_overlays(resolved)` checks for unmatched entries, nonexistent highlight IDs, unknown field names, and nonexistent skill categories — warnings surfaced during `resolve()`.
@@ -202,7 +205,7 @@ AI tools check `ai.provider.is_configured()` and return `{"error": "..."}` if no
 @dataclass
 class ResolvedProfile:
     profile: dict[str, Any]          # raw profile YAML
-    data: dict[str, Any]             # resolved CV data (work, education, skills, projects, basics, contact)
+    data: dict[str, Any]             # resolved CV data (work, education, skills, projects, publications, basics, contact)
     show_sections: dict[str, bool]   # section visibility flags
     section_order: list[str]         # render order
     template_name: str               # e.g. "cv/ats-single"

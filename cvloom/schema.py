@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -10,10 +11,38 @@ import jsonschema
 
 _SCHEMAS_DIR = Path(__file__).parent / "schemas"
 
+# Empty value to stand in for each JSON Schema type we default.
+_TYPE_DEFAULTS: dict[str, Any] = {"string": "", "array": [], "object": {}}
+
 
 def _load_schema(name: str) -> dict[str, Any]:
     result: dict[str, Any] = json.loads((_SCHEMAS_DIR / f"{name}.json").read_text())
     return result
+
+
+def entry_defaults(name: str, prop: str | None = None) -> dict[str, Any]:
+    """Return empty values for every optional property schema *name* declares.
+
+    Pass *prop* to descend into a nested object property instead of the root
+    (e.g. ``entry_defaults("profile", "job_context")``).
+
+    Templates render under Jinja2's ``StrictUndefined``, where reading a key
+    that is simply absent raises instead of evaluating falsy — so ``{% if
+    edu.field %}`` blows up on an entry that legitimately omits ``field``.
+    Filling the schema's own optional properties keeps "optional" meaning
+    optional. Required properties are left out so validation still catches
+    genuinely missing data.
+    """
+    schema = _load_schema(name)
+    if prop is not None:
+        schema = schema["properties"][prop]
+    entry = schema["items"] if schema.get("type") == "array" else schema
+    required = set(entry.get("required", []))
+    return {
+        prop: copy.deepcopy(_TYPE_DEFAULTS[spec["type"]])
+        for prop, spec in entry.get("properties", {}).items()
+        if prop not in required and spec.get("type") in _TYPE_DEFAULTS
+    }
 
 
 def validate(name: str, data: Any, source_path: str = "") -> list[str]:
@@ -44,6 +73,7 @@ def validate_all(
         "work": "work",
         "education": "education",
         "skills": "skills",
+        "publications": "publications",
     }
     for key, schema_name in section_schemas.items():
         if key in data:

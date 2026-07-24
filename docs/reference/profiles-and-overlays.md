@@ -60,6 +60,7 @@ sections:
   education: true
   skills: true
   projects: true
+  publications: true
 ```
 
 ### Profile Keys Reference
@@ -72,7 +73,7 @@ sections:
 | `sections`          | No       | All `true`                              | Toggle sections on or off                                             |
 | `include_tags`      | No       | `[]` (include all)                      | Only include entries with at least one matching tag                   |
 | `include_entries`   | No       | —                                       | Force-include entries excluded by tag filtering                       |
-| `section_order`     | No       | `[skills, work, education, projects]`   | Override the rendering order of sections                              |
+| `section_order`     | No       | `[skills, work, education, projects, publications]` | Override the rendering order of sections                  |
 | `job_context`       | No       | —                                       | Metadata passed to cover letter templates and AI commands             |
 | `overlays`          | No       | —                                       | Per-job data patches (see below)                                      |
 
@@ -89,9 +90,9 @@ template: cv/ats-single
 include_tags: [python, kafka, aws, microservices]
 ```
 
-This filters both `work` and `projects` sections. Work entries that have no `tags` field
-at all are always included (they are treated as universally relevant). Projects without
-matching tags are excluded.
+This filters the `work`, `projects`, and `publications` sections. Work and publication
+entries that have no `tags` field at all are always included (they are treated as
+universally relevant). Projects without matching tags are excluded.
 
 ---
 
@@ -120,8 +121,9 @@ excluded entries, then merges the matched ones back in.
 
 ## Section Ordering
 
-The default rendering order is `[skills, work, education, projects]`. Override it
-per-profile:
+The default rendering order is `[skills, work, education, projects, publications]`
+(`cv/academic` instead defaults to `[education, publications, work, projects, skills]`).
+Override it per-profile:
 
 ```yaml
 section_order: [work, skills, projects, education]

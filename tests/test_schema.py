@@ -1,6 +1,6 @@
 """Tests for schema validation."""
 
-from cvloom.schema import validate, validate_all
+from cvloom.schema import entry_defaults, validate, validate_all
 
 
 def test_valid_basics():
@@ -145,3 +145,74 @@ def test_validate_all_returns_errors_no_raise():
     }
     errors = validate_all(data, private_path="dummy")
     assert len(errors) > 0
+
+
+# ── entry_defaults ───────────────────────────────────────────────────
+
+
+def test_entry_defaults_array_schema():
+    defaults = entry_defaults("work")
+    # Optional properties, typed by the schema.
+    assert defaults["location"] == ""
+    assert defaults["end_date"] == ""
+    assert defaults["highlights"] == []
+    assert defaults["tags"] == []
+    # Required properties are never defaulted.
+    assert "company" not in defaults
+    assert "title" not in defaults
+    assert "start_date" not in defaults
+
+
+def test_entry_defaults_object_schema():
+    defaults = entry_defaults("project")
+    assert defaults["url"] == ""
+    assert defaults["start_date"] == ""
+    assert defaults["highlights"] == []
+    assert "name" not in defaults
+    assert "tags" not in defaults  # required on projects
+
+
+def test_entry_defaults_returns_fresh_containers():
+    """Callers mutate these in place — they must not share state."""
+    first = entry_defaults("work")
+    first["highlights"].append("leaked")
+    assert entry_defaults("work")["highlights"] == []
+
+
+# ── publications schema ──────────────────────────────────────────────
+
+
+def test_validate_publications_minimal():
+    assert validate("publications", [{"name": "A paper"}]) == []
+
+
+def test_validate_publications_full():
+    entry = {
+        "name": "A model of distributed consensus under churn",
+        "publisher": "Journal of Systems Research",
+        "release_date": "2018",
+        "identifier": "ISBN 978-0-0000-0000-1",
+        "url": "https://example.com/paper",
+        "summary": "A short summary of the paper.",
+        "tags": ["research"],
+    }
+    assert validate("publications", [entry]) == []
+
+
+def test_validate_publications_requires_name():
+    errors = validate("publications", [{"publisher": "IEEE"}])
+    assert len(errors) == 1
+    assert "name" in errors[0]
+
+
+def test_validate_publications_rejects_unknown_field():
+    errors = validate("publications", [{"name": "A paper", "isbn": "123"}])
+    assert len(errors) == 1
+
+
+def test_entry_defaults_publications():
+    defaults = entry_defaults("publications")
+    assert defaults["publisher"] == ""
+    assert defaults["identifier"] == ""
+    assert defaults["tags"] == []
+    assert "name" not in defaults

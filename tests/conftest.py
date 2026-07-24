@@ -86,6 +86,19 @@ _PROJECT_FILES: dict[str, str] = {
     "profiles/general.yaml": "template: cv/ats-single\noutput_filename: cv\n",
 }
 
+# A project where every entry carries *only* its schema-required fields — the
+# shape a user gets by following the docs and omitting what they don't need.
+# Templates run under StrictUndefined, so this is the case that regresses.
+SPARSE_PROJECT_FILES: dict[str, str] = {
+    "data/basics.yaml": 'headline: "Test Engineer"\nsummary: "A test summary."\n',
+    "data/work.yaml": '- company: Acme\n  title: Engineer\n  start_date: "2020-01"\n',
+    "data/education.yaml": '- institution: Uni\n  degree: BSc\n  start_date: "2016"\n',
+    "data/skills.yaml": "- category: Languages\n  items: [Python]\n",
+    "data/projects/alpha.yaml": 'name: alpha\ndescription: "A project."\ntags: [python]\n',
+    "private/contact.yaml": "name: Test\n",
+    "profiles/general.yaml": "template: cv/ats-single\noutput_filename: cv\n",
+}
+
 
 def make_project(
     tmp_path: Path,

@@ -124,6 +124,24 @@ h2 {
 {% endif %}
 {% endmacro %}
 
+{% macro section_publications() %}
+{% if show.publications and publications %}
+<h2>Publications</h2>
+{% for pub in publications %}
+<div class="entry">
+  <div class="entry-header clearfix">
+    <span class="entry-title">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</span>
+    {% if pub.release_date %}<span class="entry-date">{{ pub.release_date }}</span>{% endif %}
+  </div>
+  {% if pub.publisher or pub.identifier %}
+  <div><span class="entry-org">{{ pub.publisher }}</span>{% if pub.publisher and pub.identifier %} · {% endif %}{% if pub.identifier %}<span class="entry-location">{{ pub.identifier }}</span>{% endif %}</div>
+  {% endif %}
+  {% if pub.summary %}<p>{{ pub.summary | md }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
 {# ── Section dispatch ──────────────────────────────────────────── #}
 
 {% set _section_macros = {
@@ -131,6 +149,7 @@ h2 {
   "work": section_work,
   "education": section_education,
   "projects": section_projects,
+  "publications": section_publications,
 } %}
 
 {% block body %}
@@ -162,7 +181,7 @@ h2 {
 {% endif %}
 
 <!-- SECTIONS (ordered — academic default: education first) -->
-{% for sec in section_order | default(["education", "work", "projects", "skills"]) %}
+{% for sec in section_order | default(["education", "publications", "work", "projects", "skills"]) %}
 {{ _section_macros[sec]() }}
 {% endfor %}
 {% endblock %}

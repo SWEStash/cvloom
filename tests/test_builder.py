@@ -10,13 +10,14 @@ from cvloom.builder import (
     ResolveError,
     _estimate_pages,
     _pdf_filename,
+    build_project,
     resolve,
 )
 from cvloom.cli import _section_summary
 from cvloom.models import ResolvedProfile
 from cvloom.renderer import list_templates, template_exists
 from cvloom.sections import count_words
-from tests.conftest import make_project, make_resolved
+from tests.conftest import SPARSE_PROJECT_FILES, make_project, make_resolved
 
 # ── _estimate_pages ─────────────────────────────────────────────────
 
@@ -246,3 +247,160 @@ def test_resolve_public_redacts_sensitive_fields(project_dir: Path) -> None:
     assert "email" not in result.data["contact"]
     assert "phone" not in result.data["contact"]
     assert result.data["contact"]["name"] == "Test"
+
+
+# ── Sparse data: schema-optional fields omitted ─────────────────────
+
+
+@pytest.fixture
+def sparse_project_dir(tmp_path: Path) -> Path:
+    """Project whose entries carry only their schema-required fields."""
+    return make_project(tmp_path, files=SPARSE_PROJECT_FILES)
+
+
+def test_resolve_fills_schema_optional_fields(sparse_project_dir: Path) -> None:
+    result = resolve(
+        data_dir=sparse_project_dir / "data",
+        private_dir=sparse_project_dir / "private",
+        profiles_dir=sparse_project_dir / "profiles",
+        public=True,
+    )
+    assert result.data["work"][0]["location"] == ""
+    assert result.data["work"][0]["highlights"] == []
+    assert result.data["education"][0]["field"] == ""
+    assert result.data["projects"][0]["url"] == ""
+    assert result.data["projects"][0]["start_date"] == ""
+
+
+def test_resolve_leaves_contact_keys_absent(sparse_project_dir: Path) -> None:
+    """Contact is deliberately *not* filled — templates use ``is defined`` on it
+    so that redacted (public-build) fields stay invisible rather than blank."""
+    result = resolve(
+        data_dir=sparse_project_dir / "data",
+        private_dir=sparse_project_dir / "private",
+        profiles_dir=sparse_project_dir / "profiles",
+        public=True,
+    )
+    assert "email" not in result.data["contact"]
+
+
+def test_build_fills_partial_job_context(sparse_project_dir: Path) -> None:
+    (sparse_project_dir / "profiles" / "letter.yaml").write_text(
+        "template: cover-letter/standard\njob_context:\n  company: Acme\n"
+    )
+    result = build_project(sparse_project_dir, profile_name="letter", public=True, skip_pdf=True)
+    assert "Acme" in result.html
+    assert "Hiring Manager" in result.html  # hiring_manager omitted → fallback
+
+
+@pytest.mark.parametrize("template", list_templates())
+def test_every_template_renders_sparse_data(sparse_project_dir: Path, template: str) -> None:
+    result = build_project(
+        sparse_project_dir,
+        profile_name="general",
+        template_override=template,
+        public=True,
+        skip_pdf=True,
+    )
+    assert "Test" in result.html
+
+
+# ── publications section ─────────────────────────────────────────────
+
+_PUBLICATIONS_YAML = (
+    "- name: A paper on automata\n  publisher: Journal of Systems Research\n"
+    '  release_date: "2016"\n  identifier: "ISBN 978-0-0000-0000-2"\n'
+    "  tags: [research]\n"
+    "- name: An untagged paper\n"
+)
+
+
+@pytest.fixture
+def publications_project_dir(tmp_path: Path) -> Path:
+    return make_project(tmp_path, extra={"data/publications.yaml": _PUBLICATIONS_YAML})
+
+
+def test_resolve_without_publications_file(project_dir: Path) -> None:
+    """publications.yaml is optional — absent means an empty section, not a warning."""
+    result = resolve(
+        data_dir=project_dir / "data",
+        private_dir=project_dir / "private",
+        profiles_dir=project_dir / "profiles",
+        public=True,
+    )
+    assert result.data["publications"] == []
+    assert result.show_sections["publications"] is True
+    assert "publications" in result.section_order
+
+
+def test_resolve_loads_publications(publications_project_dir: Path) -> None:
+    result = resolve(
+        data_dir=publications_project_dir / "data",
+        private_dir=publications_project_dir / "private",
+        profiles_dir=publications_project_dir / "profiles",
+        public=True,
+    )
+    pubs = result.data["publications"]
+    assert [p["name"] for p in pubs] == ["A paper on automata", "An untagged paper"]
+    # Optional keys filled from the schema.
+    assert pubs[1]["publisher"] == ""
+    assert pubs[1]["tags"] == []
+
+
+def test_publications_tag_filter_keeps_untagged(publications_project_dir: Path) -> None:
+    """Untagged publications survive include_tags, matching work's semantics."""
+    (publications_project_dir / "profiles" / "tagged.yaml").write_text(
+        "template: cv/academic\ninclude_tags: [research]\n"
+    )
+    result = resolve(
+        data_dir=publications_project_dir / "data",
+        private_dir=publications_project_dir / "private",
+        profiles_dir=publications_project_dir / "profiles",
+        profile_name="tagged",
+        public=True,
+    )
+    assert [p["name"] for p in result.data["publications"]] == [
+        "A paper on automata",
+        "An untagged paper",
+    ]
+
+
+def test_publications_tag_filter_excludes_non_matching(publications_project_dir: Path) -> None:
+    (publications_project_dir / "profiles" / "tagged.yaml").write_text(
+        "template: cv/academic\ninclude_tags: [python]\n"
+    )
+    result = resolve(
+        data_dir=publications_project_dir / "data",
+        private_dir=publications_project_dir / "private",
+        profiles_dir=publications_project_dir / "profiles",
+        profile_name="tagged",
+        public=True,
+    )
+    assert [p["name"] for p in result.data["publications"]] == ["An untagged paper"]
+
+
+def test_publications_section_can_be_hidden(publications_project_dir: Path) -> None:
+    (publications_project_dir / "profiles" / "nopubs.yaml").write_text(
+        "template: cv/ats-single\nsections:\n  publications: false\n"
+    )
+    result = build_project(
+        publications_project_dir, profile_name="nopubs", public=True, skip_pdf=True
+    )
+    assert "A paper on automata" not in result.html
+
+
+@pytest.mark.parametrize("template", [t for t in list_templates() if t.startswith("cv/")])
+def test_every_cv_template_renders_publications(
+    publications_project_dir: Path, template: str
+) -> None:
+    result = build_project(
+        publications_project_dir,
+        profile_name="general",
+        template_override=template,
+        public=True,
+        skip_pdf=True,
+    )
+    assert "Publications" in result.html
+    assert "A paper on automata" in result.html
+    assert "Journal of Systems Research" in result.html
+    assert "978-0-0000-0000-2" in result.html

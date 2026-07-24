@@ -19,8 +19,9 @@ from typing import Any
 
 from cvloom.models import ResolvedProfile
 
-# Array sections whose entries carry highlights.
-ARRAY_SECTIONS = ("work", "education", "projects")
+# Array sections of entry dicts. All but ``publications`` carry highlights;
+# the helpers below tolerate their absence.
+ARRAY_SECTIONS = ("work", "education", "projects", "publications")
 
 # Text-bearing scalar fields on an array-section entry.
 ENTRY_TEXT_FIELDS = (
@@ -32,6 +33,8 @@ ENTRY_TEXT_FIELDS = (
     "location",
     "degree",
     "field",
+    "publisher",
+    "summary",
 )
 
 # Which field labels an entry of a given array section.
@@ -39,6 +42,7 @@ SECTION_LABEL_KEY: dict[str, str] = {
     "work": "company",
     "education": "institution",
     "projects": "name",
+    "publications": "name",
 }
 
 

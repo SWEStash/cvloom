@@ -9,7 +9,17 @@ from typing import Any
 import yaml
 from rich.console import Console
 
+from cvloom import schema
+
 _console = Console(stderr=True)
+
+# Data section → the JSON schema describing one of its entries.
+_ENTRY_SCHEMAS: dict[str, str] = {
+    "work": "work",
+    "education": "education",
+    "projects": "project",
+    "publications": "publications",
+}
 
 # Placeholder contact used when private/contact.yaml is absent
 _PLACEHOLDER_CONTACT: dict[str, Any] = {
@@ -37,6 +47,19 @@ def _apply_public_mode(contact: dict[str, Any]) -> dict[str, Any]:
 def _load_yaml(path: Path) -> Any:
     with path.open() as f:
         return yaml.safe_load(f)
+
+
+def normalize_optional_fields(section: str, entries: list[dict[str, Any]]) -> None:
+    """Fill schema-optional keys the data file omitted, in-place.
+
+    ``contact`` is deliberately excluded: templates guard it with ``is
+    defined`` precisely so a public build — which *deletes* email and phone —
+    renders nothing rather than a blank field.
+    """
+    defaults = schema.entry_defaults(_ENTRY_SCHEMAS[section])
+    for entry in entries:
+        for key, value in defaults.items():
+            entry.setdefault(key, copy.deepcopy(value))
 
 
 def normalize_highlights(entries: list[dict[str, Any]]) -> None:
@@ -87,6 +110,13 @@ def load_data(
             _console.print(f"[yellow]Warning:[/yellow] {path} not found — section will be empty.")
             result[section] = [] if section in ("work", "education", "skills") else {}
 
+    # Publications are opt-in: most CVs have none, so a missing file is normal
+    # and must not warn the way a missing work.yaml does.
+    publications_path = data_dir / "publications.yaml"
+    result["publications"] = (
+        _load_yaml(publications_path) or [] if publications_path.exists() else []
+    )
+
     # Load projects from data/projects/*.yaml
     projects_dir = data_dir / "projects"
     projects: list[dict[str, Any]] = []
@@ -105,6 +135,12 @@ def load_data(
             w
             for w in result.get("work", [])
             if not w.get("tags") or set(w.get("tags", [])) & tag_set
+        ]
+        # Untagged publications survive filtering, same as untagged work.
+        result["publications"] = [
+            p
+            for p in result.get("publications", [])
+            if not p.get("tags") or set(p.get("tags", [])) & tag_set
         ]
 
     # Contact data

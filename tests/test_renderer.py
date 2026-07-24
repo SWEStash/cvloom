@@ -211,3 +211,18 @@ def test_academic_has_no_google_fonts_link() -> None:
     """Academic template uses system serif fonts only."""
     html = render_template("cv/academic", _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN not in html
+
+
+# ── Redacted contact (public builds drop email/phone) ────────────────
+
+
+@pytest.mark.parametrize(
+    "template",
+    ["cover-letter/brief", "cover-letter/standard", "project-summary/card"],
+)
+def test_render_with_name_only_contact(template: str) -> None:
+    """A public build strips email/phone from contact entirely; under
+    StrictUndefined the templates must guard on presence, not truthiness."""
+    context = {**_FULL_CONTEXT, "contact": {"name": "Jane"}, "public": True}
+    html = render_template(template, context)
+    assert "Jane" in html

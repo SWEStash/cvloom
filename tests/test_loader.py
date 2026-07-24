@@ -9,6 +9,7 @@ from cvloom.loader import (
     load_data,
     load_profile,
     normalize_highlights,
+    normalize_optional_fields,
 )
 
 
@@ -162,3 +163,47 @@ def test_normalize_flatten_roundtrip():
     normalize_highlights(original)
     flatten_highlights(original)
     assert original[0]["highlights"] == ["One.", "Two."]
+
+
+# ── normalize_optional_fields ────────────────────────────────────────
+
+
+def test_normalize_optional_fields_fills_missing_keys():
+    entries = [{"company": "Acme", "title": "Dev", "start_date": "2020"}]
+    normalize_optional_fields("work", entries)
+    assert entries[0]["location"] == ""
+    assert entries[0]["highlights"] == []
+    assert entries[0]["tags"] == []
+
+
+def test_normalize_optional_fields_preserves_existing_values():
+    entries = [
+        {
+            "company": "Acme",
+            "title": "Dev",
+            "start_date": "2020",
+            "location": "Remote",
+            "highlights": ["Shipped it."],
+        }
+    ]
+    normalize_optional_fields("work", entries)
+    assert entries[0]["location"] == "Remote"
+    assert entries[0]["highlights"] == ["Shipped it."]
+
+
+def test_normalize_optional_fields_projects_use_project_schema():
+    entries = [{"name": "proj", "description": "A project.", "tags": ["py"]}]
+    normalize_optional_fields("projects", entries)
+    assert entries[0]["url"] == ""
+    assert entries[0]["start_date"] == ""
+    assert entries[0]["tags"] == ["py"]
+
+
+def test_normalize_optional_fields_does_not_share_containers():
+    entries = [
+        {"company": "A", "title": "Dev", "start_date": "2020"},
+        {"company": "B", "title": "Dev", "start_date": "2021"},
+    ]
+    normalize_optional_fields("work", entries)
+    entries[0]["highlights"].append("only mine")
+    assert entries[1]["highlights"] == []

@@ -145,17 +145,17 @@ def _generate_recommendations(
 
 def analyze(resolved: ResolvedProfile, target_pages: int = 1) -> TrimReport:
     """Analyze word counts and generate trim recommendations."""
-    sections: list[SectionWordCount] = []
+    section_counts: list[SectionWordCount] = []
 
-    for section in ("work", "education", "projects"):
+    for section in sections.ARRAY_SECTIONS:
         if resolved.show_sections.get(section):
             entries = resolved.data.get(section, [])
-            sections.append(_analyze_array_section(section, entries))
+            section_counts.append(_analyze_array_section(section, entries))
 
     if resolved.show_sections.get("skills"):
-        sections.append(_analyze_skills(resolved.data.get("skills", [])))
+        section_counts.append(_analyze_skills(resolved.data.get("skills", [])))
 
-    total_words = sum(s.total_words for s in sections)
+    total_words = sum(s.total_words for s in section_counts)
     # Add basics words
     basics = resolved.data.get("basics", {})
     for key in ("headline", "summary"):
@@ -167,13 +167,13 @@ def analyze(resolved: ResolvedProfile, target_pages: int = 1) -> TrimReport:
     target_words = target_pages * _WORDS_PER_PAGE
     words_to_cut = max(0, total_words - target_words)
 
-    recommendations = _generate_recommendations(sections, words_to_cut)
+    recommendations = _generate_recommendations(section_counts, words_to_cut)
 
     return TrimReport(
         total_words=total_words,
         estimated_pages=estimated_pages,
         target_pages=target_pages,
         words_to_cut=words_to_cut,
-        sections=sections,
+        sections=section_counts,
         recommendations=recommendations,
     )

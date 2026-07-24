@@ -279,3 +279,50 @@ def test_export_docx_has_section_headings(tmp_path: Path) -> None:
     styles = {p.style.name for p in doc.paragraphs}
     assert "Heading 1" in styles
     assert "List Bullet" in styles
+
+
+# ── publications ─────────────────────────────────────────────────────
+
+_PUBLICATION = {
+    "name": "A model of distributed consensus under churn",
+    "publisher": "Journal of Systems Research",
+    "release_date": "2018",
+    "identifier": "ISBN 978-0-0000-0000-1",
+    "url": "https://example.com/paper",
+    "summary": "A short summary of the paper.",
+}
+
+
+def _resolved_with_publications():
+    resolved = _make_resolved(publications=[dict(_PUBLICATION)])
+    resolved.show_sections["publications"] = True
+    resolved.section_order.append("publications")
+    return resolved
+
+
+def test_publications_mapping():
+    result = to_json_resume(_resolved_with_publications())
+    pub = result["publications"][0]
+    assert pub["name"] == _PUBLICATION["name"]
+    assert pub["publisher"] == "Journal of Systems Research"
+    assert pub["releaseDate"] == "2018"
+    assert pub["url"] == "https://example.com/paper"
+
+
+def test_publications_identifier_folded_into_summary():
+    """JSON Resume has no ISBN/DOI field — export must not silently drop it."""
+    result = to_json_resume(_resolved_with_publications())
+    assert result["publications"][0]["summary"] == (
+        "A short summary of the paper. ISBN 978-0-0000-0000-1"
+    )
+
+
+def test_publications_omitted_when_empty():
+    assert "publications" not in to_json_resume(_make_resolved())
+
+
+def test_markdown_includes_publications():
+    md = to_markdown(_resolved_with_publications())
+    assert "## Publications" in md
+    assert _PUBLICATION["name"] in md
+    assert "Journal of Systems Research · 2018 · ISBN 978-0-0000-0000-1" in md

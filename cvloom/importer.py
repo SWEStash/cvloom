@@ -34,6 +34,7 @@ class ImportedData:
     education: list[dict[str, Any]] = field(default_factory=list)
     skills: list[dict[str, Any]] = field(default_factory=list)
     projects: list[dict[str, Any]] = field(default_factory=list)
+    publications: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -195,6 +196,29 @@ def _map_projects(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map a JSON Resume publications array to cvloom publication entries.
+
+    JSON Resume has no ISBN/DOI field, so ``identifier`` is never populated on
+    import — export folds it into ``summary`` and there is no reliable way to
+    split it back out.
+    """
+    result: list[dict[str, Any]] = []
+    for entry in entries:
+        _require(entry, "object", "publication entry")
+        item: dict[str, Any] = {"name": str(entry.get("name", ""))}
+        if entry.get("publisher"):
+            item["publisher"] = str(entry["publisher"])
+        if entry.get("releaseDate"):
+            item["release_date"] = str(entry["releaseDate"])
+        if entry.get("url"):
+            item["url"] = str(entry["url"])
+        if entry.get("summary"):
+            item["summary"] = str(entry["summary"])
+        result.append(item)
+    return result
+
+
 def from_json_resume(doc: Any) -> ImportedData:
     """Parse a JSON Resume document into cvloom sections.
 
@@ -209,10 +233,12 @@ def from_json_resume(doc: Any) -> ImportedData:
     education = doc.get("education") or []
     skills = doc.get("skills") or []
     projects = doc.get("projects") or []
+    publications = doc.get("publications") or []
     _require(work, "array", "work")
     _require(education, "array", "education")
     _require(skills, "array", "skills")
     _require(projects, "array", "projects")
+    _require(publications, "array", "publications")
 
     return ImportedData(
         contact=_map_contact(basics),
@@ -221,6 +247,7 @@ def from_json_resume(doc: Any) -> ImportedData:
         education=_map_education(education),
         skills=_map_skills(skills),
         projects=_map_projects(projects),
+        publications=_map_publications(publications),
     )
 
 
@@ -237,6 +264,8 @@ def validate_imported(imported: ImportedData) -> list[str]:
         payload["skills"] = imported.skills
     if imported.projects:
         payload["projects"] = imported.projects
+    if imported.publications:
+        payload["publications"] = imported.publications
     return schema.validate_all(payload)
 
 
@@ -270,6 +299,8 @@ def plan_writes(imported: ImportedData, data_dir: Path, private_dir: Path) -> li
         add(data_dir / "education.yaml", False)
     if imported.skills:
         add(data_dir / "skills.yaml", False)
+    if imported.publications:
+        add(data_dir / "publications.yaml", False)
     for stem in _project_stems(imported.projects):
         add(data_dir / "projects" / f"{stem}.yaml", False)
     return plans
@@ -302,6 +333,7 @@ def write_imported(imported: ImportedData, data_dir: Path, private_dir: Path) ->
         ("work", imported.work),
         ("education", imported.education),
         ("skills", imported.skills),
+        ("publications", imported.publications),
     ):
         if entries:
             path = data_dir / f"{section}.yaml"
