@@ -7,10 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
-from rich.console import Console
 
 _SCHEMAS_DIR = Path(__file__).parent / "schemas"
-_console = Console(stderr=True)
 
 
 def _load_schema(name: str) -> dict[str, Any]:
@@ -33,12 +31,11 @@ def validate(name: str, data: Any, source_path: str = "") -> list[str]:
 def validate_all(
     data: dict[str, Any],
     private_path: str = "",
-    raise_on_error: bool = True,
 ) -> list[str]:
-    """Validate all sections in *data*.
+    """Validate all sections in *data* and return the list of error messages.
 
-    Returns a list of error messages. When *raise_on_error* is True (the
-    default), validation failures are printed and ``SystemExit(1)`` is raised.
+    Pure: never prints or raises. Callers decide how to surface failures
+    (``builder.resolve`` raises :class:`~cvloom.builder.ResolveError`).
     """
     all_errors: list[str] = []
 
@@ -65,11 +62,5 @@ def validate_all(
         slug = project.get("name", "?")
         errs = validate("project", project, source_path=f"data/projects/{slug}.yaml")
         all_errors.extend(errs)
-
-    if all_errors and raise_on_error:
-        _console.print("[bold red]Validation errors:[/bold red]")
-        for err in all_errors:
-            _console.print(f"  [red]✗[/red] {err}")
-        raise SystemExit(1)
 
     return all_errors

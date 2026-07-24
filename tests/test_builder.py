@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from cvloom.builder import (
+    ResolveError,
     _estimate_pages,
     _pdf_filename,
     resolve,
@@ -212,7 +213,7 @@ def test_resolve_returns_resolved_profile(project_dir: Path) -> None:
 
 def test_resolve_invalid_template_fails_early(project_dir: Path) -> None:
     (project_dir / "profiles" / "bad.yaml").write_text("template: cv/nonexistent\n")
-    with pytest.raises(SystemExit, match="not found"):
+    with pytest.raises(ResolveError) as excinfo:
         resolve(
             data_dir=project_dir / "data",
             private_dir=project_dir / "private",
@@ -220,6 +221,27 @@ def test_resolve_invalid_template_fails_early(project_dir: Path) -> None:
             profile_name="bad",
             public=True,
         )
+    assert any("not found" in e for e in excinfo.value.errors)
+
+
+def test_resolve_invalid_data_raises_resolve_error_silently(
+    project_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Corrupt basics so schema validation fails.
+    (project_dir / "data" / "basics.yaml").write_text("headline: 123\n")
+    with pytest.raises(ResolveError) as excinfo:
+        resolve(
+            data_dir=project_dir / "data",
+            private_dir=project_dir / "private",
+            profiles_dir=project_dir / "profiles",
+            profile_name="general",
+            public=True,
+        )
+    assert excinfo.value.errors  # carries the real messages
+    # resolve() is pure: it prints nothing.
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
 
 
 def test_template_exists_true() -> None:

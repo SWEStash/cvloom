@@ -264,6 +264,16 @@ def test_upsert_project_invalid_returns_structured_error(project_dir: str) -> No
     assert not (Path(project_dir) / "data" / "projects" / "oops.yaml").exists()
 
 
+def test_resolve_failure_returns_real_details_not_exit_code(project_dir: str) -> None:
+    # Corrupt basics so resolve() fails; the tool must surface the actual messages.
+    (Path(project_dir) / "data" / "basics.yaml").write_text("headline: 123\n")
+    result = json.loads(check_cv(profile="general", project_root=project_dir))
+    assert result["error"] == "resolve failed"
+    assert isinstance(result["details"], list) and result["details"]
+    # The old lossy "exit code 1" is gone.
+    assert "exit code" not in json.dumps(result)
+
+
 # ── check_cv tests ────────────────────────────────────────────────
 
 
@@ -337,6 +347,17 @@ def test_ai_tools_error_when_not_configured(
     for tool in (ai_review_cv, ai_generate_cover, ai_suggest_improvements, ai_align_to_jd):
         result = json.loads(tool(project_root=project_dir))
         assert "not configured" in result["error"]
+
+
+def test_ai_review_cv_resolve_failure_returns_structured_error(
+    project_dir: str, ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A resolve failure inside an AI tool must return JSON, not escape uncaught.
+    _patch_client(monkeypatch, "{}")
+    (Path(project_dir) / "data" / "basics.yaml").write_text("headline: 123\n")
+    result = json.loads(ai_review_cv(profile="general", project_root=project_dir))
+    assert result["error"] == "resolve failed"
+    assert isinstance(result["details"], list) and result["details"]
 
 
 def test_ai_review_cv_success(

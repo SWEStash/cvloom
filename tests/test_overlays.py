@@ -226,7 +226,7 @@ class TestArrayOverlay:
         assert "side-project" not in names
         assert "tool" in names
 
-    def test_unmatched_overlay_warns(self, capsys):
+    def test_unmatched_overlay_warns(self):
         data = _base_data()
         before = [dict(entry) for entry in data["work"]]
         profile = {
@@ -239,9 +239,10 @@ class TestArrayOverlay:
                 ]
             }
         }
+        # validate_overlays reports the non-match; apply_overlays leaves data untouched.
+        warnings = validate_overlays(data, profile)
+        assert any("does not match any entry" in w for w in warnings)
         apply_overlays(data, profile)
-        # An unmatched overlay warns on stderr and leaves the data untouched.
-        assert "did not match" in capsys.readouterr().err
         assert data["work"] == before
 
     def test_multi_field_match(self):

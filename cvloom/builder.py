@@ -11,6 +11,18 @@ from cvloom import loader, overlays, renderer, schema, sections
 from cvloom.models import BuildResult, ResolvedProfile
 
 
+class ResolveError(Exception):
+    """A profile could not be resolved (profile/data validation, missing template).
+
+    Carries the individual error messages so each frontend can present them —
+    the CLI renders them, the MCP server returns them as structured ``details``.
+    """
+
+    def __init__(self, errors: list[str]) -> None:
+        self.errors = errors
+        super().__init__("; ".join(errors) if errors else "resolve failed")
+
+
 def _estimate_pages(html: str) -> tuple[int, int]:
     """Strip HTML tags, count words, estimate pages at 350 words/page."""
     # Strip <style> blocks before removing tags so CSS tokens aren't counted.
@@ -63,21 +75,17 @@ def resolve(
         "profile", profile, source_path=f"profiles/{profile_name}.yaml"
     )
     if profile_errors:
-        from rich.console import Console
-
-        _err = Console(stderr=True)
-        _err.print("[bold red]Profile validation errors:[/bold red]")
-        for err in profile_errors:
-            _err.print(f"  [red]✗[/red] {err}")
-        raise SystemExit(1)
+        raise ResolveError(profile_errors)
 
     template_name = template_override or profile.get("template", "cv/ats-single")
 
     if not renderer.template_exists(template_name):
         available = renderer.list_templates()
-        raise SystemExit(
-            f"Template '{template_name}' not found.\n"
-            f"Available templates: {', '.join(available) or 'none'}"
+        raise ResolveError(
+            [
+                f"Template '{template_name}' not found. "
+                f"Available templates: {', '.join(available) or 'none'}"
+            ]
         )
 
     output_filename = profile.get("output_filename") or profile_name
@@ -109,14 +117,9 @@ def resolve(
         if entries:
             loader.normalize_highlights(entries)
 
-    # Validate overlays before applying
+    # Validate overlays before applying — warnings are returned to the caller,
+    # not printed here (resolve() stays free of terminal I/O).
     overlay_warnings = overlays.validate_overlays(data, profile)
-    if overlay_warnings:
-        from rich.console import Console
-
-        _warn = Console(stderr=True)
-        for w in overlay_warnings:
-            _warn.print(f"[yellow]Warning:[/yellow] {w}")
 
     # Apply overlays
     overlays.apply_overlays(data, profile)
@@ -136,7 +139,9 @@ def resolve(
     section_order = profile.get("section_order", default_order)
 
     # Validate data
-    schema.validate_all(data, private_path=str(private_dir / "contact.yaml"))
+    data_errors = schema.validate_all(data, private_path=str(private_dir / "contact.yaml"))
+    if data_errors:
+        raise ResolveError(data_errors)
 
     return ResolvedProfile(
         profile=profile,
@@ -145,6 +150,7 @@ def resolve(
         section_order=section_order,
         template_name=template_name,
         output_filename=output_filename,
+        warnings=overlay_warnings,
     )
 
 

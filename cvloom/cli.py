@@ -14,6 +14,7 @@ from rich.table import Table
 from cvloom import builder, export, importer, linter, projects
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
+from cvloom.models import ResolvedProfile
 
 _console = Console()
 _err = Console(stderr=True)
@@ -22,6 +23,29 @@ _err = Console(stderr=True)
 def _root() -> Path:
     """Return the project root — the directory from which cvloom is invoked."""
     return Path.cwd()
+
+
+def _render_resolve_error(exc: builder.ResolveError) -> None:
+    """Print a ResolveError's messages to stderr."""
+    _err.print("[bold red]Validation errors:[/bold red]")
+    for e in exc.errors:
+        _err.print(f"  [red]✗[/red] {e}")
+
+
+def _emit_warnings(warnings: list[str]) -> None:
+    for w in warnings:
+        _err.print(f"[yellow]Warning:[/yellow] {w}")
+
+
+def _resolve(root: Path, profile: str, *, public: bool) -> ResolvedProfile:
+    """Resolve a profile, rendering ResolveError to stderr and warnings after."""
+    try:
+        resolved = builder.resolve_project(root, profile, public=public)
+    except builder.ResolveError as exc:
+        _render_resolve_error(exc)
+        raise SystemExit(1) from None
+    _emit_warnings(resolved.warnings)
+    return resolved
 
 
 def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
@@ -113,14 +137,19 @@ def build(
 ) -> None:
     """Build CV outputs for a given profile."""
     root = _root()
-    result = builder.build_project(
-        root,
-        output_dir=root / output_dir,
-        profile_name=profile,
-        template_override=template,
-        public=public,
-        skip_pdf=skip_pdf,
-    )
+    try:
+        result = builder.build_project(
+            root,
+            output_dir=root / output_dir,
+            profile_name=profile,
+            template_override=template,
+            public=public,
+            skip_pdf=skip_pdf,
+        )
+    except builder.ResolveError as exc:
+        _render_resolve_error(exc)
+        raise SystemExit(1) from None
+    _emit_warnings(result.resolved.warnings)
     _console.print(f"[green]✓[/green] HTML  → {result.html_path}")
     if result.pdf_path:
         _console.print(f"[green]✓[/green] PDF   → {result.pdf_path}")
@@ -164,7 +193,7 @@ def check(profile: str) -> None:
     ats-parse — with no single "ATS score". See docs/reference/ats-readiness.md.
     """
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
     findings = linter.lint(resolved)
     if not findings:
         _console.print("[green]✓ No issues found.[/green]")
@@ -222,7 +251,7 @@ def check(profile: str) -> None:
 def trim(profile: str, target_pages: int) -> None:
     """Show per-section word breakdown and trim recommendations."""
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
     report = trim_mod.analyze(resolved, target_pages=target_pages)
 
     table = Table(
@@ -266,8 +295,8 @@ def trim(profile: str, target_pages: int) -> None:
 def diff(profile_a: str, profile_b: str) -> None:
     """Compare two profiles side by side."""
     root = _root()
-    resolved_a = builder.resolve_project(root, profile_a, public=True)
-    resolved_b = builder.resolve_project(root, profile_b, public=True)
+    resolved_a = _resolve(root, profile_a, public=True)
+    resolved_b = _resolve(root, profile_b, public=True)
     result = compare(resolved_a, resolved_b, profile_a, profile_b)
 
     # Template
@@ -332,7 +361,7 @@ def diff(profile_a: str, profile_b: str) -> None:
 def export_cmd(profile: str, fmt: str, output: str | None) -> None:
     """Export CV data to an external format."""
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=False)
+    resolved = _resolve(root, profile, public=False)
     if fmt == "json-resume":
         out_path = Path(output) if output else root / "dist" / f"{profile}.resume.json"
         export.export_json_resume(resolved, out_path)
@@ -439,7 +468,7 @@ def match(profile: str, jd: str) -> None:
     from cvloom.match import analyze_match
 
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
 
     jd_text = Path(jd).read_text(encoding="utf-8")
     report = analyze_match(resolved, jd_text)
@@ -700,7 +729,7 @@ def ai_review(profile: str) -> None:
         raise SystemExit(1)
 
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
     try:
         client = get_client()
         result = review(resolved, client, get_model())
@@ -767,7 +796,7 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
     try:
         client = get_client()
         result = generate_cover(resolved, jd_text, client, get_model())
@@ -817,7 +846,7 @@ def ai_suggest(profile: str, role_context: str) -> None:
         raise SystemExit(1)
 
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
 
     effective_role = role_context or (resolved.profile.get("job_context") or {}).get("role", "")
 
@@ -883,7 +912,7 @@ def ai_align(profile: str, jd_file: str) -> None:
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
     root = _root()
-    resolved = builder.resolve_project(root, profile, public=True)
+    resolved = _resolve(root, profile, public=True)
     try:
         client = get_client()
         result = align(resolved, jd_text, client, get_model())

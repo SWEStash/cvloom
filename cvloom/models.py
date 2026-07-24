@@ -9,7 +9,12 @@ from typing import Any
 
 @dataclass
 class ResolvedProfile:
-    """Result of loading a profile and resolving all data through the pipeline."""
+    """Result of loading a profile and resolving all data through the pipeline.
+
+    Invariant: highlights in ``work`` / ``education`` / ``projects`` entries are
+    plain strings here (``loader.flatten_highlights`` runs during ``resolve``);
+    the pre-flatten ``{id, text}`` form only exists inside loader/overlays.
+    """
 
     profile: dict[str, Any]
     data: dict[str, Any]
@@ -17,6 +22,7 @@ class ResolvedProfile:
     section_order: list[str]
     template_name: str
     output_filename: str
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass

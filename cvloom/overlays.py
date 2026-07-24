@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rich.console import Console
-
 from cvloom import sections
-
-_console = Console(stderr=True)
 
 
 def apply_overlays(data: dict[str, Any], profile: dict[str, Any]) -> None:
@@ -53,34 +49,28 @@ def _apply_array_overlay(
     section: str,
     overlay_list: list[dict[str, Any]],
 ) -> None:
-    """Match-and-patch entries in an array section."""
+    """Match-and-patch entries in an array section.
+
+    Unmatched overlays are not warned about here — ``validate_overlays`` reports
+    them (once) to the caller.
+    """
     entries: list[dict[str, Any]] = data.get(section, [])
     if not entries:
         return
 
+    excluded: set[int] = set()
     for overlay in overlay_list:
         match = overlay["match"]
-        matched = False
-
         for i, entry in enumerate(entries):
             if not _match_entry(entry, match):
                 continue
-            matched = True
-
             if overlay.get("exclude"):
-                entries[i] = None  # type: ignore[call-overload]  # mark for removal
+                excluded.add(i)
                 continue
-
             _apply_entry_overlay(entry, overlay)
 
-        if not matched:
-            _console.print(
-                f"[yellow]Warning:[/yellow] overlay for {section} "
-                f"match={match} did not match any entry."
-            )
-
-    # Remove excluded entries
-    data[section] = [e for e in entries if e is not None]
+    if excluded:
+        data[section] = [e for i, e in enumerate(entries) if i not in excluded]
 
 
 def _apply_entry_overlay(entry: dict[str, Any], overlay: dict[str, Any]) -> None:

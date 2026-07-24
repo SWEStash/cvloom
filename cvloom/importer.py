@@ -237,7 +237,7 @@ def validate_imported(imported: ImportedData) -> list[str]:
         payload["skills"] = imported.skills
     if imported.projects:
         payload["projects"] = imported.projects
-    return schema.validate_all(payload, raise_on_error=False)
+    return schema.validate_all(payload)
 
 
 def _project_stems(projects: list[dict[str, Any]]) -> list[str]:

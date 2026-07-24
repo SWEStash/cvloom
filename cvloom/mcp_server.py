@@ -118,8 +118,10 @@ def build_cv(
             },
             indent=2,
         )
+    except builder.ResolveError as e:
+        return json.dumps({"error": "resolve failed", "details": e.errors})
     except SystemExit as e:
-        return json.dumps({"error": f"Build failed with exit code {e.code}"})
+        return json.dumps({"error": str(e.code)})
 
 
 @mcp.tool()
@@ -177,7 +179,6 @@ def validate_data(project_root: str | None = None) -> str:
     errors = schema.validate_all(
         data,
         private_path=str(root / "private" / "contact.yaml"),
-        raise_on_error=False,
     )
     if errors:
         return json.dumps({"valid": False, "errors": errors}, indent=2)
@@ -201,8 +202,8 @@ def export_json_resume(
         resolved = builder.resolve_project(root, profile, public=public)
         resume = to_json_resume(resolved)
         return json.dumps(resume, indent=2, ensure_ascii=False)
-    except SystemExit as e:
-        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+    except builder.ResolveError as e:
+        return json.dumps({"error": "resolve failed", "details": e.errors})
 
 
 @mcp.tool()
@@ -235,8 +236,8 @@ def check_cv(
             ],
             indent=2,
         )
-    except SystemExit as e:
-        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+    except builder.ResolveError as e:
+        return json.dumps({"error": "resolve failed", "details": e.errors})
 
 
 @mcp.tool()
@@ -269,8 +270,8 @@ def trim_report(
             },
             indent=2,
         )
-    except SystemExit as e:
-        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+    except builder.ResolveError as e:
+        return json.dumps({"error": "resolve failed", "details": e.errors})
 
 
 @mcp.tool()
@@ -300,8 +301,8 @@ def diff_profiles(
             },
             indent=2,
         )
-    except SystemExit as e:
-        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+    except builder.ResolveError as e:
+        return json.dumps({"error": "resolve failed", "details": e.errors})
 
 
 @mcp.tool()
@@ -332,8 +333,8 @@ def match_jd(
             },
             indent=2,
         )
-    except SystemExit as e:
-        return json.dumps({"error": f"Resolve failed with exit code {e.code}"})
+    except builder.ResolveError as e:
+        return json.dumps({"error": "resolve failed", "details": e.errors})
 
 
 @mcp.tool()
@@ -345,16 +346,19 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.analyzer import review
+    from cvloom.ai.provider import AINotConfiguredError
 
     if not is_configured():
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve_project(root, profile, public=True)
     try:
+        resolved = builder.resolve_project(root, profile, public=True)
         client = get_client()
         result = review(resolved, client, get_model())
-    except Exception as exc:
+    except builder.ResolveError as exc:
+        return json.dumps({"error": "resolve failed", "details": exc.errors})
+    except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
     return json.dumps(dataclasses.asdict(result), indent=2)
@@ -372,16 +376,19 @@ def ai_generate_cover(
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.cover import generate_cover
+    from cvloom.ai.provider import AINotConfiguredError
 
     if not is_configured():
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve_project(root, profile, public=True)
     try:
+        resolved = builder.resolve_project(root, profile, public=True)
         client = get_client()
         result = generate_cover(resolved, jd_text, client, get_model())
-    except Exception as exc:
+    except builder.ResolveError as exc:
+        return json.dumps({"error": "resolve failed", "details": exc.errors})
+    except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
     return json.dumps(dataclasses.asdict(result), indent=2)
@@ -400,17 +407,20 @@ def ai_suggest_improvements(
     Returns JSON with suggestions, missing_skills, and summary.
     """
     from cvloom.ai import get_client, get_model, is_configured
+    from cvloom.ai.provider import AINotConfiguredError
     from cvloom.ai.suggest import suggest
 
     if not is_configured():
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve_project(root, profile, public=True)
     try:
+        resolved = builder.resolve_project(root, profile, public=True)
         client = get_client()
         result = suggest(resolved, client, get_model(), role_context=role)
-    except Exception as exc:
+    except builder.ResolveError as exc:
+        return json.dumps({"error": "resolve failed", "details": exc.errors})
+    except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
     return json.dumps(dataclasses.asdict(result), indent=2)
@@ -430,15 +440,18 @@ def ai_align_to_jd(
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.align import align
+    from cvloom.ai.provider import AINotConfiguredError
 
     if not is_configured():
         return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
 
     root = _root(project_root)
-    resolved = builder.resolve_project(root, profile, public=True)
     try:
+        resolved = builder.resolve_project(root, profile, public=True)
         result = align(resolved, jd_text, get_client(), get_model())
-    except Exception as exc:
+    except builder.ResolveError as exc:
+        return json.dumps({"error": "resolve failed", "details": exc.errors})
+    except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
     return json.dumps(dataclasses.asdict(result), indent=2)
