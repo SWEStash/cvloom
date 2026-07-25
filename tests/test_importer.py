@@ -461,3 +461,52 @@ def test_roundtrip_preserves_education_bullets() -> None:
         ]
     )
     assert _roundtrip(resolved).education[0]["highlights"] == ["Dean's list."]
+
+
+def test_roundtrip_preserves_public_links() -> None:
+    from tests.conftest import make_resolved
+
+    resolved = make_resolved(
+        basics={
+            "headline": "Eng",
+            "summary": "S",
+            "public_links": [{"label": "Blog", "url": "https://example.com/blog"}],
+        }
+    )
+    back = _roundtrip(resolved)
+    assert back.basics is not None
+    assert back.basics["public_links"] == [{"label": "Blog", "url": "https://example.com/blog"}]
+
+
+def test_roundtrip_preserves_awards_and_languages() -> None:
+    from tests.conftest import make_resolved
+
+    resolved = make_resolved(
+        awards=[{"title": "Best Paper", "awarder": "ACM", "date": "2019", "tags": ["research"]}],
+        languages=[{"language": "Spanish", "fluency": "Native speaker"}],
+    )
+    back = _roundtrip(resolved)
+    assert back.awards == [
+        {"title": "Best Paper", "awarder": "ACM", "date": "2019", "tags": ["research"]}
+    ]
+    assert back.languages == [{"language": "Spanish", "fluency": "Native speaker"}]
+    assert importer.validate_imported(back) == []
+
+
+def test_awards_and_languages_written_to_data_dir(tmp_path: Path) -> None:
+    imported = importer.from_json_resume(
+        {
+            "basics": {"name": "Jane"},
+            "awards": [{"title": "Best Paper"}],
+            "languages": [{"language": "Spanish"}],
+        }
+    )
+    data_dir, private_dir = tmp_path / "data", tmp_path / "private"
+    importer.write_imported(imported, data_dir, private_dir)
+    assert yaml.safe_load((data_dir / "awards.yaml").read_text()) == [{"title": "Best Paper"}]
+    assert yaml.safe_load((data_dir / "languages.yaml").read_text()) == [{"language": "Spanish"}]
+
+
+def test_from_json_resume_rejects_non_array_awards() -> None:
+    with pytest.raises(importer.ImportProblem):
+        importer.from_json_resume({"basics": {"name": "Jane"}, "awards": {"title": "x"}})

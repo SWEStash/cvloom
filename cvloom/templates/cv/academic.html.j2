@@ -146,7 +146,7 @@ h2 {
 {% if show.certifications and certifications %}
 <h2>Certifications</h2>
 {% for cert in certifications %}
-<div class="entry cert-entry">
+<div class="entry">
   <div class="entry-header clearfix">
     <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
     {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</span>{% endif %}
@@ -154,6 +154,34 @@ h2 {
   {% if cert.issuer or cert.identifier %}<div class="entry-location">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
 </div>
 {% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_awards() %}
+{% if show.awards and awards %}
+<h2>Awards</h2>
+{% for award in awards %}
+<div class="entry">
+  <div class="entry-header clearfix">
+    <span class="entry-title">{{ award.title }}</span>
+    {% if award.date %}<span class="entry-date">{{ award.date }}</span>{% endif %}
+  </div>
+  {% if award.awarder %}<div class="entry-location">{{ award.awarder }}</div>{% endif %}
+  {% if award.summary %}<p>{{ award.summary | md }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_languages() %}
+{% if show.languages and languages %}
+<h2>Languages</h2>
+<div class="languages">
+  {%- for lang in languages -%}
+  {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}
+  {%- if not loop.last %} · {% endif -%}
+  {%- endfor %}
+</div>
 {% endif %}
 {% endmacro %}
 
@@ -166,6 +194,8 @@ h2 {
   "projects": section_projects,
   "publications": section_publications,
   "certifications": section_certifications,
+  "awards": section_awards,
+  "languages": section_languages,
 } %}
 
 {% block body %}
@@ -197,7 +227,7 @@ h2 {
 {% endif %}
 
 <!-- SECTIONS (ordered — academic default: education first) -->
-{% for sec in section_order | default(["education", "publications", "work", "projects", "skills", "certifications"]) %}
+{% for sec in section_order | default(["education", "publications", "work", "projects", "skills", "certifications", "awards", "languages"]) %}
 {{ _section_macros[sec]() }}
 {% endfor %}
 {% endblock %}

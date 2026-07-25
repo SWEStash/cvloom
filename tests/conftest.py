@@ -15,15 +15,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from cvloom import sections
 from cvloom.models import ResolvedProfile
 
 _DEFAULT_BASICS: dict[str, Any] = {"headline": "Engineer", "summary": "A summary."}
 _DEFAULT_CONTACT: dict[str, Any] = {"name": "Test", "email": "t@example.com"}
-# Mirrors builder.resolve()'s defaults so the factory can't drift from the
-# real data model — every array section, shown, in render order.
-_DEFAULT_SECTIONS = ("skills", "work", "education", "projects", "publications", "certifications")
-_DEFAULT_SHOW: dict[str, bool] = dict.fromkeys(_DEFAULT_SECTIONS, True)
-_DEFAULT_ORDER = list(_DEFAULT_SECTIONS)
+# Derived from the section registry, never restated: a factory that lists
+# sections by hand is exactly how it drifts behind the data model.
+_DEFAULT_SHOW: dict[str, bool] = dict.fromkeys(sections.DEFAULT_SECTION_ORDER, True)
+_DEFAULT_ORDER = list(sections.DEFAULT_SECTION_ORDER)
 
 
 def make_resolved(
@@ -37,6 +37,8 @@ def make_resolved(
     projects: list[Any] | None = None,
     publications: list[Any] | None = None,
     certifications: list[Any] | None = None,
+    awards: list[Any] | None = None,
+    languages: list[Any] | None = None,
     show: dict[str, bool] | None = None,
     section_order: list[str] | None = None,
     template_name: str = "cv/ats-single",
@@ -55,6 +57,8 @@ def make_resolved(
             "projects": projects or [],
             "publications": publications or [],
             "certifications": certifications or [],
+            "awards": awards or [],
+            "languages": languages or [],
         },
         show_sections=show if show is not None else dict(_DEFAULT_SHOW),
         section_order=section_order if section_order is not None else list(_DEFAULT_ORDER),

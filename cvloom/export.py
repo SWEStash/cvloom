@@ -22,8 +22,16 @@ _SECTION_HEADINGS: dict[str, str] = {
 }
 
 
-def _map_profiles(contact: dict[str, Any]) -> list[dict[str, str]]:
-    """Map contact social links to JSON Resume profiles."""
+def _map_profiles(
+    contact: dict[str, Any], public_links: list[dict[str, Any]] | None = None
+) -> list[dict[str, str]]:
+    """Map contact social links and basics.public_links to JSON Resume profiles.
+
+    ``public_links`` are arbitrary labelled URLs; JSON Resume's nearest home is
+    ``basics.profiles``, with the label standing in for ``network``. Links whose
+    URL is already covered by the linkedin/github entries are skipped, matching
+    what ``cv/academic`` does when rendering the same data.
+    """
     profiles: list[dict[str, str]] = []
     if contact.get("linkedin"):
         profiles.append(
@@ -41,6 +49,18 @@ def _map_profiles(contact: dict[str, Any]) -> list[dict[str, str]]:
                 "url": f"https://github.com/{contact['github']}",
             }
         )
+
+    seen = {p["url"] for p in profiles}
+    handles = [str(contact.get(k, "")) for k in ("linkedin", "github", "website")]
+    for link in public_links or []:
+        url = str(link.get("url", ""))
+        label = str(link.get("label", ""))
+        if not url or url in seen:
+            continue
+        if any(handle and handle in url for handle in handles):
+            continue
+        profiles.append({"network": label or url, "url": url})
+        seen.add(url)
     return profiles
 
 
@@ -149,6 +169,18 @@ _PUBLICATION_FIELDS = (
     _Field("url", "url"),
 )
 
+_AWARD_FIELDS = (
+    _Field("title", "title"),
+    _Field("awarder", "awarder"),
+    _Field("date", "date", "date"),
+    _Field("summary", "summary"),
+)
+
+_LANGUAGE_FIELDS = (
+    _Field("language", "language"),
+    _Field("fluency", "fluency"),
+)
+
 _CERTIFICATION_FIELDS = (
     _Field("name", "name"),
     _Field("issuer", "issuer"),
@@ -209,14 +241,33 @@ def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return items
 
 
+def _meta_line(*parts: Any) -> str:
+    """Join the present values with a separator: `ACM SIGPLAN · 2019`."""
+    return " · ".join(str(p) for p in parts if p)
+
+
+def _language_label(entry: dict[str, Any]) -> str:
+    """`Spanish (Native speaker)` — fluency in parentheses when present."""
+    name = str(entry.get("language", ""))
+    fluency = entry.get("fluency")
+    return f"{name} ({fluency})" if fluency else name
+
+
+def _certification_dates(entry: dict[str, Any]) -> str:
+    """`2023-04` or `2023-04 – 2026-04` when the credential expires."""
+    date = entry.get("date", "")
+    expiry = entry.get("expiry_date")
+    return f"{date} – {expiry}" if date and expiry else str(date)
+
+
+def _certification_meta(entry: dict[str, Any]) -> str:
+    return _meta_line(entry.get("issuer"), _certification_dates(entry), entry.get("identifier"))
+
+
 def _certification_line(entry: dict[str, Any]) -> str:
     """One-line rendering of a certification: name, issuer, dates, ID."""
-    dates = entry.get("date", "")
-    if dates and entry.get("expiry_date"):
-        dates = f"{dates} – {entry['expiry_date']}"
-    parts = [p for p in (entry.get("issuer"), dates, entry.get("identifier")) if p]
-    suffix = f" — {' · '.join(parts)}" if parts else ""
-    return f"**{entry.get('name', '')}**{suffix}"
+    meta = _certification_meta(entry)
+    return f"**{entry.get('name', '')}**{f' — {meta}' if meta else ''}"
 
 
 def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
@@ -244,7 +295,7 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     if location:
         result["basics"]["location"] = location
 
-    profiles = _map_profiles(contact)
+    profiles = _map_profiles(contact, basics_data.get("public_links"))
     if profiles:
         result["basics"]["profiles"] = profiles
 
@@ -271,6 +322,14 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     certifications = data.get("certifications", [])
     if certifications:
         result["certificates"] = _map_certifications(certifications)
+
+    awards = data.get("awards", [])
+    if awards:
+        result["awards"] = _map_entries(awards, _AWARD_FIELDS)
+
+    languages = data.get("languages", [])
+    if languages:
+        result["languages"] = _map_entries(languages, _LANGUAGE_FIELDS)
 
     return result
 
@@ -377,14 +436,8 @@ def to_markdown(resolved: ResolvedProfile) -> str:
 
         elif section == "publications":
             for entry in data.get("publications", []):
-                meta = " · ".join(
-                    p
-                    for p in (
-                        entry.get("publisher"),
-                        entry.get("release_date"),
-                        entry.get("identifier"),
-                    )
-                    if p
+                meta = _meta_line(
+                    entry.get("publisher"), entry.get("release_date"), entry.get("identifier")
                 )
                 lines.append(f"### {entry.get('name', '')}")
                 lines += [f"*{meta}*", ""] if meta else [""]
@@ -395,6 +448,18 @@ def to_markdown(resolved: ResolvedProfile) -> str:
             for entry in data.get("certifications", []):
                 lines.append(f"- {_certification_line(entry)}")
             lines.append("")
+
+        elif section == "awards":
+            for entry in data.get("awards", []):
+                meta = _meta_line(entry.get("awarder"), entry.get("date"))
+                lines.append(f"### {entry.get('title', '')}")
+                lines += [f"*{meta}*", ""] if meta else [""]
+                if entry.get("summary"):
+                    lines += [str(entry["summary"]), ""]
+
+        elif section == "languages":
+            langs = [_language_label(e) for e in data.get("languages", [])]
+            lines += [" · ".join(langs), ""]
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -585,14 +650,8 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
 
         elif section == "publications":
             for entry in data.get("publications", []):
-                meta = " · ".join(
-                    part
-                    for part in (
-                        entry.get("publisher"),
-                        entry.get("release_date"),
-                        entry.get("identifier"),
-                    )
-                    if part
+                meta = _meta_line(
+                    entry.get("publisher"), entry.get("release_date"), entry.get("identifier")
                 )
                 doc.add_heading(entry.get("name", ""), level=2)
                 if meta:
@@ -603,14 +662,25 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
 
         elif section == "certifications":
             for entry in data.get("certifications", []):
-                dates = entry.get("date", "")
-                if dates and entry.get("expiry_date"):
-                    dates = f"{dates} – {entry['expiry_date']}"
-                parts = [p for p in (entry.get("issuer"), dates, entry.get("identifier")) if p]
+                meta = _certification_meta(entry)
                 text = entry.get("name", "")
-                if parts:
-                    text = f"{text} — {' · '.join(parts)}"
-                doc.add_paragraph(text, style="List Bullet")
+                doc.add_paragraph(f"{text} — {meta}" if meta else text, style="List Bullet")
+
+        elif section == "awards":
+            for entry in data.get("awards", []):
+                meta = _meta_line(entry.get("awarder"), entry.get("date"))
+                doc.add_heading(entry.get("title", ""), level=2)
+                if meta:
+                    para = doc.add_paragraph(meta, style="Body Text")
+                    para.runs[0].italic = True
+                if entry.get("summary"):
+                    doc.add_paragraph(str(entry["summary"]), style="Body Text")
+
+        elif section == "languages":
+            doc.add_paragraph(
+                " · ".join(_language_label(e) for e in data.get("languages", [])),
+                style="Body Text",
+            )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_path))

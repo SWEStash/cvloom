@@ -24,7 +24,9 @@
         "skills": {"type": "boolean", "default": true},
         "projects": {"type": "boolean", "default": true},
         "publications": {"type": "boolean", "default": true},
-        "certifications": {"type": "boolean", "default": true}
+        "certifications": {"type": "boolean", "default": true},
+        "awards": {"type": "boolean", "default": true},
+        "languages": {"type": "boolean", "default": true}
       }
     },
     "include_tags": {
@@ -47,7 +49,16 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["skills", "work", "education", "projects", "publications", "certifications"]
+        "enum": [
+          "skills",
+          "work",
+          "education",
+          "projects",
+          "publications",
+          "certifications",
+          "awards",
+          "languages"
+        ]
       },
       "description": "Render sections in this order (overrides template default)"
     },

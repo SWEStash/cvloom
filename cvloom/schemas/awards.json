@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "awards",
+  "title": "CV Awards",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["title"],
+    "additionalProperties": false,
+    "properties": {
+      "title": {"type": "string", "description": "Award name"},
+      "awarder": {
+        "type": "string",
+        "description": "Organisation that granted it — e.g. 'ACM'"
+      },
+      "date": {"type": "string", "description": "YYYY or YYYY-MM"},
+      "summary": {"type": "string", "description": "Short description (Markdown supported)"},
+      "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Technology/domain tags for profile filtering"
+      }
+    }
+  }
+}

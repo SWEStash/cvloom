@@ -99,18 +99,32 @@ _FULL_DATA: dict[str, Any] = {
             "tags": ["cloud"],
         }
     ],
+    "awards": [
+        {
+            "title": "Best Paper Award",
+            "awarder": "ACM SIGPLAN",
+            "date": "2019",
+            "summary": "For work on incremental type inference.",
+            "tags": ["research"],
+        }
+    ],
+    "languages": [
+        {"language": "Spanish", "fluency": "Native speaker"},
+        {"language": "Portuguese"},
+    ],
 }
 
 
 def _full_resolved():
-    resolved = make_resolved(
+    return make_resolved(
         contact={"name": "Jane", "email": "jane@example.com", "phone": "+1 (555) 123-4567"},
+        basics={
+            "headline": "Engineer",
+            "summary": "A summary.",
+            "public_links": [{"label": "Blog", "url": "https://example.com/blog"}],
+        },
         **_FULL_DATA,
     )
-    for section in ("publications", "certifications"):
-        resolved.show_sections[section] = True
-        resolved.section_order.append(section)
-    return resolved
 
 
 def test_full_export_conforms(validator: jsonschema.Draft7Validator) -> None:

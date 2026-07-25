@@ -16,6 +16,8 @@ This guide covers everything you need to know to use cvloom effectively: data fi
    - [projects/*.yaml](#projectsyaml)
    - [publications.yaml](#publicationsyaml)
    - [certifications.yaml](#certificationsyaml)
+   - [awards.yaml](#awardsyaml)
+   - [languages.yaml](#languagesyaml)
    - [private/contact.yaml](#privatecontactyaml)
 2. [Profile Keys Reference](#profile-keys-reference)
 3. [Templates](#templates)
@@ -29,6 +31,12 @@ This guide covers everything you need to know to use cvloom effectively: data fi
 ## Data Files
 
 All content files live in `data/` (committed to git, no PII). Private contact info lives in `private/contact.yaml` (gitignored).
+
+`basics.yaml`, `work.yaml`, `education.yaml`, `skills.yaml` and `projects/` are the core
+set. `publications.yaml`, `certifications.yaml`, `awards.yaml` and `languages.yaml` are
+**opt-in** — omit the file entirely and the section simply doesn't render, with no warning.
+
+Every list section supports `tags` for [profile filtering](../reference/profiles-and-overlays.md).
 
 ### basics.yaml
 
@@ -217,7 +225,8 @@ rather than dropped — which means it does not survive a round-trip back into
 
 Optional — omit the file entirely if you have none. Certifications, licences,
 and short courses, rendered as a compact **Certifications** section by every CV
-template (one line per entry, unlike the full entries used for education).
+template — a title row plus one meta line, with no bullet list, unlike the fuller
+treatment education entries get.
 
 ```yaml
 - name: "AWS Certified Solutions Architect – Associate"  # required
@@ -243,6 +252,54 @@ Exports to JSON Resume's native `certificates` array. That object is only
 `{name, date, issuer, url}`, so `expiry_date` and `identifier` are carried as
 [namespaced extensions](#json-resume-conformance-and-extensions) — they survive
 a cvloom round-trip and are ignored by other JSON Resume tools.
+
+---
+
+### awards.yaml
+
+Optional. Prizes, honours, and recognitions.
+
+```yaml
+- title: "Best Paper Award"                  # required
+  awarder: "ACM SIGPLAN"                     # optional
+  date: "2019"                               # optional — YYYY or YYYY-MM
+  summary: "For work on type inference."     # optional (Markdown supported)
+  tags: [research]                           # optional — profile filtering
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `title` | Yes | Award name |
+| `awarder` | No | Organisation that granted it |
+| `date` | No | `YYYY` or `YYYY-MM` |
+| `summary` | No | Short description (Markdown supported) |
+| `tags` | No | Used for profile filtering (untagged entries are always included) |
+
+Maps to JSON Resume's `awards` array field-for-field.
+
+---
+
+### languages.yaml
+
+Optional. Rendered as a single inline run (`Spanish (Native speaker) · English (C1)`)
+rather than a stack of entries, since two short fields per language don't warrant the
+vertical space.
+
+```yaml
+- language: Spanish                          # required
+  fluency: Native speaker                    # optional
+- language: English
+  fluency: C1                                # a CEFR level reads well here
+- language: Portuguese                       # fluency may be omitted entirely
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `language` | Yes | Language name |
+| `fluency` | No | Free text — a CEFR level (`C1`) or a description (`Native speaker`) |
+| `tags` | No | Used for profile filtering (untagged entries are always included) |
+
+Maps to JSON Resume's `languages` array field-for-field.
 
 ---
 
@@ -286,7 +343,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `include_tags` | `[]` (all) | Only include data entries whose `tags` overlap with this list |
 | `include_entries` | — | Force-include specific entries excluded by tag filtering |
-| `section_order` | `[skills, work, education, projects, publications, certifications]` | Override the rendering order of sections |
+| `section_order` | `[skills, work, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 
@@ -362,7 +419,7 @@ ignore. These survive an `export` → `import` round-trip:
 
 | cvloom field | Exported as |
 |---|---|
-| `tags` on work / education / publications / certifications | `x-cvloom-tags` |
+| `tags` on work / education / publications / certifications / awards / languages | `x-cvloom-tags` |
 | `expiry_date` on certifications | `x-cvloom-expiry_date` |
 | `identifier` on certifications | `x-cvloom-identifier` |
 | per-item skill `level` | `x-cvloom-levels` on the skill group |

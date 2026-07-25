@@ -526,3 +526,77 @@ def test_every_cv_template_renders_certifications(
     assert "AWS Certified Solutions Architect" in result.html
     assert "CNCF" in result.html
     assert "AWS-PSA-12345" in result.html
+
+
+# ── awards and languages ─────────────────────────────────────────────
+
+_AWARDS_YAML = (
+    "- title: Best Paper Award\n  awarder: ACM SIGPLAN\n"
+    '  date: "2019"\n  summary: For work on incremental type inference.\n'
+    "  tags: [research]\n"
+)
+_LANGUAGES_YAML = (
+    "- language: Spanish\n  fluency: Native speaker\n"
+    "- language: English\n  fluency: C1\n"
+    "- language: Portuguese\n"
+)
+
+
+@pytest.fixture
+def extras_project_dir(tmp_path: Path) -> Path:
+    return make_project(
+        tmp_path,
+        extra={"data/awards.yaml": _AWARDS_YAML, "data/languages.yaml": _LANGUAGES_YAML},
+    )
+
+
+def test_resolve_without_awards_or_languages(project_dir: Path) -> None:
+    result = resolve(
+        data_dir=project_dir / "data",
+        private_dir=project_dir / "private",
+        profiles_dir=project_dir / "profiles",
+        public=True,
+    )
+    assert result.data["awards"] == []
+    assert result.data["languages"] == []
+
+
+def test_resolve_loads_awards_and_languages(extras_project_dir: Path) -> None:
+    result = resolve(
+        data_dir=extras_project_dir / "data",
+        private_dir=extras_project_dir / "private",
+        profiles_dir=extras_project_dir / "profiles",
+        public=True,
+    )
+    assert result.data["awards"][0]["awarder"] == "ACM SIGPLAN"
+    assert [lang["language"] for lang in result.data["languages"]] == [
+        "Spanish",
+        "English",
+        "Portuguese",
+    ]
+    assert result.data["languages"][2]["fluency"] == ""  # schema-optional key filled
+
+
+@pytest.mark.parametrize("template", [t for t in list_templates() if t.startswith("cv/")])
+def test_every_cv_template_renders_awards_and_languages(
+    extras_project_dir: Path, template: str
+) -> None:
+    result = build_project(
+        extras_project_dir,
+        profile_name="general",
+        template_override=template,
+        public=True,
+        skip_pdf=True,
+    )
+    assert "Best Paper Award" in result.html
+    assert "ACM SIGPLAN" in result.html
+    # Languages render as one inline run, not a stack of entry blocks.
+    assert "Spanish (Native speaker)" in result.html
+    assert "Portuguese" in result.html
+
+
+def test_language_without_fluency_renders_bare(extras_project_dir: Path) -> None:
+    html = build_project(
+        extras_project_dir, profile_name="general", public=True, skip_pdf=True
+    ).html
+    assert "Portuguese ()" not in html

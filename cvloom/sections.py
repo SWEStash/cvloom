@@ -77,6 +77,8 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section("publications", "publications", "name", "Publications", "pubs"),
     Section("certifications", "certifications", "name", "Certifications", "certs"),
+    Section("awards", "awards", "title", "Awards", "awards"),
+    Section("languages", "languages", "language", "Languages", "langs"),
 )
 
 SECTIONS_BY_NAME: dict[str, Section] = {s.name: s for s in SECTIONS}
@@ -105,6 +107,9 @@ ENTRY_TEXT_FIELDS = (
     "publisher",
     "summary",
     "issuer",
+    "awarder",
+    "language",
+    "fluency",
 )
 
 

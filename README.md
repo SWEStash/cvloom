@@ -112,7 +112,8 @@ data/
 ├── work.yaml            # work history
 ├── education.yaml       # education
 ├── skills.yaml          # skills by category
-└── projects/            # one .yaml per project
+├── projects/            # one .yaml per project
+└── (optional)           # publications, certifications, awards, languages
 
 private/
 └── contact.yaml         # name, email, phone, address — GITIGNORED

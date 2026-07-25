@@ -37,6 +37,8 @@ class ImportedData:
     projects: list[dict[str, Any]] = field(default_factory=list)
     publications: list[dict[str, Any]] = field(default_factory=list)
     certifications: list[dict[str, Any]] = field(default_factory=list)
+    awards: list[dict[str, Any]] = field(default_factory=list)
+    languages: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -263,6 +265,35 @@ def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def _map_simple(
+    entries: list[dict[str, Any]], keys: tuple[tuple[str, str], ...], what: str
+) -> list[dict[str, Any]]:
+    """Map entries by (JSON Resume key → cvloom key), dropping empty values.
+
+    Enough for sections whose two schemas line up field-for-field; anything
+    needing a fold or a rename with logic keeps its own mapper.
+    """
+    result: list[dict[str, Any]] = []
+    for entry in entries:
+        _require(entry, "object", what)
+        item: dict[str, Any] = {}
+        for src, dest in keys:
+            if entry.get(src):
+                item[dest] = str(entry[src])
+        _restore_extensions(item, entry)
+        result.append(item)
+    return result
+
+
+_AWARD_KEYS = (
+    ("title", "title"),
+    ("awarder", "awarder"),
+    ("date", "date"),
+    ("summary", "summary"),
+)
+_LANGUAGE_KEYS = (("language", "language"), ("fluency", "fluency"))
+
+
 def from_json_resume(doc: Any) -> ImportedData:
     """Parse a JSON Resume document into cvloom sections.
 
@@ -279,12 +310,16 @@ def from_json_resume(doc: Any) -> ImportedData:
     projects = doc.get("projects") or []
     publications = doc.get("publications") or []
     certificates = doc.get("certificates") or []
+    awards = doc.get("awards") or []
+    languages = doc.get("languages") or []
     _require(work, "array", "work")
     _require(education, "array", "education")
     _require(skills, "array", "skills")
     _require(projects, "array", "projects")
     _require(publications, "array", "publications")
     _require(certificates, "array", "certificates")
+    _require(awards, "array", "awards")
+    _require(languages, "array", "languages")
 
     return ImportedData(
         contact=_map_contact(basics),
@@ -295,6 +330,8 @@ def from_json_resume(doc: Any) -> ImportedData:
         projects=_map_projects(projects),
         publications=_map_publications(publications),
         certifications=_map_certifications(certificates),
+        awards=_map_simple(awards, _AWARD_KEYS, "award entry"),
+        languages=_map_simple(languages, _LANGUAGE_KEYS, "language entry"),
     )
 
 
@@ -315,6 +352,10 @@ def validate_imported(imported: ImportedData) -> list[str]:
         payload["publications"] = imported.publications
     if imported.certifications:
         payload["certifications"] = imported.certifications
+    if imported.awards:
+        payload["awards"] = imported.awards
+    if imported.languages:
+        payload["languages"] = imported.languages
     return schema.validate_all(payload)
 
 
@@ -352,6 +393,10 @@ def plan_writes(imported: ImportedData, data_dir: Path, private_dir: Path) -> li
         add(data_dir / "publications.yaml", False)
     if imported.certifications:
         add(data_dir / "certifications.yaml", False)
+    if imported.awards:
+        add(data_dir / "awards.yaml", False)
+    if imported.languages:
+        add(data_dir / "languages.yaml", False)
     for stem in _project_stems(imported.projects):
         add(data_dir / "projects" / f"{stem}.yaml", False)
     return plans
@@ -386,6 +431,8 @@ def write_imported(imported: ImportedData, data_dir: Path, private_dir: Path) ->
         ("skills", imported.skills),
         ("publications", imported.publications),
         ("certifications", imported.certifications),
+        ("awards", imported.awards),
+        ("languages", imported.languages),
     ):
         if entries:
             path = data_dir / f"{section}.yaml"

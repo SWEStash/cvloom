@@ -122,8 +122,8 @@ Loads and merges YAML from `data/` and `private/`. Key responsibilities:
 ### `sections.py` — the section registry
 
 `SECTIONS` is a tuple of frozen `Section` records: the single source of truth for
-cvloom's five entry-list sections (work, education, projects, publications,
-certifications). Each record carries what the pipeline needs:
+cvloom's entry-list sections (work, education, projects, publications, certifications,
+awards, languages). Each record carries what the pipeline needs:
 
 | Field | Drives |
 |---|---|
@@ -153,7 +153,7 @@ It also owns the shared data walk — `highlight_text`, `skill_name`, `entry_lab
 
 ### `schema.py`
 
-Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `certifications`, `profile`, `contact`.
+Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `certifications`, `awards`, `languages`, `profile`, `contact`.
 
 `entry_defaults(name, prop=None)` — returns the typed empty value (`""` / `[]` / `{}`) for every *optional* property a schema declares. Single source of truth for `loader.normalize_optional_fields()` and for `job_context` defaults in `builder.build()`.
 
@@ -249,7 +249,7 @@ AI tools check `ai.provider.is_configured()` and return `{"error": "..."}` if no
 @dataclass
 class ResolvedProfile:
     profile: dict[str, Any]          # raw profile YAML
-    data: dict[str, Any]             # resolved CV data (work, education, skills, projects, publications, certifications, basics, contact)
+    data: dict[str, Any]             # resolved CV data (all sections + basics, contact)
     show_sections: dict[str, bool]   # section visibility flags
     section_order: list[str]         # render order
     template_name: str               # e.g. "cv/ats-single"

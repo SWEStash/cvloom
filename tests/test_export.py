@@ -388,3 +388,35 @@ def test_markdown_keeps_certification_extensions():
     assert "## Certifications" in md
     assert "2023-04 – 2026-04" in md
     assert "AWS-PSA-12345" in md
+
+
+# ── basics.public_links ──────────────────────────────────────────────
+
+
+def _with_links(*links):
+    return _make_resolved(basics={"headline": "Eng", "summary": "S", "public_links": list(links)})
+
+
+def test_public_links_map_to_profiles():
+    resolved = _with_links({"label": "Blog", "url": "https://example.com/blog"})
+    profiles = to_json_resume(resolved)["basics"]["profiles"]
+    assert {"network": "Blog", "url": "https://example.com/blog"} in profiles
+
+
+def test_public_links_do_not_duplicate_contact_profiles():
+    """A link pointing at the same GitHub already emitted from contact is redundant."""
+    resolved = _with_links({"label": "GitHub", "url": "https://github.com/janedoe"})
+    profiles = to_json_resume(resolved)["basics"]["profiles"]
+    assert [p for p in profiles if "github.com" in p["url"]] == [
+        {
+            "network": "GitHub",
+            "username": "janedoe",
+            "url": "https://github.com/janedoe",
+        }
+    ]
+
+
+def test_public_links_falls_back_to_url_when_unlabelled():
+    resolved = _with_links({"url": "https://example.com/x"})
+    profiles = to_json_resume(resolved)["basics"]["profiles"]
+    assert {"network": "https://example.com/x", "url": "https://example.com/x"} in profiles

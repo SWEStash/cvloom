@@ -216,3 +216,26 @@ def test_entry_defaults_publications():
     assert defaults["identifier"] == ""
     assert defaults["tags"] == []
     assert "name" not in defaults
+
+
+# ── awards / languages schemas ───────────────────────────────────────
+
+
+def test_validate_awards_minimal():
+    assert validate("awards", [{"title": "Best Paper"}]) == []
+
+
+def test_validate_awards_requires_title():
+    assert len(validate("awards", [{"awarder": "ACM"}])) == 1
+
+
+def test_validate_languages_minimal():
+    assert validate("languages", [{"language": "Spanish"}]) == []
+
+
+def test_validate_languages_requires_language():
+    assert len(validate("languages", [{"fluency": "C1"}])) == 1
+
+
+def test_validate_languages_rejects_unknown_field():
+    assert len(validate("languages", [{"language": "Spanish", "level": "C1"}])) == 1

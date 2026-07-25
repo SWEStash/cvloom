@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "languages",
+  "title": "CV Languages",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["language"],
+    "additionalProperties": false,
+    "properties": {
+      "language": {"type": "string", "description": "e.g. 'Spanish'"},
+      "fluency": {
+        "type": "string",
+        "description": "Free text — a CEFR level ('C1') or a plain description ('Native speaker')"
+      },
+      "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Technology/domain tags for profile filtering"
+      }
+    }
+  }
+}
