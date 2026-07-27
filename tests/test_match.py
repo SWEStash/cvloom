@@ -248,3 +248,41 @@ def test_reorder_hints_empty_single_work_entry() -> None:
     )
     report = analyze_match(r, "Python developer")
     assert report.reorder_hints == []
+
+
+# ── keyword coverage across all entry-list sections ──────────────────
+
+
+def test_certification_issuer_counts_toward_coverage() -> None:
+    """A JD asking for Kubernetes must not report a gap when the CV holds a
+    Kubernetes certification — keyword extraction covers every entry section."""
+    resolved = make_resolved(
+        certifications=[{"name": "Certified Kubernetes Administrator", "issuer": "CNCF"}]
+    )
+    report = analyze_match(resolved, "We need Kubernetes experience.")
+    assert "kubernetes" in {m.keyword for m in report.matched}
+    assert "kubernetes" not in set(report.gaps)
+
+
+def test_language_counts_toward_coverage() -> None:
+    resolved = make_resolved(languages=[{"language": "Spanish", "fluency": "C1"}])
+    report = analyze_match(resolved, "Spanish speaker preferred.")
+    assert "spanish" in {m.keyword for m in report.matched}
+
+
+def test_publication_publisher_counts_toward_coverage() -> None:
+    resolved = make_resolved(
+        publications=[{"name": "Scaling Kafka consumers", "publisher": "IEEE"}]
+    )
+    report = analyze_match(resolved, "Experience with Kafka required.")
+    assert "kafka" in {m.keyword for m in report.matched}
+
+
+def test_hidden_section_does_not_count() -> None:
+    """A section switched off for the profile isn't on the CV, so it can't match."""
+    resolved = make_resolved(
+        certifications=[{"name": "Certified Kubernetes Administrator"}],
+        show={"certifications": False},
+    )
+    report = analyze_match(resolved, "We need Kubernetes experience.")
+    assert "kubernetes" in set(report.gaps)

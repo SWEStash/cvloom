@@ -204,25 +204,16 @@ def _extract_cv_keywords(
     _ingest(basics.get("headline", ""), "basics")
     _ingest(basics.get("summary", ""), "basics")
 
-    # Array sections
-    for section in ("work", "education", "projects"):
+    # Every entry-list section. Walking the shared field list rather than a
+    # local copy means a certification's issuer or a language name counts
+    # toward keyword coverage — previously a JD asking for Kubernetes was
+    # reported as a gap even when the CV carried a CKA certification.
+    for section in sections.ARRAY_SECTIONS:
         if not show_sections.get(section):
             continue
         for entry in data.get(section, []):
-            for key in (
-                "company",
-                "title",
-                "institution",
-                "degree",
-                "field",
-                "name",
-                "description",
-            ):
-                val = entry.get(key)
-                if isinstance(val, str):
-                    _ingest(val, section)
-            for h in entry.get("highlights", []):
-                _ingest(sections.highlight_text(h), section)
+            for text in sections.iter_entry_text(entry):
+                _ingest(text, section)
             for tag in entry.get("tags", []):
                 _ingest(tag, section)
 
