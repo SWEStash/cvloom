@@ -51,7 +51,7 @@ def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
     labels = {"skills": "skills", **{s.name: s.summary_label for s in sections.SECTIONS}}
     parts = [
         f"{labels[name]}×{len(data[name])}"
-        for name in ("work", "education", "skills", "projects", "publications", "certifications")
+        for name in sections.DEFAULT_SECTION_ORDER
         if show.get(name) and data.get(name)
     ]
     return "  ".join(parts)
@@ -149,7 +149,11 @@ def build(
     if result.pdf_path:
         _console.print(f"[green]✓[/green] PDF   → {result.pdf_path}")
     summary = _section_summary(result.resolved.data, result.resolved.show_sections)
-    _console.print(f"[dim]  {result.words} words · ~{result.pages} page(s)  [{summary}][/dim]")
+    # The opening bracket is escaped for Rich, which would otherwise read
+    # "[skills×4 …]" as a markup tag and silently drop the whole summary.
+    stats = f"{result.words} words · ~{result.pages} page(s)"
+    bracketed = "  \\[" + summary + "]" if summary else ""
+    _console.print(f"[dim]  {stats}{bracketed}[/dim]")
     if result.pages > 2 and not result.resolved.template_name.startswith("cv/academic"):
         _console.print(
             "[yellow]Warning:[/yellow] Output exceeds 2 pages. "

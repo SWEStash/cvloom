@@ -1,0 +1,6 @@
+- name: "Event-driven pipelines at scale: lessons from 50k events/sec"
+  publisher: Internal Engineering Journal
+  release_date: "2023"
+  url: "https://example.com/papers/event-driven-pipelines"
+  summary: Practical trade-offs in Kafka consumer-group design.
+  tags: [kafka, distributed-systems]

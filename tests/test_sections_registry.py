@@ -70,3 +70,29 @@ def test_default_order_leads_with_skills() -> None:
     """skills is not in the registry (bespoke shape) but must still be ordered."""
     assert sections.DEFAULT_SECTION_ORDER[0] == "skills"
     assert set(sections.DEFAULT_SECTION_ORDER) - set(sections.ARRAY_SECTIONS) == {"skills"}
+
+
+def test_section_summary_covers_every_section() -> None:
+    """The CLI's post-build summary must not silently omit a new section.
+
+    It previously derived its *labels* from the registry but iterated a
+    hardcoded list, so sections added later were counted by nobody.
+    """
+    from cvloom.cli import _section_summary
+
+    data = {name: [{}] for name in sections.DEFAULT_SECTION_ORDER}
+    show = dict.fromkeys(sections.DEFAULT_SECTION_ORDER, True)
+    summary = _section_summary(data, show)
+
+    labels = {"skills": "skills", **{s.name: s.summary_label for s in sections.SECTIONS}}
+    for name in sections.DEFAULT_SECTION_ORDER:
+        assert f"{labels[name]}×1" in summary, f"{name} missing from build summary"
+
+
+def test_section_summary_respects_visibility() -> None:
+    from cvloom.cli import _section_summary
+
+    data = {name: [{}] for name in sections.DEFAULT_SECTION_ORDER}
+    show = dict.fromkeys(sections.DEFAULT_SECTION_ORDER, True)
+    show["awards"] = False
+    assert "awards" not in _section_summary(data, show)

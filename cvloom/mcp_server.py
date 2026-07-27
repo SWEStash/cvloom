@@ -66,7 +66,8 @@ def list_projects(
 def get_section(section: str, project_root: str | None = None) -> str:
     """Read raw YAML data for a section.
 
-    One of: basics, work, education, skills, projects, publications, contact.
+    One of: contact, basics, skills, or any entry-list section — work,
+    education, projects, publications, certifications, awards, languages.
     """
     root = _root(project_root)
 
@@ -77,16 +78,17 @@ def get_section(section: str, project_root: str | None = None) -> str:
         data = yaml.safe_load(contact_path.read_text())
         return json.dumps(data, indent=2)
 
-    if section == "projects":
-        projects_dir = root / "data" / "projects"
-        if not projects_dir.exists():
+    known = sections.SECTIONS_BY_NAME.get(section)
+    if known and known.from_directory:
+        entry_dir = root / "data" / known.name
+        if not entry_dir.exists():
             return json.dumps([])
-        projects: list[Any] = []
-        for pf in sorted(projects_dir.glob("*.yaml")):
-            p = yaml.safe_load(pf.read_text())
-            if p:
-                projects.append(p)
-        return json.dumps(projects, indent=2)
+        entries: list[Any] = []
+        for entry_file in sorted(entry_dir.glob("*.yaml")):
+            entry = yaml.safe_load(entry_file.read_text())
+            if entry:
+                entries.append(entry)
+        return json.dumps(entries, indent=2)
 
     path = root / "data" / f"{section}.yaml"
     if not path.exists():

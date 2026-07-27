@@ -1,0 +1,12 @@
+- name: AWS Certified Solutions Architect – Associate
+  issuer: Amazon Web Services
+  date: "2023-04"
+  expiry_date: "2026-04"
+  identifier: "AWS-PSA-0000000"
+  url: "https://example.com/verify/aws"
+  tags: [aws, cloud]
+
+- name: Certified Kubernetes Administrator
+  issuer: Cloud Native Computing Foundation
+  date: "2022-09"
+  tags: [kubernetes, cloud]

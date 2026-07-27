@@ -145,6 +145,16 @@ def test_build_html_only(project_root: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert "HTML" in result.output
 
 
+def test_build_prints_section_summary(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The summary is wrapped in literal brackets, which Rich reads as a markup
+    tag unless escaped — it was computed and silently dropped for a long time."""
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build", "--skip-pdf", "--public"])
+    assert result.exit_code == 0
+    assert "work×1" in result.output
+    assert "edu×1" in result.output
+
+
 def test_build_missing_profile(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(project_root)
     runner = CliRunner()
