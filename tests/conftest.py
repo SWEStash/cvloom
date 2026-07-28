@@ -44,6 +44,7 @@ def make_resolved(
     template_name: str = "cv/ats-single",
     output_filename: str = "cv",
     warnings: list[str] | None = None,
+    profile_name: str = "general",
 ) -> ResolvedProfile:
     """Build a ResolvedProfile with sensible defaults; override any part."""
     return ResolvedProfile(
@@ -65,6 +66,7 @@ def make_resolved(
         template_name=template_name,
         output_filename=output_filename,
         warnings=warnings or [],
+        profile_name=profile_name,
     )
 
 

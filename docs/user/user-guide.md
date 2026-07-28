@@ -224,13 +224,14 @@ rather than dropped — which means it does not survive a round-trip back into
 ### certifications.yaml
 
 Optional — omit the file entirely if you have none. Certifications, licences,
-and short courses, rendered as a compact **Certifications** section by every CV
-template — a title row plus one meta line, with no bullet list, unlike the fuller
-treatment education entries get.
+and short courses, rendered compactly by every CV template — a title row plus
+one meta line, with no bullet list, unlike the fuller treatment education
+entries get.
 
 ```yaml
 - name: "AWS Certified Solutions Architect – Associate"  # required
   issuer: "Amazon Web Services"                          # optional
+  type: certification                                    # optional — see below
   date: "2023-04"                                        # optional — YYYY or YYYY-MM
   expiry_date: "2026-04"                                 # optional
   identifier: "AWS-PSA-12345"                            # optional — credential/licence ID
@@ -242,16 +243,34 @@ treatment education entries get.
 |---|---|---|
 | `name` | Yes | Credential title |
 | `issuer` | No | Issuing organisation |
+| `type` | No | `certification`, `license`, `course`, or `micro-credential`. Defaults to `certification` |
 | `date` | No | Date earned — `YYYY` or `YYYY-MM` |
 | `expiry_date` | No | Expiry date, if the credential expires |
 | `identifier` | No | Credential or licence ID |
 | `url` | No | Verification link |
 | `tags` | No | Used for profile filtering (untagged entries are always included) |
 
+#### Credentials vs coursework
+
+`type` decides which heading an entry renders under. Exam-backed credentials
+(`certification`, `license`) group under **Certifications**; completion records
+(`course`, `micro-credential`) group under **Professional Development**.
+Credentials render first, and a group with no entries is omitted entirely — so
+a file of nothing but courses gets an accurate heading rather than one claiming
+they are certifications.
+
+Omitting `type` means `certification`, so files written before the field
+existed render exactly as they did.
+
+The vocabulary follows [Open Badges 3.0](https://www.imsglobal.org/spec/ob/v3p0)'s
+`achievementType`, and the credential/coursework split is the same line LinkedIn
+draws between its *Licenses & Certifications* and *Courses* sections — which is
+what lets an export route each entry to the right one.
+
 Exports to JSON Resume's native `certificates` array. That object is only
-`{name, date, issuer, url}`, so `expiry_date` and `identifier` are carried as
-[namespaced extensions](#json-resume-conformance-and-extensions) — they survive
-a cvloom round-trip and are ignored by other JSON Resume tools.
+`{name, date, issuer, url}`, so `type`, `expiry_date` and `identifier` are
+carried as [namespaced extensions](#json-resume-conformance-and-extensions) —
+they survive a cvloom round-trip and are ignored by other JSON Resume tools.
 
 ---
 
@@ -339,7 +358,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 |---|---|---|
 | `template` | *(required)* | Template path, e.g. `cv/ats-single` |
 | `output_filename` | Profile name | Base name for output files (without extension) |
-| `pdf_filename_format` | `{first}_{last}_Resume.pdf` | PDF filename override; `{first}` and `{last}` come from contact name |
+| `pdf_filename_format` | `{first}_{last}_Resume_{profile}.pdf` | PDF filename override. `{first}`/`{last}`/`{name}` come from contact name; `{profile}` is the profile name |
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `include_tags` | `[]` (all) | Only include data entries whose `tags` overlap with this list |
 | `include_entries` | — | Force-include specific entries excluded by tag filtering |
@@ -353,14 +372,29 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 
 ### CV templates
 
-| Template | Description |
-|---|---|
-| `cv/ats-single` | ATS-optimised single-column. No web fonts. Best for maximum ATS compatibility. |
-| `cv/modern-single` | Single-column with accent color, skill level bars, and Inter font. |
-| `cv/timeline-clean` | Timeline-style work history with Roboto font. |
-| `cv/executive-dark` | Bold typographic hierarchy with dark headings. Good for senior roles. |
-| `cv/sidebar-compact` | Two-column with sidebar. Compact — fits more on one page. |
-| `cv/academic` | Education-first layout. Serif font. Orders publications directly after education and labels projects "Research & Projects". No page-count limit warning. |
+| Template | Layout | Parse safety | Description |
+|---|---|:--:|---|
+| `cv/ats-single` | single-column | ✅ safest | ATS-optimised single-column. No web fonts. Best for maximum ATS compatibility. |
+| `cv/modern-single` | single-column | ✅ safe | Single-column with accent color, skill level bars, and Inter font. |
+| `cv/executive-dark` | single-column | ✅ safe | Bold typographic hierarchy with dark headings. Good for senior roles. |
+| `cv/academic` | single-column | ✅ safe | Education-first layout. Serif font. Orders publications directly after education and labels projects "Research & Projects". No page-count limit warning. |
+| `cv/timeline-clean` | two-column grid | ⚠️ check | Timeline-style work history with Roboto font. |
+| `cv/sidebar-compact` | sidebar + main | ⚠️ check | Two-column with sidebar. Compact — fits more on one page. |
+
+#### On the parse-safety column
+
+Multi-column layouts are the one formatting choice with a well-supported effect on résumé
+parsing: parsers walk the document in source order, not visual order, so content laid out
+side by side can be interleaved or attributed to the wrong section. The two ⚠️ templates
+place content in CSS grid columns; the ✅ templates keep one column throughout.
+
+This is a *risk* flag, not a prohibition — parser behaviour varies, and a two-column CV is
+perfectly reasonable when a human is the primary reader (a referral, a portfolio site, a
+conference handout). If you are applying through an unknown ATS, prefer a ✅ template, or
+build both and send the single-column one.
+
+What cvloom does **not** do in any template, because these break parsing much harder than
+columns: `<table>` layout, text in headers/footers, or text baked into images.
 
 ### Cover letter templates
 

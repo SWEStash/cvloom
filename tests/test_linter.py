@@ -104,6 +104,45 @@ def test_quantification_present():
     assert len(findings) == 0
 
 
+def test_quantification_reports_once_per_entry():
+    """One finding per role, not one per bullet.
+
+    Firing per bullet buried every other rule under duplicates, and the
+    "every bullet needs a number" premise isn't supported anyway — what
+    matters is whether the role shows any quantified outcome at all.
+    """
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Managed IT solution delivery for clients.",
+                    "Gathered requirements and delivered custom software.",
+                    "Administered and tuned production databases.",
+                ],
+            },
+        ]
+    )
+    findings = lint(resolved, rule_ids=["wl-002"])
+    assert len(findings) == 1
+    assert findings[0].bullet_index is None
+
+
+def test_quantification_satisfied_by_any_bullet():
+    resolved = _make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Managed IT solution delivery for clients.",
+                    "Cut operating costs by 30%.",
+                ],
+            },
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-002"]) == []
+
+
 # ── wl-003: noise skills ───────────────────────────────────────────
 
 
@@ -825,3 +864,248 @@ def test_wl018_skipped_when_education_hidden() -> None:
         show={"work": True, "education": False, "skills": True, "projects": True},
     )
     assert lint(resolved, rule_ids=["wl-018"]) == []
+
+
+# ── wl-019: reverse-chronological order ──────────────────────────────
+
+
+def test_wl019_flags_out_of_order_work() -> None:
+    resolved = make_resolved(
+        work=[
+            {"company": "Old", "start_date": "2009-08", "end_date": "2016-03"},
+            {"company": "New", "start_date": "2016-03", "end_date": "2024-01"},
+        ]
+    )
+    findings = lint(resolved, rule_ids=["wl-019"])
+    assert len(findings) == 1
+    assert findings[0].section == "work"
+    assert "New" in findings[0].message
+
+
+def test_wl019_silent_when_reverse_chronological() -> None:
+    resolved = make_resolved(
+        work=[
+            {"company": "New", "start_date": "2016-03", "end_date": "2024-01"},
+            {"company": "Old", "start_date": "2009-08", "end_date": "2016-03"},
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-019"]) == []
+
+
+def test_wl019_treats_present_as_most_recent() -> None:
+    resolved = make_resolved(
+        work=[
+            {"company": "Current", "start_date": "2016-03", "end_date": "Present"},
+            {"company": "Old", "start_date": "2009-08", "end_date": "2016-03"},
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-019"]) == []
+
+
+def test_wl019_flags_ascending_education() -> None:
+    resolved = make_resolved(
+        education=[
+            {"institution": "BSc Uni", "degree": "BSc", "start_date": "2017", "end_date": "2017"},
+            {"institution": "MSc Uni", "degree": "MSc", "start_date": "2022", "end_date": "2022"},
+        ]
+    )
+    findings = lint(resolved, rule_ids=["wl-019"])
+    assert len(findings) == 1
+    assert findings[0].section == "education"
+
+
+def test_wl019_uses_certification_date_field() -> None:
+    resolved = make_resolved(
+        certifications=[
+            {"name": "Old cert", "date": "2015"},
+            {"name": "New cert", "date": "2023"},
+        ]
+    )
+    findings = lint(resolved, rule_ids=["wl-019"])
+    assert len(findings) == 1
+    assert findings[0].section == "certifications"
+
+
+def test_wl019_ignores_undated_sections() -> None:
+    resolved = make_resolved(
+        languages=[{"language": "Spanish"}, {"language": "English"}],
+    )
+    assert lint(resolved, rule_ids=["wl-019"]) == []
+
+
+def test_wl019_ignores_entries_without_dates() -> None:
+    resolved = make_resolved(work=[{"company": "A"}, {"company": "B"}])
+    assert lint(resolved, rule_ids=["wl-019"]) == []
+
+
+# ── wl-020: date sanity ──────────────────────────────────────────────
+
+
+def test_wl020_flags_end_before_start() -> None:
+    resolved = make_resolved(
+        work=[{"company": "Acme", "start_date": "2020-05", "end_date": "2018-01"}]
+    )
+    findings = lint(resolved, rule_ids=["wl-020"])
+    assert len(findings) == 1
+    assert "ends before it starts" in findings[0].message
+
+
+def test_wl020_flags_future_date() -> None:
+    resolved = make_resolved(
+        work=[{"company": "Acme", "start_date": "2999-01", "end_date": "Present"}]
+    )
+    findings = lint(resolved, rule_ids=["wl-020"])
+    assert len(findings) == 1
+    assert "future" in findings[0].message
+
+
+def test_wl020_flags_expired_credential() -> None:
+    resolved = make_resolved(
+        certifications=[{"name": "AWS SA", "date": "2017", "expiry_date": "2020"}]
+    )
+    findings = lint(resolved, rule_ids=["wl-020"])
+    assert len(findings) == 1
+    assert "expired" in findings[0].message
+
+
+def test_wl020_silent_on_valid_dates() -> None:
+    resolved = make_resolved(
+        work=[{"company": "Acme", "start_date": "2020-01", "end_date": "2023-06"}],
+        certifications=[{"name": "Cert", "date": "2024", "expiry_date": "2099"}],
+    )
+    assert lint(resolved, rule_ids=["wl-020"]) == []
+
+
+# ── wl-021: unfilled placeholders ────────────────────────────────────
+
+
+def test_wl021_flags_bracket_placeholder_in_company() -> None:
+    resolved = make_resolved(work=[{"company": "[Company Name]", "start_date": "2020-01"}])
+    findings = lint(resolved, rule_ids=["wl-021"])
+    assert len(findings) == 1
+    assert "[Company Name]" in findings[0].message
+
+
+def test_wl021_flags_placeholder_in_highlight() -> None:
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "start_date": "2020-01",
+                "highlights": ["Cut costs by [X]% across [N] teams."],
+            }
+        ]
+    )
+    findings = lint(resolved, rule_ids=["wl-021"])
+    assert len(findings) == 1
+
+
+def test_wl021_flags_placeholder_in_summary() -> None:
+    resolved = make_resolved(basics={"headline": "Engineer", "summary": "I work at [Company]."})
+    findings = lint(resolved, rule_ids=["wl-021"])
+    assert len(findings) == 1
+    assert findings[0].section == "basics"
+
+
+def test_wl021_silent_on_clean_content() -> None:
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "start_date": "2020-01",
+                "highlights": ["Cut costs by 40% across 6 teams."],
+            }
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-021"]) == []
+
+
+def test_wl019_checks_certification_groups_independently() -> None:
+    """Credentials and coursework render as separate groups, so each is ordered
+    on its own — a course newer than the credential above it is not a defect."""
+    resolved = make_resolved(
+        certifications=[
+            {"name": "New cert", "date": "2023", "type": "certification"},
+            {"name": "Old cert", "date": "2017", "type": "certification"},
+            {"name": "New course", "date": "2024", "type": "course"},
+            {"name": "Old course", "date": "2015", "type": "course"},
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-019"]) == []
+
+
+def test_wl019_still_flags_disorder_within_a_certification_group() -> None:
+    resolved = make_resolved(
+        certifications=[
+            {"name": "Old course", "date": "2015", "type": "course"},
+            {"name": "New course", "date": "2024", "type": "course"},
+        ]
+    )
+    findings = lint(resolved, rule_ids=["wl-019"])
+    assert len(findings) == 1
+    assert findings[0].entry == "New course"
+
+
+# ── wl-013 / wl-007 false positives ──────────────────────────────────
+
+
+def test_wl013_present_tense_verbs_ending_in_ed_are_not_past() -> None:
+    """ "Embed", "exceed", "succeed" are present tense despite the -ed ending."""
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "end_date": "Present",
+                "highlights": [
+                    "Embed governance practice across twelve delivery teams worldwide.",
+                    "Exceed the agreed service levels on every managed account.",
+                    "Lead a platform team of fourteen engineers across three regions.",
+                ],
+            }
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-013"]) == []
+
+
+def test_wl013_still_flags_real_past_tense_in_current_role() -> None:
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "end_date": "Present",
+                "highlights": ["Designed a billing pipeline handling forty thousand events."],
+            }
+        ]
+    )
+    assert len(lint(resolved, rule_ids=["wl-013"])) == 1
+
+
+def test_wl007_roman_numeral_is_not_a_pronoun() -> None:
+    """ "Algorithms I" is a course level; "Phase II" a stage. Neither is a pronoun."""
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "Taught Algorithms I and II to forty students every academic term.",
+                    "Delivered Phase I of the migration ahead of the agreed schedule.",
+                ],
+            }
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-007"]) == []
+
+
+def test_wl007_still_flags_real_first_person() -> None:
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme",
+                "highlights": [
+                    "I led the migration of the billing platform to Kubernetes.",
+                    "Rebuilt the pipeline that my team had maintained for years.",
+                ],
+            }
+        ]
+    )
+    assert len(lint(resolved, rule_ids=["wl-007"])) == 2

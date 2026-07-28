@@ -1,12 +1,25 @@
+# `type` follows the Open Badges 3.0 achievementType vocabulary and decides the
+# heading an entry renders under: exam-backed credentials group as
+# "Certifications", completion records as "Professional Development".
+# Omitting it means "certification", so data predating the field is unaffected.
+
 - name: AWS Certified Solutions Architect – Associate
   issuer: Amazon Web Services
-  date: "2023-04"
-  expiry_date: "2026-04"
+  type: certification
+  date: "2029-04"
+  expiry_date: "2032-04"
   identifier: "AWS-PSA-0000000"
   url: "https://example.com/verify/aws"
   tags: [aws, cloud]
 
 - name: Certified Kubernetes Administrator
   issuer: Cloud Native Computing Foundation
-  date: "2022-09"
+  type: certification
+  date: "2028-09"
   tags: [kubernetes, cloud]
+
+- name: Functional Programming Principles in Scala
+  issuer: Coursera
+  type: course
+  date: "2027-02"
+  tags: [scala]

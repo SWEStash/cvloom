@@ -16,6 +16,12 @@
         "type": "string",
         "description": "Issuing organisation — e.g. 'Amazon Web Services'"
       },
+      "type": {
+        "type": "string",
+        "enum": ["certification", "license", "course", "micro-credential"],
+        "default": "certification",
+        "description": "Kind of credential, following the Open Badges 3.0 achievementType vocabulary. Exam-backed credentials ('certification', 'license') render under Certifications; completion records ('course', 'micro-credential') render under Professional Development. Omitted means 'certification'."
+      },
       "date": {"type": "string", "description": "Date earned — YYYY or YYYY-MM"},
       "expiry_date": {
         "type": "string",

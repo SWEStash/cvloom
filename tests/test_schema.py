@@ -239,3 +239,16 @@ def test_validate_languages_requires_language():
 
 def test_validate_languages_rejects_unknown_field():
     assert len(validate("languages", [{"language": "Spanish", "level": "C1"}])) == 1
+
+
+def test_entry_defaults_honours_schema_default() -> None:
+    """A constrained field must default to a *valid* value, not the empty string.
+
+    normalize_optional_fields() fills every optional key so templates can test
+    it under StrictUndefined. For an enum-constrained property the typed empty
+    value ("") is not a member of the enum, so filling it that way makes valid
+    data fail validation.
+    """
+    defaults = entry_defaults("certifications")
+    assert defaults["type"] == "certification"
+    assert validate("certifications", [{"name": "X", **defaults}]) == []

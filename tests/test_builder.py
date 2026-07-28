@@ -121,6 +121,7 @@ def _make_resolved_for_pdf(
     contact_name: str = "Jane Doe",
     output_filename: str = "cv",
     pdf_filename_format: str | None = None,
+    profile_name: str = "general",
 ) -> ResolvedProfile:
     profile: dict = {}
     if pdf_filename_format:
@@ -131,17 +132,36 @@ def _make_resolved_for_pdf(
         show={},
         section_order=[],
         output_filename=output_filename,
+        profile_name=profile_name,
     )
 
 
+def test_pdf_filename_disambiguates_by_profile():
+    """Two profiles sharing a contact must not collide on one PDF name.
+
+    Regression: the default was contact-derived only, so building N profiles
+    left a single PDF — whichever built last silently overwrote the rest.
+    """
+    general = _make_resolved_for_pdf(profile_name="general")
+    tailored = _make_resolved_for_pdf(profile_name="data-ai")
+    assert _pdf_filename(general) != _pdf_filename(tailored)
+
+
+def test_pdf_filename_profile_token():
+    resolved = _make_resolved_for_pdf(
+        profile_name="data-ai", pdf_filename_format="{profile}_{last}"
+    )
+    assert _pdf_filename(resolved) == "data-ai_Doe"
+
+
 def test_pdf_filename_derives_from_contact_name():
-    resolved = _make_resolved_for_pdf(contact_name="Jane Doe")
-    assert _pdf_filename(resolved) == "Jane_Doe_Resume"
+    resolved = _make_resolved_for_pdf(contact_name="Jane Doe", profile_name="general")
+    assert _pdf_filename(resolved) == "Jane_Doe_Resume_general"
 
 
 def test_pdf_filename_single_name():
-    resolved = _make_resolved_for_pdf(contact_name="Mononym")
-    assert _pdf_filename(resolved) == "Mononym_Resume"
+    resolved = _make_resolved_for_pdf(contact_name="Mononym", profile_name="general")
+    assert _pdf_filename(resolved) == "Mononym_Resume_general"
 
 
 def test_pdf_filename_format_override():

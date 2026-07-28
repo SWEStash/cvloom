@@ -420,3 +420,16 @@ def test_public_links_falls_back_to_url_when_unlabelled():
     resolved = _with_links({"url": "https://example.com/x"})
     profiles = to_json_resume(resolved)["basics"]["profiles"]
     assert {"network": "https://example.com/x", "url": "https://example.com/x"} in profiles
+
+
+def test_certification_type_survives_export():
+    """`type` drives the LinkedIn export's two-section split, so it must survive."""
+    resolved = _make_resolved(
+        certifications=[
+            {"name": "CKA", "issuer": "CNCF", "date": "2023", "type": "certification"},
+            {"name": "GenAI with LLMs", "issuer": "DeepLearning.AI", "type": "course"},
+        ]
+    )
+    doc = to_json_resume(resolved)
+    assert doc["certificates"][0]["x-cvloom-type"] == "certification"
+    assert doc["certificates"][1]["x-cvloom-type"] == "course"

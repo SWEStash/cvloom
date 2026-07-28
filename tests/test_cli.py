@@ -40,16 +40,18 @@ def project_root(tmp_path: Path) -> Path:
         "- category: Tools\n  items: [Docker, Kubernetes, Terraform, Postgres]\n"
     )
 
+    # Projects load in *filename* order, so the alphabetically-first file must
+    # hold the newest project to stay reverse-chronological (wl-019).
     projects = data / "projects"
     projects.mkdir()
     (projects / "alpha.yaml").write_text(
         "name: alpha\ndescription: First project.\ntags: [python, cli]\n"
-        'url: "https://example.com/alpha"\nstart_date: "2023-01"\n'
+        'url: "https://example.com/alpha"\nstart_date: "2024-01"\n'
         "highlights:\n  - Built a CLI tool in Python used by over 500 developers every day.\n"
     )
     (projects / "beta.yaml").write_text(
         "name: beta\ndescription: Second project.\ntags: [rust]\n"
-        'url: "https://example.com/beta"\nstart_date: "2024-01"\n'
+        'url: "https://example.com/beta"\nstart_date: "2023-01"\n'
         "highlights:\n  - Wrote a Rust parser cutting build times by 30 percent on all pipelines.\n"
     )
 

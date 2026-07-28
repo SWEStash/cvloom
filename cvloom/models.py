@@ -23,6 +23,8 @@ class ResolvedProfile:
     template_name: str
     output_filename: str
     warnings: list[str] = field(default_factory=list)
+    profile_name: str = ""
+    """Profile this was resolved from — disambiguates per-profile output filenames."""
 
 
 @dataclass

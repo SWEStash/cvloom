@@ -224,9 +224,10 @@
 
 {% macro section_certifications() %}
 {% if show.certifications and certifications %}
-<div class="section-title">Certifications</div>
+{% for heading, group in certifications | cert_groups %}
+<div class="section-title">{{ heading }}</div>
 <div class="timeline-section">
-  {% for cert in certifications %}
+  {% for cert in group %}
   <div class="timeline-entry">
     <div class="entry-header clearfix">
       <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
@@ -236,6 +237,7 @@
   </div>
   {% endfor %}
 </div>
+{% endfor %}
 {% endif %}
 {% endmacro %}
 

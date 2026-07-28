@@ -226,3 +226,52 @@ def test_render_with_name_only_contact(template: str) -> None:
     context = {**_FULL_CONTEXT, "contact": {"name": "Jane"}, "public": True}
     html = render_template(template, context)
     assert "Jane" in html
+
+
+def _cert(name, issuer, *, date="", type="", url="", expiry_date="", identifier=""):
+    """A certification with every optional key present.
+
+    Raw render_template() bypasses loader.normalize_optional_fields(), which is
+    what fills these in a real build; templates run under StrictUndefined.
+    """
+    return {
+        "name": name,
+        "issuer": issuer,
+        "date": date,
+        "type": type,
+        "url": url,
+        "expiry_date": expiry_date,
+        "identifier": identifier,
+    }
+
+
+def _context_with_certs(certifications):
+    ctx = dict(_FULL_CONTEXT)
+    ctx["certifications"] = certifications
+    ctx["show"] = {**_FULL_CONTEXT["show"], "certifications": True}
+    ctx["section_order"] = [*_FULL_CONTEXT["section_order"], "certifications"]
+    return ctx
+
+
+def test_certifications_render_grouped_by_type():
+    """Courses must not render under a "Certifications" heading."""
+    html = render_template(
+        "cv/ats-single",
+        _context_with_certs(
+            [
+                _cert("GenAI with LLMs", "DeepLearning.AI", type="course"),
+                _cert("CKA", "CNCF", date="2023", type="certification"),
+            ]
+        ),
+    )
+    assert "Certifications" in html
+    assert "Professional Development" in html
+    # Credentials group renders before coursework.
+    assert html.index("Certifications") < html.index("Professional Development")
+
+
+def test_certifications_untyped_render_under_certifications_only():
+    """Data predating the `type` field keeps rendering exactly as before."""
+    html = render_template("cv/ats-single", _context_with_certs([_cert("Legacy cert", "Acme")]))
+    assert "Certifications" in html
+    assert "Professional Development" not in html

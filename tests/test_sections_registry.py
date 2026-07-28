@@ -96,3 +96,46 @@ def test_section_summary_respects_visibility() -> None:
     show = dict.fromkeys(sections.DEFAULT_SECTION_ORDER, True)
     show["awards"] = False
     assert "awards" not in _section_summary(data, show)
+
+
+# ── certification type grouping ──────────────────────────────────────
+
+
+def test_group_certifications_credentials_only() -> None:
+    groups = sections.group_certifications(
+        [{"name": "CKA", "type": "certification"}, {"name": "Licence", "type": "license"}]
+    )
+    assert [heading for heading, _ in groups] == ["Certifications"]
+    assert len(groups[0][1]) == 2
+
+
+def test_group_certifications_coursework_only() -> None:
+    groups = sections.group_certifications(
+        [
+            {"name": "GenAI with LLMs", "type": "course"},
+            {"name": "Nano", "type": "micro-credential"},
+        ]
+    )
+    assert [heading for heading, _ in groups] == ["Professional Development"]
+
+
+def test_group_certifications_mixed_puts_credentials_first() -> None:
+    groups = sections.group_certifications(
+        [
+            {"name": "Course", "type": "course"},
+            {"name": "Cert", "type": "certification"},
+        ]
+    )
+    assert [heading for heading, _ in groups] == ["Certifications", "Professional Development"]
+    assert groups[0][1][0]["name"] == "Cert"
+    assert groups[1][1][0]["name"] == "Course"
+
+
+def test_group_certifications_defaults_missing_type_to_credential() -> None:
+    """Existing data has no `type`; it must keep rendering as a certification."""
+    groups = sections.group_certifications([{"name": "Legacy cert"}])
+    assert [heading for heading, _ in groups] == ["Certifications"]
+
+
+def test_group_certifications_empty() -> None:
+    assert sections.group_certifications([]) == []

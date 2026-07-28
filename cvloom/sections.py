@@ -62,10 +62,44 @@ class Section:
     universally relevant and always included.
     """
 
+    sort_date_keys: tuple[str, ...] = ()
+    """Date fields ranking an entry chronologically; the first present wins.
+
+    Empty for sections with no meaningful chronology (languages).
+    """
+
+    range_keys: tuple[str, str] | None = None
+    """``(start, end)`` field pair, where the section has one, for date sanity."""
+
+    expiry_key: str = ""
+    """Field carrying a credential expiry date, where the section has one."""
+
+
+# Shared by the three sections that carry a start/end range.
+_DATED = ("end_date", "start_date")
+_RANGE = ("start_date", "end_date")
 
 SECTIONS: tuple[Section, ...] = (
-    Section("work", "work", "company", "Work Experience", "work", warn_if_missing=True),
-    Section("education", "education", "institution", "Education", "edu", warn_if_missing=True),
+    Section(
+        "work",
+        "work",
+        "company",
+        "Work Experience",
+        "work",
+        warn_if_missing=True,
+        sort_date_keys=_DATED,
+        range_keys=_RANGE,
+    ),
+    Section(
+        "education",
+        "education",
+        "institution",
+        "Education",
+        "edu",
+        warn_if_missing=True,
+        sort_date_keys=_DATED,
+        range_keys=_RANGE,
+    ),
     Section(
         "projects",
         "project",
@@ -74,10 +108,27 @@ SECTIONS: tuple[Section, ...] = (
         "projects",
         from_directory=True,
         strict_tags=True,
+        sort_date_keys=_DATED,
+        range_keys=_RANGE,
     ),
-    Section("publications", "publications", "name", "Publications", "pubs"),
-    Section("certifications", "certifications", "name", "Certifications", "certs"),
-    Section("awards", "awards", "title", "Awards", "awards"),
+    Section(
+        "publications",
+        "publications",
+        "name",
+        "Publications",
+        "pubs",
+        sort_date_keys=("release_date",),
+    ),
+    Section(
+        "certifications",
+        "certifications",
+        "name",
+        "Certifications",
+        "certs",
+        sort_date_keys=("date",),
+        expiry_key="expiry_date",
+    ),
+    Section("awards", "awards", "title", "Awards", "awards", sort_date_keys=("date",)),
     Section("languages", "languages", "language", "Languages", "langs"),
 )
 
@@ -111,6 +162,61 @@ ENTRY_TEXT_FIELDS = (
     "language",
     "fluency",
 )
+
+
+# Credential kinds, following the Open Badges 3.0 achievementType vocabulary.
+# The split is exam-backed credential vs completion record — the same line
+# LinkedIn draws between "Licenses & Certifications" and "Courses", which is
+# what makes this field a direct lookup for the LinkedIn export.
+CREDENTIAL_TYPES: frozenset[str] = frozenset({"certification", "license"})
+COURSEWORK_TYPES: frozenset[str] = frozenset({"course", "micro-credential"})
+
+CREDENTIAL_HEADING = "Certifications"
+COURSEWORK_HEADING = "Professional Development"
+
+# JSON Resume has no type discriminator on `certificates`, so data imported
+# from elsewhere arrives untyped. Treat that as the credential case: it is what
+# the section meant before the field existed.
+DEFAULT_CREDENTIAL_TYPE = "certification"
+
+
+def group_certifications(
+    entries: list[dict[str, Any]],
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Split certification entries into their rendered groups.
+
+    Returns ``(heading, entries)`` pairs — credentials first, coursework
+    second — omitting any group with no entries, so a section of purely one
+    kind renders under a single accurate heading rather than a hardcoded
+    "Certifications" that overclaims a list of MOOCs.
+    """
+    credentials: list[dict[str, Any]] = []
+    coursework: list[dict[str, Any]] = []
+    for entry in entries:
+        kind = str(entry.get("type") or DEFAULT_CREDENTIAL_TYPE)
+        (coursework if kind in COURSEWORK_TYPES else credentials).append(entry)
+    return [
+        (heading, group)
+        for heading, group in (
+            (CREDENTIAL_HEADING, credentials),
+            (COURSEWORK_HEADING, coursework),
+        )
+        if group
+    ]
+
+
+def ordered_runs(section: str, entries: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Entry runs that are each rendered as one contiguous, independently
+    ordered block.
+
+    Almost every section renders as a single run, so chronology applies to the
+    whole list. Certifications render as two groups, and ordering only means
+    anything *within* a group — a course newer than the credential above it is
+    not out of order, because they never appear under the same heading.
+    """
+    if section == "certifications":
+        return [group for _, group in group_certifications(entries)]
+    return [entries]
 
 
 def highlight_text(hl: Any) -> str:

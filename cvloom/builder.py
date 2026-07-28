@@ -154,6 +154,7 @@ def resolve(
         template_name=template_name,
         output_filename=output_filename,
         warnings=overlay_warnings,
+        profile_name=profile_name,
     )
 
 
@@ -208,22 +209,34 @@ def build_project(
 
 
 def _pdf_filename(resolved: ResolvedProfile) -> str:
-    """Derive the PDF output stem from profile format string or contact name."""
+    """Derive the PDF output stem from profile format string or contact name.
+
+    The default carries a ``_<profile>`` suffix: without it every profile
+    resolves to the same contact-derived stem, so building several profiles
+    leaves one PDF and silently overwrites the rest.
+    """
+    name = resolved.data.get("contact", {}).get("name", "")
+    parts = name.split()
+    first = parts[0] if parts else ""
+    last = parts[-1] if len(parts) > 1 else ""
+    profile = resolved.profile_name
+
     fmt = resolved.profile.get("pdf_filename_format")
     if fmt:
-        name = resolved.data.get("contact", {}).get("name", "")
-        parts = name.split()
-        first = parts[0] if parts else ""
-        last = parts[-1] if len(parts) > 1 else ""
-        return str(fmt.format(first=first, last=last, name=name.replace(" ", "_")))
+        return str(
+            fmt.format(
+                first=first,
+                last=last,
+                name=name.replace(" ", "_"),
+                profile=profile,
+            )
+        )
 
-    name = resolved.data.get("contact", {}).get("name", "")
     if name:
-        parts = name.split()
-        first = parts[0]
-        last = parts[-1] if len(parts) > 1 else ""
-        return f"{first}_{last}_Resume" if last else f"{first}_Resume"
+        stem = f"{first}_{last}_Resume" if last else f"{first}_Resume"
+        return f"{stem}_{profile}" if profile else stem
 
+    # No contact name: output_filename is already unique per profile.
     return resolved.output_filename
 
 

@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
+from typing import Any
 
 from cvloom import sections
 from cvloom.models import ResolvedProfile
@@ -147,7 +149,33 @@ _NOISE_SKILLS = {
 _MIN_HIGHLIGHT_WORDS = 8
 _MAX_HIGHLIGHT_WORDS = 25
 
-_FIRST_PERSON_RE = re.compile(r"\b(I|my|me|mine|myself)\b", re.IGNORECASE)
+# "I" is case-sensitive here: lowercase "i" is never the pronoun, and matching
+# it case-insensitively turned every stray initial into a finding.
+_FIRST_PERSON_RE = re.compile(r"\b(?:my|me|mine|myself)\b", re.IGNORECASE)
+_PRONOUN_I_RE = re.compile(r"\bI\b")
+
+# Present-tense verbs whose -ed ending makes the past-tense heuristic misfire.
+_PRESENT_TENSE_ED = frozenset(
+    {
+        "embed",
+        "exceed",
+        "proceed",
+        "succeed",
+        "precede",
+        "concede",
+        "recede",
+        "feed",
+        "need",
+        "breed",
+        "speed",
+        "seed",
+        "heed",
+        "bleed",
+        "plead",
+        "spread",
+        "shed",
+    }
+)
 
 _VAGUE_BUZZWORDS_RE = re.compile(
     r"\b(?:"
@@ -169,6 +197,10 @@ _WORDS_PER_PAGE = 500
 
 _DATE_YYYY_MM_RE = re.compile(r"^\d{4}-\d{2}$")
 _DATE_YYYY_RE = re.compile(r"^\d{4}$")
+
+# Scaffold placeholders such as "[Company Name]" or "[X]%". The negative
+# lookahead spares Markdown links, whose "[label](url)" is not a placeholder.
+_PLACEHOLDER_RE = re.compile(r"\[[^\][]{1,40}\](?!\()")
 
 _IRREGULAR_PAST = frozenset(
     {
@@ -347,25 +379,35 @@ def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
 
 
 def _check_missing_quantification(resolved: ResolvedProfile) -> list[LintFinding]:
-    """wl-002: Flag highlights without any numbers."""
+    """wl-002: Flag entries whose highlights carry no numbers at all.
+
+    Reported per entry rather than per bullet: a role is weak when it shows no
+    quantified outcome anywhere, not because some individual bullet lacks a
+    figure. Per-bullet reporting also drowned every other rule in duplicates.
+    """
     findings: list[LintFinding] = []
-
-    def test(text: str, idx: int) -> LintFinding | None:
-        if not re.search(r"\d+", text):
-            return LintFinding(
-                rule_id="wl-002",
-                severity="warning",
-                section="",
-                entry="",
-                bullet_index=idx,
-                bullet_text=text,
-                message="No quantification found in this highlight.",
-                fix_hint="Add metrics: percentages, counts, dollar amounts, or time saved.",
-            )
-        return None
-
     for section in ("work", "projects"):
-        findings.extend(_check_highlights(resolved, section, "wl-002", test))
+        if not resolved.show_sections.get(section):
+            continue
+        for entry in resolved.data.get(section, []):
+            highlights = [sections.highlight_text(h) for h in entry.get("highlights", [])]
+            if not highlights or any(re.search(r"\d+", text) for text in highlights):
+                continue
+            findings.append(
+                LintFinding(
+                    rule_id="wl-002",
+                    severity="warning",
+                    section=section,
+                    entry=sections.entry_label(section, entry),
+                    bullet_index=None,
+                    bullet_text=None,
+                    message="No quantified outcome in this entry.",
+                    fix_hint=(
+                        "Add a metric to at least one bullet: percentages, counts, "
+                        "dollar amounts, or time saved. Not every bullet needs one."
+                    ),
+                )
+            )
     return findings
 
 
@@ -509,7 +551,9 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
             if not text:
                 continue
             first_word = text.lstrip("- ").split()[0].lower() if text.split() else ""
-            is_past = first_word.endswith("ed") or first_word in _IRREGULAR_PAST
+            is_past = (
+                first_word.endswith("ed") and first_word not in _PRESENT_TENSE_ED
+            ) or first_word in _IRREGULAR_PAST
 
             if is_current and is_past:
                 findings.append(
@@ -637,12 +681,31 @@ def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
+def _has_first_person(text: str) -> bool:
+    """True when *text* actually uses a first-person pronoun.
+
+    A bare "I" is only a pronoun when it is not a roman numeral. "Algorithms I"
+    and "Phase II" are a course level and a project stage, and both follow a
+    capitalised noun — whereas the pronoun opens a clause or follows a
+    lowercase word.
+    """
+    if _FIRST_PERSON_RE.search(text):
+        return True
+    for match in _PRONOUN_I_RE.finditer(text):
+        preceding = text[: match.start()].rstrip()
+        if not preceding:
+            return True
+        if not preceding.split()[-1][:1].isupper():
+            return True
+    return False
+
+
 def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
     """wl-007: Flag first-person pronouns in highlights and summary."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
-        if _FIRST_PERSON_RE.search(text):
+        if _has_first_person(text):
             return LintFinding(
                 rule_id="wl-007",
                 severity="warning",
@@ -659,7 +722,7 @@ def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
         findings.extend(_check_highlights(resolved, section, "wl-007", test))
 
     summary = resolved.data.get("basics", {}).get("summary", "")
-    if summary and _FIRST_PERSON_RE.search(summary):
+    if summary and _has_first_person(summary):
         findings.append(
             LintFinding(
                 rule_id="wl-007",
@@ -778,6 +841,193 @@ def _check_education_size(resolved: ResolvedProfile) -> list[LintFinding]:
             ),
         )
     ]
+
+
+def _parse_date(value: str, *, as_end: bool = False) -> tuple[int, int] | None:
+    """Parse ``YYYY`` / ``YYYY-MM`` into a comparable ``(year, month)``.
+
+    ``Present`` (and anything unparseable) returns ``None``; callers decide what
+    an open-ended date means. A bare year resolves to December when it closes a
+    range and January when it opens one, so ``2020`` – ``2020-05`` is not read
+    as ending before it starts.
+    """
+    text = str(value).strip()
+    if _DATE_YYYY_MM_RE.match(text):
+        year, month = text.split("-")
+        return int(year), int(month)
+    if _DATE_YYYY_RE.match(text):
+        return int(text), 12 if as_end else 1
+    return None
+
+
+def _entry_rank(section: sections.Section, entry: dict[str, Any]) -> tuple[int, int] | None:
+    """Chronological rank of *entry* — the first present ``sort_date_keys`` field.
+
+    An explicit ``Present`` outranks every real date, since the role is ongoing.
+    """
+    for key in section.sort_date_keys:
+        raw = str(entry.get(key, "")).strip()
+        if not raw:
+            continue
+        if raw.lower() == "present":
+            return (9999, 12)
+        parsed = _parse_date(raw, as_end=key.startswith("end"))
+        if parsed:
+            return parsed
+    return None
+
+
+def _check_chronological_order(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-019: Flag sections not ordered newest-first."""
+    findings: list[LintFinding] = []
+    for section in sections.SECTIONS:
+        if not section.sort_date_keys or not resolved.show_sections.get(section.name):
+            continue
+        entries = resolved.data.get(section.name, [])
+        # Order only means something within a rendered block; certifications
+        # render as two, and their chronologies are independent.
+        for run in sections.ordered_runs(section.name, entries):
+            findings.extend(_out_of_order(section, run))
+    return findings
+
+
+def _out_of_order(section: sections.Section, entries: list[dict[str, Any]]) -> list[LintFinding]:
+    """The first entry in *entries* that is newer than the one above it."""
+    findings: list[LintFinding] = []
+    ranked = [(e, _entry_rank(section, e)) for e in entries]
+    dated = [(e, r) for e, r in ranked if r is not None]
+    if len(dated) >= 2:
+        for (_, earlier), (entry, later) in zip(dated, dated[1:], strict=False):
+            if later > earlier:
+                findings.append(
+                    LintFinding(
+                        rule_id="wl-019",
+                        severity="warning",
+                        section=section.name,
+                        entry=sections.entry_label(section.name, entry),
+                        bullet_index=None,
+                        bullet_text=None,
+                        message=(
+                            f"'{sections.entry_label(section.name, entry)}' is newer than the "
+                            "entry above it — this section is not in reverse-chronological order."
+                        ),
+                        fix_hint=(
+                            "Rename the files so the newest sorts first — "
+                            f"data/{section.name}/ loads in filename order."
+                            if section.from_directory
+                            else "Reorder the entries newest-first; cvloom renders "
+                            "them in the order they appear in the file."
+                        ),
+                    )
+                )
+                break
+    return findings
+
+
+def _check_date_sanity(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-020: Flag impossible dates and expired credentials."""
+    findings: list[LintFinding] = []
+    today = date.today()
+    now = (today.year, today.month)
+
+    def finding(section: str, entry: dict[str, Any], message: str, fix_hint: str) -> LintFinding:
+        return LintFinding(
+            rule_id="wl-020",
+            severity="warning",
+            section=section,
+            entry=sections.entry_label(section, entry),
+            bullet_index=None,
+            bullet_text=None,
+            message=message,
+            fix_hint=fix_hint,
+        )
+
+    for section in sections.SECTIONS:
+        if not resolved.show_sections.get(section.name):
+            continue
+        for entry in resolved.data.get(section.name, []):
+            if section.range_keys:
+                start_key, end_key = section.range_keys
+                start = _parse_date(str(entry.get(start_key, "")))
+                end = _parse_date(str(entry.get(end_key, "")), as_end=True)
+                if start and end and end < start:
+                    findings.append(
+                        finding(
+                            section.name,
+                            entry,
+                            f"Entry ends before it starts ({entry[start_key]} → {entry[end_key]}).",
+                            "Correct the dates. Parsers reading a negative tenure may "
+                            "drop the entry or mis-assign its dates.",
+                        )
+                    )
+
+            for key in (*section.sort_date_keys, *(section.range_keys or ())):
+                raw = str(entry.get(key, "")).strip()
+                parsed = _parse_date(raw) if raw else None
+                if parsed and parsed > now:
+                    findings.append(
+                        finding(
+                            section.name,
+                            entry,
+                            f"'{key}' is in the future ({raw}).",
+                            "Use a date that has already happened, or 'Present' "
+                            "for an ongoing entry.",
+                        )
+                    )
+                    break
+
+            if section.expiry_key:
+                expiry_raw = str(entry.get(section.expiry_key, "")).strip()
+                expiry = _parse_date(expiry_raw, as_end=True) if expiry_raw else None
+                if expiry and expiry < now:
+                    findings.append(
+                        finding(
+                            section.name,
+                            entry,
+                            f"Credential expired ({expiry_raw}).",
+                            "Renew it, remove it, or label it as lapsed. Listing an "
+                            "expired credential as current is a credibility risk.",
+                        )
+                    )
+    return findings
+
+
+def _check_unfilled_placeholders(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-021: Flag scaffold placeholders left in the content."""
+    findings: list[LintFinding] = []
+
+    def scan(section: str, entry_label: str, text: str) -> None:
+        match = _PLACEHOLDER_RE.search(text)
+        if match:
+            findings.append(
+                LintFinding(
+                    rule_id="wl-021",
+                    severity="warning",
+                    section=section,
+                    entry=entry_label,
+                    bullet_index=None,
+                    bullet_text=None,
+                    message=f"Unfilled placeholder: {match.group()}",
+                    fix_hint=(
+                        "Replace it with real content, or delete the clause. "
+                        "This renders verbatim into the PDF you send out."
+                    ),
+                )
+            )
+
+    basics = resolved.data.get("basics", {})
+    for key in ("headline", "summary"):
+        scan("basics", key, str(basics.get(key, "")))
+
+    for section in sections.SECTIONS:
+        if not resolved.show_sections.get(section.name):
+            continue
+        for entry in resolved.data.get(section.name, []):
+            label = sections.entry_label(section.name, entry)
+            for text in sections.iter_entry_text(entry):
+                scan(section.name, label, text)
+
+    return findings
 
 
 def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
@@ -1056,6 +1306,27 @@ RULES: list[LintRule] = [
         f"Flag an education section with more than {_MAX_EDUCATION_ENTRIES} entries",
         CATEGORY_STRUCTURE,
         _check_education_size,
+    ),
+    LintRule(
+        "wl-019",
+        "chronological-order",
+        "Flag sections not ordered newest-first",
+        CATEGORY_STRUCTURE,
+        _check_chronological_order,
+    ),
+    LintRule(
+        "wl-020",
+        "date-sanity",
+        "Flag impossible dates and expired credentials",
+        CATEGORY_ATS_PARSE,
+        _check_date_sanity,
+    ),
+    LintRule(
+        "wl-021",
+        "unfilled-placeholders",
+        "Flag scaffold placeholders left in the content",
+        CATEGORY_STRUCTURE,
+        _check_unfilled_placeholders,
     ),
 ]
 

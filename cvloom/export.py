@@ -231,11 +231,13 @@ def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     JSON Resume's certificate object is only {name, date, issuer, url}. Unlike
     a publication's ``identifier`` there is no ``summary`` to fold into, so
-    ``expiry_date`` and ``identifier`` ride in the extension namespace.
+    ``expiry_date``, ``identifier`` and ``type`` ride in the extension
+    namespace. ``type`` matters most on the way *out* to LinkedIn, which does
+    split credentials from coursework across two profile sections.
     """
     items = _map_entries(entries, _CERTIFICATION_FIELDS)
     for item, entry in zip(items, entries, strict=True):
-        for key in ("expiry_date", "identifier"):
+        for key in ("expiry_date", "identifier", "type"):
             if entry.get(key):
                 item[f"x-cvloom-{key}"] = entry[key]
     return items

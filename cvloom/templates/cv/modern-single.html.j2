@@ -162,8 +162,9 @@
 
 {% macro section_certifications() %}
 {% if show.certifications and certifications %}
-<div class="section-title">Certifications</div>
-{% for cert in certifications %}
+{% for heading, group in certifications | cert_groups %}
+<div class="section-title">{{ heading }}</div>
+{% for cert in group %}
 <div class="entry">
   <div class="entry-header clearfix">
     <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
@@ -171,6 +172,7 @@
   </div>
   {% if cert.issuer or cert.identifier %}<div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
 </div>
+{% endfor %}
 {% endfor %}
 {% endif %}
 {% endmacro %}

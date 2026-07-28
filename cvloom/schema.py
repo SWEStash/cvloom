@@ -34,6 +34,11 @@ def entry_defaults(name: str, prop: str | None = None) -> dict[str, Any]:
     Filling the schema's own optional properties keeps "optional" meaning
     optional. Required properties are left out so validation still catches
     genuinely missing data.
+
+    A property declaring its own ``default`` gets that value rather than the
+    typed empty one: for a constrained field (an ``enum``, say) the empty
+    string is not a legal member, so filling it that way would make otherwise
+    valid data fail validation.
     """
     schema = _load_schema(name)
     if prop is not None:
@@ -41,7 +46,7 @@ def entry_defaults(name: str, prop: str | None = None) -> dict[str, Any]:
     entry = schema["items"] if schema.get("type") == "array" else schema
     required = set(entry.get("required", []))
     return {
-        prop: copy.deepcopy(_TYPE_DEFAULTS[spec["type"]])
+        prop: copy.deepcopy(spec.get("default", _TYPE_DEFAULTS[spec["type"]]))
         for prop, spec in entry.get("properties", {}).items()
         if prop not in required and spec.get("type") in _TYPE_DEFAULTS
     }

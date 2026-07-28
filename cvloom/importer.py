@@ -260,7 +260,7 @@ def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             item["date"] = str(entry["date"])
         if entry.get("url"):
             item["url"] = str(entry["url"])
-        _restore_extensions(item, entry, "expiry_date", "identifier")
+        _restore_extensions(item, entry, "expiry_date", "identifier", "type")
         result.append(item)
     return result
 

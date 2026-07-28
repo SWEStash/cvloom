@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `cvloom check` command runs 17 deterministic, rule-based checks against a resolved
+The `cvloom check` command runs 21 deterministic, rule-based checks against a resolved
 profile to catch common CV writing issues. The linter inspects highlights (bullet points) in
 the work, education, and projects sections, as well as skill items, contact info, and basics.
 
@@ -47,7 +47,7 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | Rule ID  | Name                    | Category   | Severity   | Sections Checked           | What It Flags |
 |----------|-------------------------|------------|:----------:|----------------------------|---------------|
 | `wl-001` | passive-voice           | writing    | warning    | work, education, projects  | Passive voice constructions in highlights |
-| `wl-002` | missing-quantification  | writing    | warning    | work, projects             | Highlights with no numbers |
+| `wl-002` | missing-quantification  | writing    | warning    | work, projects             | Entries whose highlights carry no numbers at all |
 | `wl-003` | noise-skills            | writing    | warning    | skills                     | Low-value commodity skills |
 | `wl-004` | weak-action-verbs       | writing    | warning    | work, education, projects  | Highlights starting with weak verbs/phrases |
 | `wl-005` | highlight-length        | writing    | warning    | work, education, projects  | Highlights shorter than 8 or longer than 25 words |
@@ -64,6 +64,9 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | `wl-016` | readability             | writing    | suggestion | work, projects             | Flesch-Kincaid grade outside target range 6–12 |
 | `wl-017` | tech-mentions-in-work   | ats-parse  | suggestion | work                       | Work entry highlights mention no skill item |
 | `wl-018` | education-size          | structure  | warning    | education                  | More than 6 education entries — degrees and short courses rendering with equal weight |
+| `wl-019` | chronological-order     | structure  | warning    | all dated sections         | A section not ordered newest-first |
+| `wl-020` | date-sanity             | ats-parse  | warning    | all dated sections         | End before start, dates in the future, expired credentials |
+| `wl-021` | unfilled-placeholders   | structure  | warning    | basics, all entry sections | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
 
 ---
 
@@ -96,19 +99,22 @@ recruiters read active bullets as ownership of impact.
 
 **Category:** writing | **Sections checked:** work, projects | **Severity:** warning
 
-Flags any highlight that contains no digits at all. Numbers provide concrete evidence of
-impact and are strongly preferred by hiring managers.
+Flags an **entry** whose highlights contain no digits anywhere — one finding per role or
+project, not one per bullet.
 
 **Basis:** quantified achievements are consistently rated more credible than unquantified
-claims in recruiter-preference studies and style guides.
+claims in recruiter-preference studies and style guides. That evidence supports *the role
+showing measurable impact*; it does not support requiring a number in every individual
+bullet. Reporting per bullet also buried every other rule under duplicates on exactly the
+CVs that needed those rules most. A single quantified highlight satisfies the rule.
 
-**Bad:**
-- "Improved application performance significantly"
+**Bad:** a role whose every bullet describes responsibilities — "Managed IT solution
+delivery", "Gathered requirements", "Administered databases" — with no outcome anywhere.
 
-**Good:**
-- "Improved application performance by 40%, reducing p99 latency from 800ms to 120ms"
+**Good:** the same role with at least one bullet reading "Cut operating costs by 30%".
 
-**Fix hint:** Add metrics: percentages, counts, dollar amounts, or time saved.
+**Fix hint:** Add a metric to at least one bullet: percentages, counts, dollar amounts, or
+time saved. Not every bullet needs one.
 
 ---
 
@@ -355,3 +361,74 @@ with equal weight, so the tail visually competes with the degrees and pushes the
 
 **Fix hint:** Move certifications and short courses to `data/certifications.yaml`. Alternatively
 tag the tail (e.g. `tags: [certification]`) and filter it out per profile with `include_tags`.
+
+### wl-019: chronological-order
+
+**Category:** structure | **Sections checked:** every section with dates | **Severity:** warning
+
+Fires when a section's entries are not ordered newest-first. Ranking uses the section's own
+date fields: `end_date` (falling back to `start_date`) for work, education and projects,
+`date` for certifications and awards, and `release_date` for publications. An explicit
+`Present` outranks every real date. Entries with no parseable date are ignored, and
+`languages` — which has no chronology — is skipped entirely.
+
+**Basis (structure):** cvloom renders entries in the order it loads them and never sorts by
+date, so ordering is entirely the author's. Reverse-chronological is the convention readers
+scan against: the top of a section is where a recruiter looks for your current role. A
+timeline that jumps around also breaks any downstream consumer that infers recency from
+position rather than re-reading the dates.
+
+**Note on `projects/`:** projects load from `data/projects/*.yaml` in **filename** order, which
+has no relationship to their dates. To order them chronologically, name the files so the
+newest sorts first.
+
+**Bad:** work running 2016 → 2009 → 2002 → 2023, with the most recent role fourth.
+
+**Good:** every section strictly newest-first.
+
+**Fix hint:** Reorder the entries newest-first (or rename the files, for `projects/`).
+
+### wl-020: date-sanity
+
+**Category:** ats-parse | **Sections checked:** every section with dates | **Severity:** warning
+
+Flags three impossible or misleading date conditions:
+
+1. **End before start** — an entry whose `end_date` precedes its `start_date`.
+2. **Future dates** — any date later than the current month.
+3. **Expired credentials** — a certification whose `expiry_date` has passed.
+
+A bare `YYYY` resolves to December when it closes a range and January when it opens one, so
+`2020` – `2020-05` is not misread as ending before it starts. `Present` is never a violation.
+
+**Basis (ats-parse):** parsers compute tenure from these fields; a negative range can cause an
+entry to be dropped or its dates mis-assigned. Expired credentials are a separate,
+human-facing problem — many vendor certifications lapse (AWS certifications, for instance, are
+valid for three years), and presenting a lapsed one as current is a credibility risk under
+scrutiny.
+
+**Bad:** `AWS Certified Solutions Architect`, `date: "2017"`, no `expiry_date`, presented
+alongside current credentials.
+
+**Good:** renew it, remove it, or set `expiry_date` and let the rule tell you when it lapses.
+
+**Fix hint:** Correct the dates; renew, remove, or label lapsed credentials.
+
+### wl-021: unfilled-placeholders
+
+**Category:** structure | **Sections checked:** basics + every entry section | **Severity:** warning
+
+Fires when bracketed placeholder text survives into the rendered CV — `[Company Name]`,
+`[N]`, `[X]%`, `[your-handle]`. Markdown links are exempt: `[label](url)` is a link, not a
+placeholder.
+
+**Basis (structure):** `cvloom init` scaffolds placeholder content by design, and tailoring a
+CV per application means repeatedly half-filling entries. Nothing else in the pipeline stops a
+placeholder reaching the PDF you attach to an application — schema validation only checks
+types, and every other rule reads placeholder text as ordinary prose.
+
+**Bad:** a generated PDF whose first role reads "VP Consulting Services — [Company Name]".
+
+**Good:** every bracket either filled with real content or deleted along with its clause.
+
+**Fix hint:** Replace it with real content, or delete the clause.
