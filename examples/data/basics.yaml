@@ -2,8 +2,10 @@ headline: "Senior Software Engineer"
 summary: >
   Experienced backend engineer with 8+ years building scalable distributed systems.
   Passionate about developer tooling, open-source, and clean architecture.
-public_links:
+links:
+  - label: LinkedIn
+    url: https://linkedin.com/in/janesmith
   - label: GitHub
-    url: https://github.com/SWEStash
+    url: https://github.com/janesmith
   - label: Website
-    url: https://yourwebsite.example.com
+    url: https://janesmith.dev

@@ -9,6 +9,7 @@ for managing and building CV/cover-letter outputs without cloud accounts or
 headless browsers. Contributions that preserve this scope are most welcome.
 
 **Good fit:**
+
 - Bug fixes and validation improvements
 - New built-in templates (CV layouts, cover letter styles)
 - New ATS linter rules (see `docs/reference/ats-linter-rules.md`)
@@ -16,6 +17,7 @@ headless browsers. Contributions that preserve this scope are most welcome.
 - Test coverage
 
 **Out of scope:**
+
 - Web UI or server components
 - Cloud storage or account systems
 - Headless browser PDF (WeasyPrint is the canonical approach)
@@ -75,8 +77,8 @@ on Python 3.11, 3.12, and 3.13.
 
 | Variable | Type | Notes |
 |---|---|---|
-| `contact` | dict | Keys: name, email, phone, location, linkedin, github, website |
-| `basics` | dict | Keys: headline, summary, public_links |
+| `contact` | dict | Keys: name, email, phone, location |
+| `basics` | dict | Keys: headline, summary, links (each `{label, url}`) |
 | `work` | list | Each entry: company, title, start_date, end_date?, location?, highlights?, tags? |
 | `education` | list | Each entry: institution, degree, field?, start_date, end_date?, location?, highlights? |
 | `skills` | list | Each entry: category, items (list of str or {name, level}) |

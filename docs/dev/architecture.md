@@ -31,9 +31,11 @@ cvloom/
 ├── sections.py         # Section registry + shared CV data walk
 ├── schema.py           # JSON Schema validation (Draft 2020-12)
 ├── overlays.py         # Match-and-patch system for per-job customization
+├── projects.py         # Shared profile/project listing behind the CLI and MCP
 ├── renderer.py         # Jinja2 rendering, template discovery
-├── filters.py          # Custom Jinja2 filters: md, date_range, skill_level_bar
-├── linter.py           # Writing lint: 18 categorized rules, LintFinding, lint()
+├── filters.py          # Custom Jinja2 filters: md, date_range, skill_level_bar, link_anchor
+├── links.py            # Profile-link vocabulary: network_of, link_username, normalize_url
+├── linter.py           # Writing lint: 22 categorized rules, LintFinding, lint()
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
@@ -47,6 +49,9 @@ cvloom/
 │   ├── cover.py        # generate_cover() — tailored cover letter
 │   ├── suggest.py      # suggest() — improvement suggestions for a target role
 │   └── align.py        # align() — qualitative JD alignment analysis
+├── hooks/              # pre-commit PII hook, scaffolded by `init`/`sync`
+├── scaffold/           # `init`/`sync` file operations, managed-file registry
+│   └── samples/        # Sample YAML written by `cvloom init`
 ├── schemas/            # JSON Schema files for each data type
 └── templates/          # Built-in Jinja2 templates
     ├── base.html.j2
@@ -93,6 +98,7 @@ cli.py
 ### `cli.py`
 
 Click command group with all top-level commands. Each command:
+
 1. Validates inputs and constructs `Path` objects from `Path.cwd()`
 2. Calls the appropriate domain function (builder, linter, etc.)
 3. Formats and prints output using `rich`
@@ -113,6 +119,7 @@ def build(data_dir, private_dir, profiles_dir, output_dir, profile_name, ...) ->
 ### `loader.py`
 
 Loads and merges YAML from `data/` and `private/`. Key responsibilities:
+
 - Tag-based filtering of work, education, project, publication, and certification entries (strict for projects, lenient elsewhere — see `docs/reference/profiles-and-overlays.md`)
 - Public/private contact mode (removes `email` and `phone` in `--public`)
 - `apply_force_includes()` — second unfiltered load to retrieve excluded entries and merge them back
@@ -162,6 +169,7 @@ Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cove
 ### `overlays.py`
 
 Applies profile overlays after loading. Three overlay types:
+
 - **Basics overlay** — shallow merge onto `data["basics"]`
 - **Array section overlays** (work, education, projects) — match by field, then apply: `exclude`, field overrides, highlight pick/exclude/replace/append. `publications` is not overlay-addressable: entries carry no highlights, so there is nothing for the pick/exclude/replace machinery to act on.
 - **Skills overlay** — filter categories and exclude items within categories
@@ -171,6 +179,7 @@ Applies profile overlays after loading. Three overlay types:
 ### `renderer.py`
 
 Jinja2 environment with `StrictUndefined`. Template discovery:
+
 1. Project-local `templates/` (user overrides)
 2. `cvloom/templates/` (built-in)
 
@@ -229,10 +238,10 @@ round-trip is lossless.
 `tests/test_export_jsonresume_conformance.py` validates exports against a vendored
 copy of the official schema (`tests/fixtures/jsonresume-schema.json`).
 
-
 ### `mcp_server.py`
 
 FastMCP server. Each tool function:
+
 1. Resolves `project_root` (defaults to `Path.cwd()`)
 2. Calls the appropriate domain function
 3. Returns a JSON string

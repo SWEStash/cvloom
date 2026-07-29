@@ -14,8 +14,9 @@
       "type": "string",
       "description": "2–4 sentence professional summary (Markdown supported)"
     },
-    "public_links": {
+    "links": {
       "type": "array",
+      "description": "Profile links shown in the CV header. Public by nature, so they live here rather than in private/contact.yaml and render identically in public and private builds.",
       "items": {
         "type": "object",
         "required": ["label", "url"],

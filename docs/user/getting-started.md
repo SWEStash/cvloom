@@ -110,12 +110,13 @@ name: "Jane Smith"
 email: "jane.smith@example.com"
 phone: "+1 (555) 123-4567"
 location: "San Francisco, CA"
-website: "https://janesmith.dev"
-linkedin: "janesmith"
-github: "janesmith"
 ```
 
 Only `name` is required. Everything else is optional.
+
+This file is for identity and reachability. Your LinkedIn, GitHub, and website
+are public links, so they go in `data/basics.yaml` (next step) — that way they
+survive `--public` builds and builds made without a `private/` directory.
 
 ### 2.2 Basics
 
@@ -128,12 +129,17 @@ summary: >
   in Python and Go. Passionate about developer tooling, observability,
   and clean architecture.
 
-public_links:
+links:
+  - label: LinkedIn
+    url: https://linkedin.com/in/janesmith
   - label: GitHub
     url: https://github.com/janesmith
   - label: Website
     url: https://janesmith.dev
 ```
+
+Write full URLs. They render in the CV header as clickable links whose visible
+text is the URL itself, which keeps them readable by both ATS parsers and people.
 
 ### 2.3 Work experience
 
@@ -170,6 +176,7 @@ Edit `data/work.yaml`. Notice two formats for highlights — plain strings and `
 ```
 
 **Tips:**
+
 - `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. Use `Present` for current roles.
 - `tags` are used for filtering in profiles (covered in Scenario 7).
 - Work entries without `tags` are always included regardless of filtering.
@@ -531,6 +538,7 @@ This means the second work entry has more JD keyword overlap than the first. Reo
 ### 6.5 Act on the gaps
 
 Use the gaps to improve your CV before applying:
+
 1. Add missing keywords to your highlights where they truthfully apply.
 2. Create a tailored profile (Scenario 7) with overlays that emphasize the matched terms.
 3. Re-run `match` to verify improved coverage.
@@ -540,6 +548,7 @@ Use the gaps to improve your CV before applying:
 ## Scenario 7: Create a Tailored Profile
 
 This is where cvloom shines. You will create a job-specific profile that:
+
 - Filters entries by tags
 - Overrides headline and summary
 - Cherry-picks specific highlights
@@ -612,6 +621,7 @@ cvloom build --profile backend-role
 ```
 
 Open `dist/backend-role-cv.html` and compare it to your general CV. Notice:
+
 - The headline and summary are customized
 - Only tagged entries appear
 - Work highlights are cherry-picked
@@ -800,6 +810,7 @@ cvloom build --profile datastream-letter
 Open `dist/datastream-cover-letter.html` to review. The cover letter template uses your contact info and the `job_context` fields to produce a formatted letter.
 
 Available cover letter templates:
+
 - `cover-letter/standard` — full formal cover letter
 - `cover-letter/brief` — compact, one-paragraph format
 

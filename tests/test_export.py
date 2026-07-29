@@ -20,15 +20,20 @@ from cvloom.models import ResolvedProfile
 
 def _make_resolved(**overrides: object) -> ResolvedProfile:
     data = {
-        "basics": {"headline": "Software Engineer", "summary": "A great engineer."},
+        "basics": {
+            "headline": "Software Engineer",
+            "summary": "A great engineer.",
+            "links": [
+                {"label": "LinkedIn", "url": "https://linkedin.com/in/janedoe"},
+                {"label": "GitHub", "url": "https://github.com/janedoe"},
+                {"label": "Website", "url": "https://jane.dev"},
+            ],
+        },
         "contact": {
             "name": "Jane Doe",
             "email": "jane@example.com",
             "phone": "+1 555-1234",
             "location": "San Francisco, CA",
-            "website": "https://jane.dev",
-            "linkedin": "janedoe",
-            "github": "janedoe",
         },
         "work": [
             {
@@ -83,7 +88,6 @@ def test_basics_mapping():
     assert result["basics"]["label"] == "Software Engineer"
     assert result["basics"]["summary"] == "A great engineer."
     assert result["basics"]["phone"] == "+1 555-1234"
-    assert result["basics"]["url"] == "https://jane.dev"
 
 
 def test_location_mapping():
@@ -163,12 +167,12 @@ def test_minimal_contact():
             contact={
                 "name": "Min",
                 "email": "min@example.com",
-            }
+            },
+            basics={"headline": "Software Engineer", "summary": "A great engineer."},
         )
     )
     assert result["basics"]["name"] == "Min"
     assert "phone" not in result["basics"]
-    assert "url" not in result["basics"]
     assert "profiles" not in result["basics"]
 
 
@@ -258,7 +262,7 @@ def test_linkedin_no_warning_under_limit(tmp_path: Path) -> None:
 
 def test_linkedin_warning_over_limit(tmp_path: Path) -> None:
     long_summary = "x" * 2601
-    r = _make_resolved(basics={"headline": "Engineer", "summary": long_summary, "public_links": []})
+    r = _make_resolved(basics={"headline": "Engineer", "summary": long_summary, "links": []})
     warnings = export_linkedin(r, tmp_path / "li.txt")
     assert len(warnings) == 1
     assert "2601" in warnings[0]
@@ -390,33 +394,42 @@ def test_markdown_keeps_certification_extensions():
     assert "AWS-PSA-12345" in md
 
 
-# ── basics.public_links ──────────────────────────────────────────────
+# ── basics.links ─────────────────────────────────────────────────────
 
 
 def _with_links(*links):
-    return _make_resolved(basics={"headline": "Eng", "summary": "S", "public_links": list(links)})
+    return _make_resolved(basics={"headline": "Eng", "summary": "S", "links": list(links)})
 
 
-def test_public_links_map_to_profiles():
+def test_links_map_to_profiles():
     resolved = _with_links({"label": "Blog", "url": "https://example.com/blog"})
     profiles = to_json_resume(resolved)["basics"]["profiles"]
     assert {"network": "Blog", "url": "https://example.com/blog"} in profiles
 
 
-def test_public_links_do_not_duplicate_contact_profiles():
-    """A link pointing at the same GitHub already emitted from contact is redundant."""
+def test_known_network_links_carry_a_username():
     resolved = _with_links({"label": "GitHub", "url": "https://github.com/janedoe"})
     profiles = to_json_resume(resolved)["basics"]["profiles"]
-    assert [p for p in profiles if "github.com" in p["url"]] == [
+    assert profiles == [
         {
             "network": "GitHub",
-            "username": "janedoe",
             "url": "https://github.com/janedoe",
+            "username": "janedoe",
         }
     ]
 
 
-def test_public_links_falls_back_to_url_when_unlabelled():
+def test_links_deduplicate_on_normalised_url():
+    """The same profile written two ways is one profile, not two."""
+    resolved = _with_links(
+        {"label": "GitHub", "url": "https://github.com/janedoe"},
+        {"label": "GH", "url": "http://www.github.com/janedoe/"},
+    )
+    profiles = to_json_resume(resolved)["basics"]["profiles"]
+    assert len(profiles) == 1
+
+
+def test_links_falls_back_to_url_when_unlabelled():
     resolved = _with_links({"url": "https://example.com/x"})
     profiles = to_json_resume(resolved)["basics"]["profiles"]
     assert {"network": "https://example.com/x", "url": "https://example.com/x"} in profiles

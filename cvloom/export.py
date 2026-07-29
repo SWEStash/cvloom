@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from cvloom import sections
+from cvloom.links import link_username, normalize_url
 from cvloom.models import ResolvedProfile
 from cvloom.sections import highlight_text as _hl
 from cvloom.sections import skill_name as _skill_name
@@ -22,45 +23,27 @@ _SECTION_HEADINGS: dict[str, str] = {
 }
 
 
-def _map_profiles(
-    contact: dict[str, Any], public_links: list[dict[str, Any]] | None = None
-) -> list[dict[str, str]]:
-    """Map contact social links and basics.public_links to JSON Resume profiles.
+def _map_profiles(links: list[dict[str, Any]] | None) -> list[dict[str, str]]:
+    """Map ``basics.links`` to JSON Resume ``basics.profiles``.
 
-    ``public_links`` are arbitrary labelled URLs; JSON Resume's nearest home is
-    ``basics.profiles``, with the label standing in for ``network``. Links whose
-    URL is already covered by the linkedin/github entries are skipped, matching
-    what ``cv/academic`` does when rendering the same data.
+    The label stands in for ``network``. For the two networks JSON Resume
+    consumers reliably key on, the handle is recovered from the URL path so the
+    ``username`` field is populated too; other links carry a URL only.
     """
     profiles: list[dict[str, str]] = []
-    if contact.get("linkedin"):
-        profiles.append(
-            {
-                "network": "LinkedIn",
-                "username": contact["linkedin"],
-                "url": f"https://linkedin.com/in/{contact['linkedin']}",
-            }
-        )
-    if contact.get("github"):
-        profiles.append(
-            {
-                "network": "GitHub",
-                "username": contact["github"],
-                "url": f"https://github.com/{contact['github']}",
-            }
-        )
-
-    seen = {p["url"] for p in profiles}
-    handles = [str(contact.get(k, "")) for k in ("linkedin", "github", "website")]
-    for link in public_links or []:
+    seen: set[str] = set()
+    for link in links or []:
         url = str(link.get("url", ""))
         label = str(link.get("label", ""))
-        if not url or url in seen:
+        key = normalize_url(url)
+        if not url or key in seen:
             continue
-        if any(handle and handle in url for handle in handles):
-            continue
-        profiles.append({"network": label or url, "url": url})
-        seen.add(url)
+        profile = {"network": label or url, "url": url}
+        username = link_username(url)
+        if username:
+            profile["username"] = username
+        profiles.append(profile)
+        seen.add(key)
     return profiles
 
 
@@ -286,7 +269,6 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
         ("label", basics_data.get("headline")),
         ("email", contact.get("email")),
         ("phone", contact.get("phone")),
-        ("url", contact.get("website")),
         ("summary", basics_data.get("summary")),
     ):
         if value:
@@ -297,7 +279,7 @@ def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
     if location:
         result["basics"]["location"] = location
 
-    profiles = _map_profiles(contact, basics_data.get("public_links"))
+    profiles = _map_profiles(basics_data.get("links"))
     if profiles:
         result["basics"]["profiles"] = profiles
 
@@ -359,13 +341,10 @@ def to_markdown(resolved: ResolvedProfile) -> str:
     parts: list[str] = []
     if basics.get("headline"):
         parts.append(f"**{basics['headline']}**")
-    for field in ["email", "phone", "location", "website"]:
+    for field in ["email", "phone", "location"]:
         if contact.get(field):
             parts.append(str(contact[field]))
-    if contact.get("linkedin"):
-        parts.append(f"https://linkedin.com/in/{contact['linkedin']}")
-    if contact.get("github"):
-        parts.append(f"https://github.com/{contact['github']}")
+    parts += [str(link["url"]) for link in basics.get("links", []) if link.get("url")]
     if parts:
         lines += [" | ".join(parts), ""]
 
@@ -577,13 +556,10 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
     parts: list[str] = []
     if basics.get("headline"):
         parts.append(str(basics["headline"]))
-    for field in ["email", "phone", "location", "website"]:
+    for field in ["email", "phone", "location"]:
         if contact.get(field):
             parts.append(str(contact[field]))
-    if contact.get("linkedin"):
-        parts.append(f"linkedin.com/in/{contact['linkedin']}")
-    if contact.get("github"):
-        parts.append(f"github.com/{contact['github']}")
+    parts += [str(link["url"]) for link in basics.get("links", []) if link.get("url")]
     if parts:
         doc.add_paragraph(" | ".join(parts), style="Subtitle")
 

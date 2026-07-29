@@ -2,8 +2,10 @@ headline: "Senior Software Engineer"
 summary: >
   Experienced backend engineer with 8+ years building scalable distributed systems.
   Passionate about developer tooling, open-source, and clean architecture.
-public_links:
+# Profile links shown in the CV header. Replace the [handle] placeholders —
+# `cvloom check` flags them (wl-021) if they reach a build.
+links:
+  - label: LinkedIn
+    url: "https://linkedin.com/in/[handle]"
   - label: GitHub
-    url: https://github.com/SWEStash
-  - label: Website
-    url: https://yourwebsite.example.com
+    url: "https://github.com/[handle]"

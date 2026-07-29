@@ -3,7 +3,7 @@
 import jinja2
 import pytest
 
-from cvloom.filters import date_range, md_to_html, register_filters, skill_level_bar
+from cvloom.filters import date_range, link_anchor, md_to_html, register_filters, skill_level_bar
 
 
 def _render(source: str, **ctx: object) -> str:
@@ -78,3 +78,27 @@ def test_date_range_collapses_identical_dates():
 
 def test_date_range_keeps_distinct_dates():
     assert date_range("2019", "2022") == "2019 – 2022"
+
+
+# ── link_anchor ──────────────────────────────────────────────────────
+
+
+def test_link_anchor_uses_the_url_as_its_visible_text():
+    """ATS parsers that read visible text must get a URL, not a bare label."""
+    html = link_anchor({"label": "GitHub", "url": "https://github.com/jane"})
+    assert html == '<a href="https://github.com/jane">github.com/jane</a>'
+
+
+def test_link_anchor_trims_www_and_trailing_slash_from_the_text_only():
+    html = link_anchor({"label": "Site", "url": "https://www.jane.dev/"})
+    assert 'href="https://www.jane.dev/"' in html
+    assert ">jane.dev<" in html
+
+
+def test_link_anchor_escapes_the_url():
+    html = link_anchor({"label": "X", "url": 'https://x.com/"onmouseover='})
+    assert '"onmouseover=' not in str(html)
+
+
+def test_link_anchor_of_a_urlless_link_is_empty():
+    assert link_anchor({"label": "Broken"}) == ""

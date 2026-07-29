@@ -67,6 +67,7 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | `wl-019` | chronological-order     | structure  | warning    | all dated sections         | A section not ordered newest-first |
 | `wl-020` | date-sanity             | ats-parse  | warning    | all dated sections         | End before start, dates in the future, expired credentials |
 | `wl-021` | unfilled-placeholders   | structure  | warning    | basics, all entry sections | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
+| `wl-022` | duplicate-links         | structure  | warning    | basics                     | Two `links` entries pointing at the same place |
 
 ---
 
@@ -84,10 +85,12 @@ ending in `-ed`, `-en`, `-wn`, `-lt`, `-ht`, `-pt`, or `-nt`. The match is case-
 recruiters read active bullets as ownership of impact.
 
 **Bad:**
+
 - "Was responsible for designing the API"
 - "The system was built using Python"
 
 **Good:**
+
 - "Designed the API serving 2M requests/day"
 - "Built the system using Python"
 
@@ -221,15 +224,16 @@ stuffing.
 
 ### wl-010: profile-links
 
-**Category:** structure | **Sections checked:** contact | **Severity:** warning
+**Category:** structure | **Sections checked:** basics | **Severity:** warning
 
-Warns when neither a LinkedIn URL/handle nor a GitHub URL/handle is present in the contact
-data or `public_links`.
+Warns when no entry in `basics.links` points at LinkedIn or GitHub. Networks are recognised
+by host, so `linkedin.com/in/jane`, `https://www.linkedin.com/in/jane/`, and anything on a
+`linkedin.com` subdomain all satisfy the rule.
 
 **Basis:** recruiters expect at least one professional profile link; its absence is a
 completeness gap.
 
-**Fix hint:** Add `linkedin:` and/or `github:` to `private/contact.yaml`.
+**Fix hint:** Add a LinkedIn or GitHub entry to `links` in `data/basics.yaml`.
 
 ---
 
@@ -419,8 +423,9 @@ alongside current credentials.
 **Category:** structure | **Sections checked:** basics + every entry section | **Severity:** warning
 
 Fires when bracketed placeholder text survives into the rendered CV — `[Company Name]`,
-`[N]`, `[X]%`, `[your-handle]`. Markdown links are exempt: `[label](url)` is a link, not a
-placeholder.
+`[N]`, `[X]%`, `[handle]`. Profile link URLs are scanned too, so a scaffolded
+`https://github.com/[handle]` is caught before it reaches a PDF. Markdown links are exempt:
+`[label](url)` is a link, not a placeholder.
 
 **Basis (structure):** `cvloom init` scaffolds placeholder content by design, and tailoring a
 CV per application means repeatedly half-filling entries. Nothing else in the pipeline stops a
@@ -432,3 +437,22 @@ types, and every other rule reads placeholder text as ordinary prose.
 **Good:** every bracket either filled with real content or deleted along with its clause.
 
 **Fix hint:** Replace it with real content, or delete the clause.
+
+---
+
+### wl-022: duplicate-links
+
+**Category:** structure | **Sections checked:** basics | **Severity:** warning
+
+Fires when two `basics.links` entries resolve to the same destination. URLs are compared
+after normalising away scheme, `www.`, host case, and a trailing slash, so
+`https://www.github.com/jane/` and `github.com/jane` are caught as the one link they are.
+
+**Basis (structure):** a header that lists the same profile twice reads as carelessness, and
+the duplicate costs header space that a second real link could use.
+
+**Bad:** a contact line reading `github.com/jane · github.com/jane`.
+
+**Good:** one entry per destination.
+
+**Fix hint:** Remove one of the two entries from `links` in `data/basics.yaml`.

@@ -20,7 +20,7 @@ cvloom/
 
 | Mode | Contact data | When to use |
 |---|---|---|
-| `cvloom build --private` | `private/contact.yaml` (real data) | Local builds for applications |
+| `cvloom build` (default) | `private/contact.yaml` (real data) | Local builds for applications |
 | `cvloom build --public` | Placeholder values | CI, GitHub Actions, GitHub Pages |
 
 ## Pre-commit hook
@@ -64,9 +64,29 @@ name: "Jane Smith"
 email: "jane@example.com"
 phone: "+44 7700 900000"
 location: "London, UK"
-website: "https://janesmith.dev"
-linkedin: "janesmith"
-github: "janesmith"
+public_name: "Jane S."   # optional — replaces name in --public builds only
 ```
 
 Keep `private/cover-letters/` for job-specific prose as well.
+
+## What *not* to put there
+
+Profile links belong in committed `data/basics.yaml` under `links`:
+
+```yaml
+links:
+  - label: LinkedIn
+    url: https://linkedin.com/in/janesmith
+  - label: GitHub
+    url: https://github.com/janesmith
+```
+
+A LinkedIn or GitHub URL is public by definition — it is a page you *want*
+found. Filing it under PII costs you real protection and buys none: `--public`
+strips only `email` and `phone`, so links kept in `contact.yaml` were never
+being hidden anyway. Keeping them in `data/` means a CV built in CI, with no
+`private/` directory present, still shows them.
+
+What genuinely needs the private file is the pair that identifies and reaches
+you: `email` and `phone`. Those are what `--public` removes and what the
+pre-commit hook scans for.

@@ -140,8 +140,7 @@ def project_root(tmp_path: Path) -> Path:
     private = tmp_path / "private"
     private.mkdir()
     (private / "contact.yaml").write_text(
-        'name: Test User\nemail: "test@example.com"\nphone: "+1 555"\n'
-        'location: "City"\nlinkedin: test\ngithub: test\nwebsite: "https://test.dev"\n'
+        'name: Test User\nemail: "test@example.com"\nphone: "+1 555"\nlocation: "City"\n'
     )
     profiles = tmp_path / "profiles"
     profiles.mkdir()

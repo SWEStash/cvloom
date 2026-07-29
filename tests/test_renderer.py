@@ -46,14 +46,14 @@ _FULL_CONTEXT = {
         "email": "jane@example.com",
         "phone": "+1 555",
         "location": "SF",
-        "linkedin": "jane",
-        "github": "jane",
-        "website": "https://jane.dev",
     },
     "basics": {
         "headline": "Engineer",
         "summary": "Great engineer.",
-        "public_links": [{"label": "GitHub", "url": "https://github.com/jane"}],
+        "links": [
+            {"label": "LinkedIn", "url": "https://linkedin.com/in/jane"},
+            {"label": "GitHub", "url": "https://github.com/jane"},
+        ],
     },
     "work": [
         {
@@ -275,3 +275,45 @@ def test_certifications_untyped_render_under_certifications_only():
     html = render_template("cv/ats-single", _context_with_certs([_cert("Legacy cert", "Acme")]))
     assert "Certifications" in html
     assert "Professional Development" not in html
+
+
+# ── profile links in the header ──────────────────────────────────────
+
+_CV_TEMPLATES = [
+    "cv/ats-single",
+    "cv/academic",
+    "cv/modern-single",
+    "cv/executive-dark",
+    "cv/timeline-clean",
+    "cv/sidebar-compact",
+]
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_every_cv_template_renders_links_as_anchors(template: str) -> None:
+    """Four templates used to ignore links entirely, dropping them silently."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert '<a href="https://github.com/jane">' in html
+    assert '<a href="https://linkedin.com/in/jane">' in html
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_link_text_is_the_url_not_the_label(template: str) -> None:
+    """An ATS reading visible text must find a URL there."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert ">github.com/jane</a>" in html
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_each_link_renders_exactly_once(template: str) -> None:
+    """The old two-source model rendered LinkedIn and GitHub twice."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert html.count('href="https://github.com/jane"') == 1
+    assert html.count('href="https://linkedin.com/in/jane"') == 1
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_templates_render_without_any_links(template: str) -> None:
+    context = {**_FULL_CONTEXT, "basics": {"headline": "Engineer", "summary": "S."}}
+    html = render_template(template, context)
+    assert "Engineer" in html

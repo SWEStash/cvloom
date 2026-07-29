@@ -13,7 +13,7 @@ The MCP server requires the optional `mcp` dependency group:
 uv sync --extra mcp
 
 # Or install as a standalone tool
-uv tool install cvloom[mcp]
+uv tool install 'cvloom[mcp]'
 ```
 
 ## Starting the server
@@ -43,18 +43,25 @@ Add the following to your Claude Desktop configuration file (`claude_desktop_con
 }
 ```
 
-If you installed via `uv tool install` or want to run without activating a virtualenv, use `uvx`:
+To run without installing anything first, use `uvx`. The extra goes in `--from`, not a
+separate flag:
 
 ```json
 {
   "mcpServers": {
     "cvloom": {
       "command": "uvx",
-      "args": ["--extra", "mcp", "cvloom-mcp"]
+      "args": [
+        "--directory", "/absolute/path/to/your-cv-project",
+        "--from", "cvloom[mcp]",
+        "cvloom-mcp"
+      ]
     }
   }
 }
 ```
+
+`--directory` matters here — see [Which project the server operates on](#which-project-the-server-operates-on) below.
 
 ### Claude Code
 
@@ -63,6 +70,27 @@ In your project directory, run:
 ```bash
 claude mcp add cvloom -- cvloom-mcp
 ```
+
+Claude Code starts the server in the directory you ran this from, so it picks up that
+project automatically. Add `--scope user` if you want the server available in every
+session rather than just this project — but then pin the project explicitly, as below.
+
+### Which project the server operates on
+
+Every tool takes an optional `project_root`. When omitted the server falls back to its own
+**current working directory**, which is whatever directory the MCP client launched it in —
+not the directory you happen to be chatting about.
+
+That default is right for Claude Code started inside a cvloom project, and wrong for Claude
+Desktop, which has no project notion. Pick one:
+
+- **Pin the working directory** at launch — `uvx --directory /path/to/your-cv-project …`, as
+  in the config above. Best when you have one CV project.
+- **Pass `project_root` on every call** and tell the assistant the absolute path once at the
+  start of the conversation. Best when you juggle several.
+
+Without either, the tools will read a `data/` directory that isn't yours — usually surfacing
+as an empty `list_profiles` or a `data/work.yaml not found` error.
 
 ## Tool reference
 
@@ -74,7 +102,7 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 |------|-----------|---------|-------------|
 | `list_profiles` | `project_root?` | Array of profile objects (`name`, `template`, `output_filename`, `include_tags`, `job_context`) | Lists all profiles found in `profiles/*.yaml`. |
 | `list_projects` | `project_root?`, `tags?` (string array) | Array of project objects (`name`, `description`, `tags`) | Lists projects from `data/projects/*.yaml`. When `tags` is provided, only projects matching at least one tag are returned. |
-| `get_section` | `section` (string), `project_root?` | Section data (object or array) | Reads raw YAML for a section. Valid values: `basics`, `work`, `education`, `skills`, `projects`, `contact`. |
+| `get_section` | `section` (string), `project_root?` | Section data (object or array) | Reads raw YAML for a section. Valid values: `basics`, `skills`, `contact`, and every entry-list section — `work`, `education`, `projects`, `publications`, `certifications`, `awards`, `languages`. |
 | `build_cv` | `profile?` (default `"general"`), `public?` (bool), `skip_pdf?` (bool), `project_root?` | `{html_path, pdf_path, words, pages, section_word_counts}` | Builds the CV for the given profile. Set `public` to use placeholder contact info. |
 | `create_profile` | `name` (string), `config` (object), `project_root?` | `{created: path}` or `{error, details}` | Validates `config` against the profile schema and writes it to `profiles/{name}.yaml`. |
 | `upsert_project` | `project` (object), `project_root?` | `{written: path}` or `{error, details}` | Validates `project` against the project schema and writes it to `data/projects/{slug}.yaml`. Creates or overwrites. |

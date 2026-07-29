@@ -303,9 +303,7 @@
       {% if contact.email is defined %}<li><span class="contact-label">Email</span><span class="contact-value">{{ contact.email }}</span></li>{% endif %}
       {% if contact.phone is defined %}<li><span class="contact-label">Phone</span><span class="contact-value">{{ contact.phone }}</span></li>{% endif %}
       {% if contact.location is defined %}<li><span class="contact-label">Location</span><span class="contact-value">{{ contact.location }}</span></li>{% endif %}
-      {% if contact.linkedin is defined %}<li><span class="contact-label">LinkedIn</span><span class="contact-value">in/{{ contact.linkedin }}</span></li>{% endif %}
-      {% if contact.github is defined %}<li><span class="contact-label">GitHub</span><span class="contact-value">gh/{{ contact.github }}</span></li>{% endif %}
-      {% if contact.website is defined %}<li><span class="contact-label">Web</span><span class="contact-value">{{ contact.website }}</span></li>{% endif %}
+      {% for link in basics.links | default([]) %}<li><span class="contact-label">{{ link.label }}</span><span class="contact-value">{{ link | link_anchor }}</span></li>{% endfor %}
     </ul>
 
     {% for sec in section_order | default(["skills", "work", "education", "projects", "publications", "certifications", "awards", "languages"]) if sec in _sidebar_macros %}

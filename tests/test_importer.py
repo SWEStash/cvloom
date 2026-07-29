@@ -84,10 +84,11 @@ def test_from_json_resume_splits_pii_into_contact() -> None:
     assert imported.contact["name"] == "Jane Doe"
     assert imported.contact["email"] == "jane@example.com"
     assert imported.contact["phone"] == "+1 555-1234"
-    assert imported.contact["website"] == "https://jane.dev"
     assert imported.contact["location"] == "San Francisco, CA, US"
-    assert imported.contact["linkedin"] == "janedoe"
-    assert imported.contact["github"] == "janedoe"
+    # Profile links are public, so they import to data/, never to the private file.
+    assert "website" not in imported.contact
+    assert "linkedin" not in imported.contact
+    assert "github" not in imported.contact
 
 
 def test_from_json_resume_maps_non_pii_basics() -> None:
@@ -95,8 +96,14 @@ def test_from_json_resume_maps_non_pii_basics() -> None:
     assert imported.basics is not None
     assert imported.basics["headline"] == "Senior Software Engineer"
     assert imported.basics["summary"].startswith("Backend engineer")
-    # Non-linkedin/github profile becomes a public link, not a contact field.
-    assert imported.basics["public_links"] == [{"label": "Mastodon", "url": "https://mas.to/@jane"}]
+    # Every profile lands in `links`, LinkedIn and GitHub included, with the
+    # personal site (JSON Resume `basics.url`) leading as a plain labelled link.
+    assert imported.basics["links"] == [
+        {"label": "Website", "url": "https://jane.dev"},
+        {"label": "LinkedIn", "url": "https://x/janedoe"},
+        {"label": "GitHub", "url": "https://gh/janedoe"},
+        {"label": "Mastodon", "url": "https://mas.to/@jane"},
+    ]
     assert "name" not in imported.basics
     assert "email" not in imported.basics
 
@@ -463,19 +470,17 @@ def test_roundtrip_preserves_education_bullets() -> None:
     assert _roundtrip(resolved).education[0]["highlights"] == ["Dean's list."]
 
 
-def test_roundtrip_preserves_public_links() -> None:
+def test_roundtrip_preserves_links() -> None:
     from tests.conftest import make_resolved
 
-    resolved = make_resolved(
-        basics={
-            "headline": "Eng",
-            "summary": "S",
-            "public_links": [{"label": "Blog", "url": "https://example.com/blog"}],
-        }
-    )
+    links = [
+        {"label": "LinkedIn", "url": "https://linkedin.com/in/jane"},
+        {"label": "Blog", "url": "https://example.com/blog"},
+    ]
+    resolved = make_resolved(basics={"headline": "Eng", "summary": "S", "links": links})
     back = _roundtrip(resolved)
     assert back.basics is not None
-    assert back.basics["public_links"] == [{"label": "Blog", "url": "https://example.com/blog"}]
+    assert back.basics["links"] == links
 
 
 def test_roundtrip_preserves_awards_and_languages() -> None:

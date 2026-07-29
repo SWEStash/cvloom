@@ -121,7 +121,7 @@ def _full_resolved():
         basics={
             "headline": "Engineer",
             "summary": "A summary.",
-            "public_links": [{"label": "Blog", "url": "https://example.com/blog"}],
+            "links": [{"label": "Blog", "url": "https://example.com/blog"}],
         },
         **_FULL_DATA,
     )

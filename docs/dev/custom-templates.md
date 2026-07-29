@@ -106,8 +106,8 @@ These variables are available in every template:
 
 | Variable | Type | Description |
 |---|---|---|
-| `contact` | dict | Contact data from `private/contact.yaml` (`name`, `email`, `phone`, `location`, `website`, `linkedin`, `github`) |
-| `basics` | dict | From `data/basics.yaml` (`headline`, `summary`, `public_links`) |
+| `contact` | dict | Contact data from `private/contact.yaml` (`name`, `email`, `phone`, `location`) |
+| `basics` | dict | From `data/basics.yaml` (`headline`, `summary`, `links`) |
 | `work` | list | Work entries after filtering and overlay application |
 | `education` | list | Education entries |
 | `skills` | list | Skill categories with items |
@@ -131,7 +131,7 @@ These variables are available in every template:
 
 ## Custom Jinja2 Filters
 
-Three custom filters are available in all templates:
+These custom filters are available in all templates:
 
 ### `md`
 
@@ -167,6 +167,24 @@ Renders a skill proficiency indicator as an HTML span with a CSS class.
 Level-to-number mapping: `beginner` → 1, `intermediate` → 2, `advanced` → 3, `expert` → 4.
 
 Style `.skill-level-1` through `.skill-level-4` in your CSS to control the visual appearance.
+
+### `link_anchor`
+
+Renders one `basics.links` entry as an anchor whose visible text is the URL itself.
+
+```jinja2
+{% for link in basics.links | default([]) %}
+<span>{{ link | link_anchor }}</span>
+{% endfor %}
+{# → <span><a href="https://github.com/jane">github.com/jane</a></span> #}
+```
+
+Use this rather than hand-writing `<a href="…">{{ link.label }}</a>`. ATS parsers
+split on whether they read visible text or the `href`; anchor text that hides the
+URL leaves the text-reading half with nothing usable. The filter trims only the
+scheme and `www.` from the display text, so both halves get a complete address,
+and WeasyPrint turns the `href` into a real PDF link annotation for the human
+reader.
 
 ---
 
@@ -208,9 +226,9 @@ The Jinja2 environment uses `StrictUndefined` — accessing an undefined variabl
 <span class="location">{{ entry.location }}</span>
 {% endif %}
 
-{% if contact.linkedin is defined %}
-<a href="https://linkedin.com/in/{{ contact.linkedin }}">LinkedIn</a>
-{% endif %}
+{% for link in basics.links | default([]) %}
+{{ link | link_anchor }}
+{% endfor %}
 
 {% if job_context and job_context.company is defined %}
 <p>Application to {{ job_context.company }}</p>

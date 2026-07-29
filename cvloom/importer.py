@@ -1,8 +1,9 @@
 """Import CV data from external formats (JSON Resume) into cvloom's layout.
 
 The inverse of :mod:`cvloom.export`. A JSON Resume document is split into
-cvloom's data layout, keeping PII (name, email, phone, location, social
-handles) in ``private/contact.yaml`` and everything else under ``data/``.
+cvloom's data layout, keeping PII (name, email, phone, location) in
+``private/contact.yaml`` and everything else under ``data/``. Profile links are
+public by nature and so import to ``data/basics.yaml`` under ``links``.
 """
 
 from __future__ import annotations
@@ -16,9 +17,7 @@ import yaml
 
 from cvloom import schema, sections
 from cvloom.export import TAGS_EXTENSION_KEY
-
-# JSON Resume profile networks that map to dedicated contact fields.
-_CONTACT_PROFILE_NETWORKS = {"linkedin": "linkedin", "github": "github"}
+from cvloom.links import network_of, normalize_url
 
 
 class ImportProblem(Exception):
@@ -82,8 +81,6 @@ def _map_contact(basics: dict[str, Any]) -> dict[str, Any]:
         contact["email"] = str(basics["email"])
     if basics.get("phone"):
         contact["phone"] = str(basics["phone"])
-    if basics.get("url"):
-        contact["website"] = str(basics["url"])
 
     loc = basics.get("location") or {}
     _require(loc, "object", "basics.location")
@@ -91,31 +88,38 @@ def _map_contact(basics: dict[str, Any]) -> dict[str, Any]:
     if location:
         contact["location"] = location
 
-    profiles = basics.get("profiles") or []
-    _require(profiles, "array", "basics.profiles")
-    for profile in profiles:
-        network = str(profile.get("network", "")).lower()
-        target = _CONTACT_PROFILE_NETWORKS.get(network)
-        if target and profile.get("username"):
-            contact[target] = str(profile["username"])
     return contact
 
 
 def _map_basics(basics: dict[str, Any]) -> dict[str, Any]:
-    """Map JSON Resume ``basics`` non-PII fields to a cvloom basics dict."""
+    """Map JSON Resume ``basics`` non-PII fields to a cvloom basics dict.
+
+    Every profile lands in ``links``, including LinkedIn and GitHub: a profile
+    URL is public by nature, so it belongs in committed ``data/``, not in the
+    gitignored contact file. ``basics.url`` (the personal site) joins them as a
+    plain labelled link.
+    """
     result: dict[str, Any] = {
         "headline": str(basics.get("label", "")),
         "summary": str(basics.get("summary", "")),
     }
-    public_links: list[dict[str, str]] = []
-    for profile in basics.get("profiles") or []:
-        network = str(profile.get("network", "")).lower()
-        if network not in _CONTACT_PROFILE_NETWORKS and profile.get("url"):
-            public_links.append(
-                {"label": str(profile.get("network", "Link")), "url": str(profile["url"])}
-            )
-    if public_links:
-        result["public_links"] = public_links
+    links: list[dict[str, str]] = []
+    if basics.get("url"):
+        links.append({"label": "Website", "url": str(basics["url"])})
+
+    profiles = basics.get("profiles") or []
+    _require(profiles, "array", "basics.profiles")
+    seen = {normalize_url(link["url"]) for link in links}
+    for profile in profiles:
+        url = str(profile.get("url") or "")
+        if not url or normalize_url(url) in seen:
+            continue
+        label = str(profile.get("network") or "") or network_of(url) or "Link"
+        links.append({"label": label, "url": url})
+        seen.add(normalize_url(url))
+
+    if links:
+        result["links"] = links
     return result
 
 

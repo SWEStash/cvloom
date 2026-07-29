@@ -13,15 +13,13 @@ from cvloom import schema, sections
 
 _console = Console(stderr=True)
 
-# Placeholder contact used when private/contact.yaml is absent
+# Placeholder contact used when private/contact.yaml is absent. Profile links are
+# not here: they live in data/basics.yaml, which is present in every build.
 _PLACEHOLDER_CONTACT: dict[str, Any] = {
     "name": "Your Name",
     "email": "your.email@example.com",
     "phone": "+1 (555) 000-0000",
     "location": "City, Country",
-    "website": "https://yourwebsite.example.com",
-    "linkedin": "yourlinkedin",
-    "github": "SWEStash",
 }
 
 # Fields that must never appear in public builds

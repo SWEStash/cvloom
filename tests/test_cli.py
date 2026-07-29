@@ -20,6 +20,9 @@ def project_root(tmp_path: Path) -> Path:
         'summary: "Experienced backend engineer with 5 years building scalable distributed'
         " systems in Python and Go, delivering measurable reliability improvements and"
         ' infrastructure cost reductions across high-traffic production services."\n'
+        "links:\n"
+        '  - label: LinkedIn\n    url: "https://linkedin.com/in/testuser"\n'
+        '  - label: GitHub\n    url: "https://github.com/testuser"\n'
     )
     (data / "work.yaml").write_text(
         "- company: Acme\n  title: Engineer\n  location: Remote\n"
@@ -59,7 +62,6 @@ def project_root(tmp_path: Path) -> Path:
     private.mkdir()
     (private / "contact.yaml").write_text(
         'name: Test User\nemail: "test@example.com"\nlocation: "Test City"\n'
-        'linkedin: "https://linkedin.com/in/testuser"\n'
     )
 
     profiles = tmp_path / "profiles"

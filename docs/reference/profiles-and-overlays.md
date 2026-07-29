@@ -72,7 +72,7 @@ sections:
 |---------------------|----------|-----------------------------------------|-----------------------------------------------------------------------|
 | `template`          | Yes      | —                                       | Template path (e.g. `cv/ats-single`)                                  |
 | `output_filename`   | No       | Profile name                            | Base name for output files (`.html`, `.pdf`)                          |
-| `pdf_filename_format` | No     | `{first}_{last}_Resume.pdf`             | Override the PDF filename; `{first}` and `{last}` are derived from contact name |
+| `pdf_filename_format` | No     | `{first}_{last}_Resume_{profile}.pdf`   | Override the PDF filename. `{first}`/`{last}`/`{name}` come from the contact name; `{profile}` is the profile name |
 | `sections`          | No       | All `true`                              | Toggle sections on or off                                             |
 | `include_tags`      | No       | `[]` (include all)                      | Only include entries with at least one matching tag                   |
 | `include_entries`   | No       | —                                       | Force-include entries excluded by tag filtering                       |
@@ -545,10 +545,11 @@ overlays:
 Build this profile with:
 
 ```bash
-uv run cvloom build --profile stripe-infra --private
+uv run cvloom build --profile stripe-infra
 ```
 
-Or build a public version with placeholder contact data:
+That uses your real contact data from `private/contact.yaml`. To build a public
+version with placeholder contact data instead:
 
 ```bash
 uv run cvloom build --profile stripe-infra --public --skip-pdf

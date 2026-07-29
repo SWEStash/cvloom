@@ -473,28 +473,55 @@ def test_no_profile_links():
     assert findings[0].rule_id == "wl-010"
 
 
-def test_profile_link_in_contact():
-    resolved = _make_resolved(
-        contact={
-            "name": "Test",
-            "email": "t@example.com",
-            "linkedin": "https://linkedin.com/in/test",
-        },
-    )
-    findings = lint(resolved, rule_ids=["wl-010"])
-    assert len(findings) == 0
-
-
-def test_profile_link_in_public_links():
-    resolved = _make_resolved(
+def _with_links(*urls: str):
+    return _make_resolved(
         basics={
             "headline": "Engineer",
             "summary": "A summary.",
-            "public_links": [{"label": "GitHub", "url": "https://github.com/test"}],
+            "links": [{"label": "Link", "url": u} for u in urls],
         },
     )
-    findings = lint(resolved, rule_ids=["wl-010"])
+
+
+def test_profile_link_in_links():
+    findings = lint(_with_links("https://github.com/test"), rule_ids=["wl-010"])
     assert len(findings) == 0
+
+
+def test_profile_link_recognised_without_scheme():
+    findings = lint(_with_links("www.linkedin.com/in/test"), rule_ids=["wl-010"])
+    assert len(findings) == 0
+
+
+def test_non_profile_link_does_not_satisfy_the_rule():
+    findings = lint(_with_links("https://example.com/blog"), rule_ids=["wl-010"])
+    assert len(findings) == 1
+
+
+# ── wl-022: duplicate links ────────────────────────────────────────
+
+
+def test_duplicate_links_flagged_across_url_spellings():
+    findings = lint(
+        _with_links("https://github.com/test", "http://www.github.com/test/"),
+        rule_ids=["wl-022"],
+    )
+    assert len(findings) == 1
+    assert findings[0].rule_id == "wl-022"
+
+
+def test_distinct_links_are_not_duplicates():
+    findings = lint(
+        _with_links("https://github.com/test", "https://linkedin.com/in/test"),
+        rule_ids=["wl-022"],
+    )
+    assert len(findings) == 0
+
+
+def test_placeholder_in_link_url_is_flagged():
+    """wl-021 must see link URLs — an unedited [handle] renders into the PDF."""
+    findings = lint(_with_links("https://github.com/[handle]"), rule_ids=["wl-021"])
+    assert len(findings) == 1
 
 
 # ── wl-011: page count ─────────────────────────────────────────────

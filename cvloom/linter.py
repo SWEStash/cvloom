@@ -20,6 +20,7 @@ from datetime import date
 from typing import Any
 
 from cvloom import sections
+from cvloom.links import network_of, normalize_url
 from cvloom.models import ResolvedProfile
 
 # Rule categories — the three honest axes of writing/ATS readiness.
@@ -1018,6 +1019,8 @@ def _check_unfilled_placeholders(resolved: ResolvedProfile) -> list[LintFinding]
     basics = resolved.data.get("basics", {})
     for key in ("headline", "summary"):
         scan("basics", key, str(basics.get(key, "")))
+    for link in basics.get("links", []):
+        scan("basics", f"link: {link.get('label', '')}", str(link.get("url", "")))
 
     for section in sections.SECTIONS:
         if not resolved.show_sections.get(section.name):
@@ -1032,27 +1035,52 @@ def _check_unfilled_placeholders(resolved: ResolvedProfile) -> list[LintFinding]
 
 def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
     """wl-010: Warn if no LinkedIn or GitHub link is present."""
-    contact = resolved.data.get("contact", {})
-    if contact.get("linkedin") or contact.get("github"):
+    links = resolved.data.get("basics", {}).get("links", [])
+    if any(network_of(str(link.get("url", ""))) for link in links):
         return []
-    for link in resolved.data.get("basics", {}).get("public_links", []):
-        url = str(link.get("url", ""))
-        if "linkedin.com" in url or "github.com" in url:
-            return []
     return [
         LintFinding(
             rule_id="wl-010",
             severity="warning",
-            section="contact",
+            section="basics",
             entry="profile links",
             bullet_index=None,
             bullet_text=None,
             message="No LinkedIn or GitHub profile link found.",
-            fix_hint=(
-                "Add linkedin or github to contact.yaml, or add a public_links entry in basics."
-            ),
+            fix_hint="Add a LinkedIn or GitHub entry to `links` in data/basics.yaml.",
         )
     ]
+
+
+def _check_duplicate_links(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-022: Warn if two `links` entries point at the same place.
+
+    Compared after normalisation, so ``https://www.github.com/me/`` and
+    ``github.com/me`` are caught as the duplicate they are.
+    """
+    findings: list[LintFinding] = []
+    seen: dict[str, str] = {}
+    for link in resolved.data.get("basics", {}).get("links", []):
+        url = str(link.get("url", ""))
+        if not url:
+            continue
+        key = normalize_url(url)
+        if key in seen:
+            findings.append(
+                LintFinding(
+                    rule_id="wl-022",
+                    severity="warning",
+                    section="basics",
+                    entry="profile links",
+                    bullet_index=None,
+                    bullet_text=None,
+                    message=f"Duplicate link: {url} repeats {seen[key]}.",
+                    fix_hint="Remove one of the two entries from `links` in data/basics.yaml.",
+                )
+            )
+        else:
+            seen[key] = url
+    return findings
 
 
 def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
@@ -1327,6 +1355,13 @@ RULES: list[LintRule] = [
         "Flag scaffold placeholders left in the content",
         CATEGORY_STRUCTURE,
         _check_unfilled_placeholders,
+    ),
+    LintRule(
+        "wl-022",
+        "duplicate-links",
+        "Flag two `links` entries pointing at the same place",
+        CATEGORY_STRUCTURE,
+        _check_duplicate_links,
     ),
 ]
 

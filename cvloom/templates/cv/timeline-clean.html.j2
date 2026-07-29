@@ -291,9 +291,7 @@
     {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
     {% if contact.phone is defined %}<span class="sep">|</span><span>{{ contact.phone }}</span>{% endif %}
     {% if contact.location is defined %}<span class="sep">|</span><span>{{ contact.location }}</span>{% endif %}
-    {% if contact.linkedin is defined %}<span class="sep">|</span><span>in/{{ contact.linkedin }}</span>{% endif %}
-    {% if contact.github is defined %}<span class="sep">|</span><span>gh/{{ contact.github }}</span>{% endif %}
-    {% if contact.website is defined %}<span class="sep">|</span><span>{{ contact.website }}</span>{% endif %}
+    {% for link in basics.links | default([]) %}<span class="sep">|</span><span>{{ link | link_anchor }}</span>{% endfor %}
   </div>
 </div>
 

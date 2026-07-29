@@ -1,7 +1,8 @@
+# Identity and reachability. This file is gitignored and never committed.
+# Profile links (LinkedIn, GitHub, website) are public by nature and live in
+# data/basics.yaml under `links`.
 name: "Your Name"
 email: "your.email@example.com"
 phone: "+1 (555) 000-0000"
 location: "City, Country"
-website: "https://yourwebsite.example.com"
-linkedin: "yourlinkedin"
-github: "SWEStash"
+# public_name: "J. Doe"   # optional: replaces `name` in --public builds only

@@ -9,7 +9,7 @@ This guide covers everything you need to know to use cvloom effectively: data fi
 ## Table of Contents
 
 1. [Data Files](#data-files)
-   - [basics.yaml](#basicyaml)
+   - [basics.yaml](#basicsyaml)
    - [work.yaml](#workyaml)
    - [education.yaml](#educationyaml)
    - [skills.yaml](#skillsyaml)
@@ -23,7 +23,7 @@ This guide covers everything you need to know to use cvloom effectively: data fi
 3. [Templates](#templates)
 4. [Export Formats](#export-formats)
 5. [Build Modes](#build-modes)
-6. [ATS Scoring](#ats-scoring)
+6. [Lint Integration](#lint-integration)
 7. [Environment Variables](#environment-variables)
 
 ---
@@ -40,14 +40,16 @@ Every list section supports `tags` for [profile filtering](../reference/profiles
 
 ### basics.yaml
 
-Controls your headline, summary, and public links.
+Controls your headline, summary, and profile links.
 
 ```yaml
 headline: "Senior Backend Engineer"       # required
 summary: >                                 # optional, 20–80 words recommended
   Backend engineer with 7+ years ...
 
-public_links:                              # optional, shown in CV header
+links:                                     # optional, shown in CV header
+  - label: LinkedIn
+    url: https://linkedin.com/in/username
   - label: GitHub
     url: https://github.com/username
   - label: Website
@@ -58,7 +60,12 @@ public_links:                              # optional, shown in CV header
 |---|---|---|
 | `headline` | Yes | Your professional title |
 | `summary` | No | 1–3 sentence professional summary |
-| `public_links` | No | Links shown in the CV header (label + url pairs) |
+| `links` | No | Profile links shown in the CV header (label + full URL pairs) |
+
+Links live here, not in `private/contact.yaml`, because a LinkedIn or GitHub URL
+is public by definition. Keeping them in committed `data/` means they render
+identically in private and `--public` builds. Write the full URL — cvloom
+recognises LinkedIn and GitHub by their host, so no handle field is needed.
 
 ---
 
@@ -331,11 +338,11 @@ name: "Jane Smith"                         # required
 email: "jane@example.com"                  # optional
 phone: "+1 (555) 123-4567"               # optional
 location: "San Francisco, CA"             # optional
-website: "https://janesmith.dev"          # optional
-linkedin: "janesmith"                     # optional handle or full URL
-github: "janesmith"                       # optional handle or full URL
 public_name: "Jane S."                    # optional — replaces name in --public builds
 ```
+
+This file holds identity and reachability only. Profile links (LinkedIn, GitHub,
+your website) go in [`data/basics.yaml`](#basicsyaml) under `links`.
 
 | Field | Required | Description |
 |---|---|---|
@@ -343,9 +350,6 @@ public_name: "Jane S."                    # optional — replaces name in --publ
 | `email` | No | Contact email |
 | `phone` | No | Contact phone |
 | `location` | No | City/region |
-| `website` | No | Personal website URL |
-| `linkedin` | No | LinkedIn handle or full URL |
-| `github` | No | GitHub handle or full URL |
 | `public_name` | No | Alternative name for `--public` builds |
 
 ---
@@ -479,18 +483,22 @@ In `--public` mode, `email` and `phone` are omitted. All other fields (`name`, `
 
 ---
 
-## ATS Scoring
+## Lint Integration
 
-Two flags integrate ATS scoring into the build:
+Two flags run the writing lint as part of the build:
 
 | Flag | Effect |
 |---|---|
-| `--check` | Runs all 17 lint rules after build and prints a per-axis breakdown |
-| `--strict N` | Same as `--check`, plus exits with code 1 if score < N |
+| `--check` | Runs all 22 lint rules after build and prints a per-axis breakdown |
+| `--strict N` | Same as `--check`, plus exits with code 1 if there are more than N findings |
 
-The score is calculated as: `100 - (warnings × 5) - (suggestions × 2)`, floored at 0.
+cvloom deliberately prints no single "ATS score" — the breakdown is per axis
+(`writing` / `structure` / `ats-parse`). See
+[the ATS-readiness model](../reference/ats-readiness.md) for why.
 
-Use `--strict 70` in CI to enforce a minimum quality threshold before deploying.
+`--strict N` is a **findings budget**, not a quality threshold: `--strict 0` fails the
+build on any finding at all, and `--strict 10` tolerates up to ten. Use it in CI to stop
+a regression from shipping.
 
 ---
 

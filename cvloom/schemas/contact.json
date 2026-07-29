@@ -2,16 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contact",
   "title": "CV Contact (private)",
+  "description": "Identity and reachability only. Profile links are public by nature and live in data/basics.yaml under `links`.",
   "type": "object",
   "required": ["name"],
   "additionalProperties": false,
   "properties": {
     "name": {"type": "string"},
+    "public_name": {
+      "type": "string",
+      "description": "Replaces `name` in --public builds only, e.g. to publish under a pen name"
+    },
     "email": {"type": "string", "format": "email"},
     "phone": {"type": "string"},
-    "location": {"type": "string", "description": "City, Country or full address"},
-    "website": {"type": "string", "format": "uri"},
-    "linkedin": {"type": "string"},
-    "github": {"type": "string"}
+    "location": {"type": "string", "description": "City, Country or full address"}
   }
 }

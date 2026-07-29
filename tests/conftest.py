@@ -73,7 +73,12 @@ def make_resolved(
 # Default file contents for a scaffolded project. Overridable per file via
 # make_project(..., files={"data/work.yaml": "...", ...}).
 _PROJECT_FILES: dict[str, str] = {
-    "data/basics.yaml": 'headline: "Test Engineer"\nsummary: "A test summary."\n',
+    "data/basics.yaml": (
+        'headline: "Test Engineer"\nsummary: "A test summary."\n'
+        "links:\n"
+        '  - label: LinkedIn\n    url: "https://linkedin.com/in/testuser"\n'
+        '  - label: GitHub\n    url: "https://github.com/testuser"\n'
+    ),
     "data/work.yaml": (
         "- company: Acme\n  title: Engineer\n  location: Remote\n"
         '  start_date: "2020-01"\n  end_date: Present\n'
@@ -92,9 +97,7 @@ _PROJECT_FILES: dict[str, str] = {
         "highlights:\n  - Built a CLI tool used by 500 developers daily.\n"
     ),
     "private/contact.yaml": (
-        'name: Test\nemail: "test@example.com"\nphone: "+1 (555) 000-0000"\n'
-        'location: "Test City"\nlinkedin: testuser\ngithub: testuser\n'
-        'website: "https://example.com"\n'
+        'name: Test\nemail: "test@example.com"\nphone: "+1 (555) 000-0000"\nlocation: "Test City"\n'
     ),
     "profiles/general.yaml": "template: cv/ats-single\noutput_filename: cv\n",
 }

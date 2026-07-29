@@ -50,9 +50,27 @@ def skill_level_bar(level: str) -> str:
     return f'<span class="skill-level skill-level-{n}" aria-label="{level}"></span>'
 
 
+def link_anchor(link: dict[str, str]) -> Markup:
+    """Render a profile link as an anchor whose visible text is the URL itself.
+
+    ATS parsers split on whether they read visible text or ``href``. Anchor text
+    that hides the URL ("LinkedIn", "click here") gives the text-reading half
+    nothing to work with, so the visible text is the URL with only the scheme and
+    ``www.`` trimmed — still a complete, parseable address. WeasyPrint turns the
+    ``href`` into a real PDF link annotation, so the human reviewer gets a
+    clickable link out of the same markup.
+    """
+    url = str(link.get("url", ""))
+    if not url:
+        return Markup("")
+    display = url.split("://", 1)[-1].removeprefix("www.").rstrip("/")
+    return Markup('<a href="{}">{}</a>').format(url, display)
+
+
 def register_filters(env: jinja2.Environment) -> None:
     """Register all custom filters onto *env*."""
     env.filters["md"] = md_to_html
     env.filters["date_range"] = date_range
     env.filters["skill_level_bar"] = skill_level_bar
     env.filters["cert_groups"] = sections.group_certifications
+    env.filters["link_anchor"] = link_anchor
