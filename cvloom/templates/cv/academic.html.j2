@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
 
-{% block title %}{{ contact.name }} · Academic CV{% endblock %}
+{% block title %}{{ contact.name }} | Academic CV{% endblock %}
 
 {% block css_vars %}
 :root {
@@ -27,7 +27,7 @@ h2 {
 .header h1 { font-size: 18pt; font-family: Arial, Helvetica, sans-serif; margin-bottom: 3px; }
 .header .headline { font-size: 11pt; color: var(--muted); margin-bottom: 5px; }
 .contact-line { font-size: 9.5pt; color: var(--muted); text-align: center; }
-.contact-line span + span::before { content: " · "; }
+.contact-line span + span::before { content: " | "; }
 .entry { margin-bottom: 10px; }
 .entry-header { overflow: hidden; }
 .entry-title { font-weight: 700; }
@@ -64,7 +64,7 @@ h2 {
     <span class="entry-title">{{ job.title }}</span>
     <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
   </div>
-  <div><span class="entry-org">{{ job.company }}</span>{% if job.location %} · <span class="entry-location">{{ job.location }}</span>{% endif %}</div>
+  <div><span class="entry-org">{{ job.company }}</span>{% if job.location %}, <span class="entry-location">{{ job.location }}</span>{% endif %}</div>
   {% if job.highlights %}
   <ul>
     {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -84,7 +84,7 @@ h2 {
     <span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
     <span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>
   </div>
-  <div><span class="entry-org">{{ edu.institution }}</span>{% if edu.location %} · <span class="entry-location">{{ edu.location }}</span>{% endif %}</div>
+  <div><span class="entry-org">{{ edu.institution }}</span>{% if edu.location %}, <span class="entry-location">{{ edu.location }}</span>{% endif %}</div>
   {% if edu.highlights %}
   <ul>
     {% for h in edu.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -129,7 +129,7 @@ h2 {
     {% if pub.release_date %}<span class="entry-date">{{ pub.release_date }}</span>{% endif %}
   </div>
   {% if pub.publisher or pub.identifier %}
-  <div><span class="entry-org">{{ pub.publisher }}</span>{% if pub.publisher and pub.identifier %} · {% endif %}{% if pub.identifier %}<span class="entry-location">{{ pub.identifier }}</span>{% endif %}</div>
+  <div><span class="entry-org">{{ pub.publisher }}</span>{% if pub.publisher and pub.identifier %}, {% endif %}{% if pub.identifier %}<span class="entry-location">{{ pub.identifier }}</span>{% endif %}</div>
   {% endif %}
   {% if pub.summary %}<p>{{ pub.summary | md }}</p>{% endif %}
 </div>
@@ -147,7 +147,7 @@ h2 {
     <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
     {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</span>{% endif %}
   </div>
-  {% if cert.issuer or cert.identifier %}<div class="entry-location">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
+  {% if cert.issuer or cert.identifier %}<div class="entry-location">{{ cert.issuer }}{% if cert.issuer and cert.identifier %}, {% endif %}{{ cert.identifier }}</div>{% endif %}
 </div>
 {% endfor %}
 {% endfor %}
@@ -176,7 +176,7 @@ h2 {
 <div class="languages">
   {%- for lang in languages -%}
   {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}
-  {%- if not loop.last %} · {% endif -%}
+  {%- if not loop.last %}, {% endif -%}
   {%- endfor %}
 </div>
 {% endif %}

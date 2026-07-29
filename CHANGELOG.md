@@ -85,6 +85,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **`cv/ats-single` and `cv/academic` join fields with ASCII separators** — `|` in the contact line, `,` between a role and its organisation (`Senior Engineer, Acme Corp`, which reads as apposition). The four design-led templates keep the middot. This is not an extraction fix: every separator tested — middot, pipe, comma, em dash, en dash, bullet — survives WeasyPrint PDF text extraction intact, and the claim that an ATS "cannot read" a middot is folklore. The reason is narrower: `·` is U+00B7, so it depends on the embedded font subset carrying that glyph, while ASCII has no such failure mode. Worth the trade only on the two templates whose purpose is conservatism. Date ranges keep the en dash everywhere, which is `date_range`'s own convention and correct typography for a range.
+- **Templates no longer use literal em dashes.** Page titles and the `ats-single` role/company separator used them; both now follow the convention above.
 - **`loader.load_data` no longer filters.** It is I/O and merge only; selection is a separate pipeline step in `resolve()`, applied before normalisation so overlays only ever see what survives.
 - **`overlays.skills` keeps only `category_overrides`.** Choosing which categories appear is selection, not patching. The `include_categories`/`exclude_categories` mutual-exclusion warning is gone with the keys.
 

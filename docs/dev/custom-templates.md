@@ -188,6 +188,19 @@ reader.
 
 ---
 
+## Separator Convention
+
+If you are writing a template meant to survive an unknown ATS, join fields with ASCII:
+`|` between contact-line fields, `,` between a role and its organisation. Design-led
+templates may use a middot (`·`); the built-in `cv/ats-single` and `cv/academic` do not,
+because U+00B7 depends on the embedded font subset carrying the glyph while ASCII does not.
+Extraction is not the issue — every separator extracts cleanly from a WeasyPrint PDF.
+
+`tests/test_renderer.py` asserts the two ASCII-first templates emit no middot, so a new
+separator in either one fails the suite.
+
+---
+
 ## CSS Variables
 
 `base.html.j2` defines these CSS variables in `:root`. Override them in the `css_vars` block:

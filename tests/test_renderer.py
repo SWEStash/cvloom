@@ -333,3 +333,28 @@ def test_entry_tags_are_never_rendered(template: str) -> None:
     career-phase and employer labels ended up as chips on the CV."""
     html = render_template(template, _TAGGED_CONTEXT)
     assert "FILINGTAG" not in html
+
+
+# ── separator convention ─────────────────────────────────────────
+
+_ASCII_FIRST_TEMPLATES = ["cv/ats-single", "cv/academic"]
+
+# U+00B7 MIDDLE DOT. Every separator extracts cleanly from a WeasyPrint PDF, so
+# this is not about extraction; it is that a non-ASCII glyph depends on the
+# embedded font subset carrying it, and the two single-column templates are the
+# ones whose whole purpose is conservatism.
+_MIDDOT = "·"
+
+
+@pytest.mark.parametrize("template", _ASCII_FIRST_TEMPLATES)
+def test_ats_first_templates_use_ascii_separators(template: str) -> None:
+    html = render_template(template, _FULL_CONTEXT)
+    assert _MIDDOT not in html
+
+
+@pytest.mark.parametrize("template", _ASCII_FIRST_TEMPLATES)
+def test_ats_first_templates_join_title_and_org_with_a_comma(template: str) -> None:
+    """`Senior Engineer, Acme Corp` is apposition — what a parser expects."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert "Acme" in html and "Engineer" in html
+    assert " | " in html  # contact line separator survives

@@ -1,5 +1,7 @@
 {% extends "base.html.j2" %}
 
+{% block title %}{{ contact.name }} | Resume{% endblock %}
+
 {% block css_vars %}
 :root {
   --accent: #1e3a5f;
@@ -13,7 +15,7 @@
 .header h1 { font-size: 18pt; margin-bottom: 2px; }
 .header .headline { font-size: 11pt; color: var(--muted); margin-bottom: 4px; }
 .contact-line { font-size: 9pt; color: var(--muted); }
-.contact-line span + span::before { content: " · "; }
+.contact-line span + span::before { content: " | "; }
 .entry { margin-bottom: 10px; }
 .entry-header { overflow: hidden; }
 .entry-title { font-weight: 700; }
@@ -53,7 +55,7 @@
 {% for job in work %}
 <div class="entry">
   <div class="entry-header clearfix">
-    <span class="entry-title">{{ job.title }}</span> · <span class="entry-org">{{ job.company }}</span>
+    <span class="entry-title">{{ job.title }}</span>, <span class="entry-org">{{ job.company }}</span>
     <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
   </div>
   {% if job.location %}<div class="entry-location">{{ job.location }}</div>{% endif %}
@@ -76,7 +78,7 @@
     <span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
     <span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>
   </div>
-  <div>{{ edu.institution }}{% if edu.location %} · <span class="muted">{{ edu.location }}</span>{% endif %}</div>
+  <div>{{ edu.institution }}{% if edu.location %}, <span class="muted">{{ edu.location }}</span>{% endif %}</div>
   {% if edu.highlights %}
   <ul>
     {% for h in edu.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -121,7 +123,7 @@
     {% if pub.release_date %}<span class="entry-date">{{ pub.release_date }}</span>{% endif %}
   </div>
   {% if pub.publisher or pub.identifier %}
-  <div>{{ pub.publisher }}{% if pub.publisher and pub.identifier %} · {% endif %}{% if pub.identifier %}<span class="muted">{{ pub.identifier }}</span>{% endif %}</div>
+  <div>{{ pub.publisher }}{% if pub.publisher and pub.identifier %}, {% endif %}{% if pub.identifier %}<span class="muted">{{ pub.identifier }}</span>{% endif %}</div>
   {% endif %}
   {% if pub.summary %}<p>{{ pub.summary | md }}</p>{% endif %}
 </div>
@@ -139,7 +141,7 @@
     <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
     {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</span>{% endif %}
   </div>
-  {% if cert.issuer or cert.identifier %}<div class="muted">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
+  {% if cert.issuer or cert.identifier %}<div class="muted">{{ cert.issuer }}{% if cert.issuer and cert.identifier %}, {% endif %}{{ cert.identifier }}</div>{% endif %}
 </div>
 {% endfor %}
 {% endfor %}
@@ -168,7 +170,7 @@
 <div class="languages">
   {%- for lang in languages -%}
   {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}
-  {%- if not loop.last %} · {% endif -%}
+  {%- if not loop.last %}, {% endif -%}
   {%- endfor %}
 </div>
 {% endif %}

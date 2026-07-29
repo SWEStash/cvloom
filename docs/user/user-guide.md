@@ -399,6 +399,22 @@ build both and send the single-column one.
 What cvloom does **not** do in any template, because these break parsing much harder than
 columns: `<table>` layout, text in headers/footers, or text baked into images.
 
+#### On field separators
+
+`cv/ats-single` and `cv/academic` join fields with ASCII only — `|` between contact-line
+fields, `,` between a role and its organisation (`Senior Engineer, Acme Corp`, which reads
+as apposition). The four design-led templates use a middot (`·`).
+
+This is **not** because a middot fails to extract. Every separator — middot, pipe, comma,
+em dash, bullet — survives PDF text extraction intact; claims that an ATS "cannot read"
+a middot are folklore. The reason is narrower: `·` is U+00B7, so it depends on the embedded
+font subset carrying that glyph, and a custom font could omit it. ASCII has no such failure
+mode. On the two templates whose entire purpose is conservatism, that trade is worth making;
+on the design-led ones it is not.
+
+Date ranges keep an en dash (`2021-03 – Present`) in every template — that is correct
+typography for a range and the convention the `date_range` filter emits.
+
 ### Cover letter templates
 
 | Template | Description |
