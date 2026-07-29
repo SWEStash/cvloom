@@ -98,7 +98,7 @@ A list of work experience entries.
 
 **Highlight IDs** — give highlights an `id` if you want to target them in overlay `pick`, `exclude`, or `replace` operations. Plain strings work but cannot be individually addressed.
 
-Work entries without `tags` are always included regardless of profile filtering.
+A work entry with no `tags` does not match a `select.work` include list, so it is dropped from profiles that narrow this section. Profiles that do not name `work` under `select` keep every entry.
 
 ---
 
@@ -128,7 +128,7 @@ A list of education entries.
 | `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
 | `grade` | No | GPA or classification |
 | `highlights` | No | Notable achievements, GPA, awards |
-| `tags` | No | Used for profile filtering (untagged entries are always included) |
+| `tags` | No | Used for profile `select` filtering; never rendered |
 
 If your education section has grown a long tail of certifications and short
 courses, put those in [`certifications.yaml`](#certificationsyaml) instead — they
@@ -255,7 +255,7 @@ entries get.
 | `expiry_date` | No | Expiry date, if the credential expires |
 | `identifier` | No | Credential or licence ID |
 | `url` | No | Verification link |
-| `tags` | No | Used for profile filtering (untagged entries are always included) |
+| `tags` | No | Used for profile `select` filtering; never rendered |
 
 #### Credentials vs coursework
 
@@ -299,7 +299,7 @@ Optional. Prizes, honours, and recognitions.
 | `awarder` | No | Organisation that granted it |
 | `date` | No | `YYYY` or `YYYY-MM` |
 | `summary` | No | Short description (Markdown supported) |
-| `tags` | No | Used for profile filtering (untagged entries are always included) |
+| `tags` | No | Used for profile `select` filtering; never rendered |
 
 Maps to JSON Resume's `awards` array field-for-field.
 
@@ -323,7 +323,7 @@ vertical space.
 |---|---|---|
 | `language` | Yes | Language name |
 | `fluency` | No | Free text — a CEFR level (`C1`) or a description (`Native speaker`) |
-| `tags` | No | Used for profile filtering (untagged entries are always included) |
+| `tags` | No | Used for profile `select` filtering; never rendered |
 
 Maps to JSON Resume's `languages` array field-for-field.
 

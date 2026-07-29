@@ -3,7 +3,7 @@
 [Back to README](../../README.md)
 
 cvloom uses **profiles** to produce multiple tailored versions of your CV from a single
-set of base data. Each profile controls which sections appear, which entries are included,
+set of base data. Each profile controls which sections appear, which entries are selected,
 and how content is customized for a particular role. **Overlays** are the mechanism profiles
 use to patch data at build time without modifying your source YAML files.
 
@@ -15,16 +15,18 @@ This guide starts with simple profiles and progressively introduces the overlay 
 
 1. [When to Use Profiles](#when-to-use-profiles)
 2. [Profile Basics](#profile-basics)
-3. [Tag-Based Filtering](#tag-based-filtering)
-4. [Force-Including Entries](#force-including-entries)
-5. [Section Ordering](#section-ordering)
-6. [Job Context](#job-context)
-7. [Overlays](#overlays)
+3. [Selecting Content](#selecting-content)
+   - [The rules](#the-rules)
+   - [Untagged entries do not match](#untagged-entries-do-not-match)
+   - [Why tags have no exclusion, but categories do](#why-tags-have-no-exclusion-but-categories-do)
+4. [Section Ordering](#section-ordering)
+5. [Job Context](#job-context)
+6. [Overlays](#overlays)
    - [Basics Overlay](#basics-overlay)
    - [Array Section Overlays](#array-section-overlays-work-education-projects)
    - [Skills Overlay](#skills-overlay)
-8. [One Dataset, N Applications — A Worked Example](#one-dataset-n-applications--a-worked-example)
-9. [Full Annotated Example](#full-annotated-example)
+7. [One Dataset, N Applications — A Worked Example](#one-dataset-n-applications--a-worked-example)
+8. [Full Annotated Example](#full-annotated-example)
 
 ---
 
@@ -184,7 +186,8 @@ job_context:
 
 Overlays are the core customization mechanism. They patch your base data at build time,
 letting you tailor content for a specific job without duplicating YAML files. Overlays
-are applied after tag filtering and force-includes, but before rendering.
+are applied after selection, but before rendering — so they only ever see the entries
+that survived `select`.
 
 All overlays live under the `overlays` key in a profile:
 

@@ -535,13 +535,18 @@ This command takes no options.
 ### Sample Output
 
 ```
-Profile         Template                Output              Tags               Job Context
+Profile         Template                Output              Narrows            Job context
 ──────────────  ──────────────────────  ──────────────────  ─────────────────  ──────────────────
 general         cv/ats-single           cv                  —                  —
-backend-role    cv/ats-single           jane-smith-backend  python, kafka      Acme Corp / Staff Engineer
-academic        cv/academic             academic-cv         research           —
+backend-role    cv/ats-single           jane-smith-backend  skills, work       Acme Corp / Staff Engineer
+academic        cv/academic             academic-cv         publications       —
 cover-letter    cover-letter/standard   cover-letter        —                  Acme Corp / Staff Engineer
+
+4 profile(s)  ·  run: cvloom build --profile NAME
 ```
+
+**Narrows** lists the sections the profile selects content for via `select`. A dash
+means the profile uses every entry in every section.
 
 ---
 

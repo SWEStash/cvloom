@@ -53,7 +53,7 @@
 {% for job in work %}
 <div class="entry">
   <div class="entry-header clearfix">
-    <span class="entry-title">{{ job.title }}</span> — <span class="entry-org">{{ job.company }}</span>
+    <span class="entry-title">{{ job.title }}</span> · <span class="entry-org">{{ job.company }}</span>
     <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
   </div>
   {% if job.location %}<div class="entry-location">{{ job.location }}</div>{% endif %}

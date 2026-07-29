@@ -27,7 +27,7 @@ cvloom/
 ├── cli.py              # Click command group and all subcommands
 ├── builder.py          # Core pipeline: resolve() and build()
 ├── models.py           # ResolvedProfile, BuildResult dataclasses
-├── loader.py           # YAML loading, tag filtering, public/private contact
+├── loader.py           # YAML loading and merge, public/private contact
 ├── sections.py         # Section registry + shared CV data walk
 ├── schema.py           # JSON Schema validation (Draft 2020-12)
 ├── overlays.py         # Match-and-patch system for per-job customization
@@ -41,6 +41,7 @@ cvloom/
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
 ├── export.py           # to_json_resume(), markdown, linkedin, docx exporters
+├── importer.py         # from_json_resume(); PII-aware split into data/ + private/
 ├── mcp_server.py       # FastMCP server exposing 16 tools
 ├── ai/
 │   ├── provider.py     # Config loading, OpenAI-compatible client, cv_to_text()
@@ -73,8 +74,8 @@ The central pipeline is:
 cli.py
   └─► builder.resolve()
         ├─► loader.load_data()           load YAML from data/ and private/
+        ├─► select.apply_selection()     narrow the sections `select` names
         ├─► schema.validate_all()        JSON Schema validation
-        ├─► loader.apply_force_includes() force-include tag-excluded entries
         ├─► loader.normalize_highlights() convert {id, text} dicts to strings (keep IDs)
         ├─► overlays.apply_overlays()    match-and-patch profile overlays
         └─► returns ResolvedProfile
@@ -121,11 +122,18 @@ def build(data_dir, private_dir, profiles_dir, output_dir, profile_name, ...) ->
 
 Loads and merges YAML from `data/` and `private/`. Key responsibilities:
 
-- Tag-based filtering of work, education, project, publication, and certification entries (strict for projects, lenient elsewhere — see `docs/reference/profiles-and-overlays.md`)
 - Public/private contact mode (removes `email` and `phone` in `--public`)
-- `apply_force_includes()` — second unfiltered load to retrieve excluded entries and merge them back
 - `normalize_highlights()` — converts `{id, text}` dicts to plain strings while retaining IDs for overlay matching
 - `normalize_optional_fields()` — fills each entry's schema-optional keys with typed empties. Templates render under `StrictUndefined`, where an *absent* key raises rather than evaluating falsy, so `{% if edu.field %}` needs the key to exist. `contact` is excluded on purpose: its templates guard with `is defined` so `--public` redaction stays invisible.
+
+### `select.py`
+
+Owns per-section content selection from a profile's `select` block, so `loader` stays I/O
+and merge only. Include-only for entry `tags` — an entry with no tags does not match an
+include list, uniformly across every section. Skills are keyed on `category` and take both
+`categories` and `exclude_categories`, because that set is closed and enumerable. Returns
+warnings (unknown section/category, a selector matching nothing, untagged entries dropped)
+onto `ResolvedProfile.warnings`.
 
 ### `sections.py` — the section registry
 
@@ -298,7 +306,7 @@ class LintFinding:
 
 ## Overlay System
 
-Overlays are applied in `overlays.py` after loading and force-includes, before rendering. The sequence for array section overlays:
+Overlays are applied in `overlays.py` after selection, before rendering — so they only ever see the entries that survived `select`. The sequence for array section overlays:
 
 1. Find the target entry using `match` field(s) — fails silently if not found (warning emitted)
 2. If `exclude: true`, remove the entry entirely

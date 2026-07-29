@@ -46,9 +46,9 @@ example.
 | Category | Feature | Command |
 |---|---|---|
 | **Build** | YAML → HTML + PDF via WeasyPrint | `cvloom build` |
-| | Named profiles with section and tag filtering | `--profile NAME` |
+| | Named profiles with per-section content selection | `--profile NAME` |
 | | Per-job overlays — patch highlights without duplicating data | `overlays:` in profile |
-| | Section reordering and force-include per profile | `section_order:` |
+| | Per-section reordering and visibility | `section_order:` / `sections:` |
 | | Public mode with placeholder contact data | `--public` |
 | **Analyse** | Writing lint — 22 rules across writing / structure / ats-parse axes | `cvloom check` |
 | | Per-axis lint breakdown inline after build (no fake "ATS score") | `--check` / `--strict N` |
@@ -196,7 +196,7 @@ See [docs/user/ai-features.md](docs/user/ai-features.md) for backend quickstarts
 
 ## Profiles and Overlays
 
-Each profile in `profiles/` controls template, sections, tag filtering, and section order:
+Each profile in `profiles/` controls template, section visibility, content selection, and section order:
 
 ```yaml
 # profiles/backend-role.yaml

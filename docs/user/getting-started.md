@@ -179,7 +179,7 @@ Edit `data/work.yaml`. Notice two formats for highlights — plain strings and `
 
 - `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. Use `Present` for current roles.
 - `tags` are used for filtering in profiles (covered in Scenario 7).
-- Work entries without `tags` are always included regardless of filtering.
+- A work entry with no `tags` is dropped by a profile that narrows `work` via `select`; profiles that do not name the section keep everything.
 
 ### 2.4 Education
 

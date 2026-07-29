@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
 
-{% block title %}{{ contact.name }} — Academic CV{% endblock %}
+{% block title %}{{ contact.name }} · Academic CV{% endblock %}
 
 {% block css_vars %}
 :root {
@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block css_extra %}
-/* Academic CV — education-first, serif body, dense layout */
+/* Academic CV: education-first, serif body, dense layout */
 body { font-size: 10.5pt; }
 h2 {
   font-size: 10.5pt;
@@ -214,7 +214,7 @@ h2 {
 <p>{{ basics.summary | md }}</p>
 {% endif %}
 
-<!-- SECTIONS (ordered — academic default: education first) -->
+<!-- SECTIONS (ordered; academic default puts education first) -->
 {% for sec in section_order | default(["education", "publications", "work", "projects", "skills", "certifications", "awards", "languages"]) %}
 {{ _section_macros[sec]() }}
 {% endfor %}

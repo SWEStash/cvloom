@@ -454,7 +454,7 @@ def _degrees_only(root: Path) -> list[str]:
     return [e["institution"] for e in result.data["education"]]
 
 
-def test_education_tag_filter_drops_non_matching(tagged_education_dir: Path) -> None:
+def test_education_selection_drops_non_matching(tagged_education_dir: Path) -> None:
     assert "Cloud Academy" not in _degrees_only(tagged_education_dir)
 
 

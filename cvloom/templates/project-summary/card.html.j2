@@ -2,7 +2,7 @@
 
 {% set project = projects[0] if projects else {} %}
 
-{% block title %}{{ project.name | default("Project") }} — Summary{% endblock %}
+{% block title %}{{ project.name | default("Project") }} · Summary{% endblock %}
 
 {% block css_vars %}
 :root {
