@@ -358,3 +358,21 @@ def test_ats_first_templates_join_title_and_org_with_a_comma(template: str) -> N
     html = render_template(template, _FULL_CONTEXT)
     assert "Acme" in html and "Engineer" in html
     assert " | " in html  # contact line separator survives
+
+
+@pytest.mark.parametrize("template", _ASCII_FIRST_TEMPLATES)
+def test_ats_first_templates_use_hyphen_date_ranges(template: str) -> None:
+    """Date ranges are one of the few things an ATS genuinely parses."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert "2020-01 - Present" in html
+    assert "–" not in html
+
+
+@pytest.mark.parametrize(
+    "template",
+    ["cv/modern-single", "cv/executive-dark", "cv/timeline-clean", "cv/sidebar-compact"],
+)
+def test_design_templates_keep_en_dash_date_ranges(template: str) -> None:
+    """The design-led templates keep correct range typography."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert "2020-01 – Present" in html

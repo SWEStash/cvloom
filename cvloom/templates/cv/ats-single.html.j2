@@ -24,7 +24,7 @@
 .entry-location { color: var(--muted); font-size: 9pt; }
 .skills-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .skill-row { display: flex; gap: 6px; }
-.skill-category { min-width: 110px; font-weight: 600; font-size: 9.5pt; }
+.skill-category { font-weight: 600; font-size: 9.5pt; }
 .skill-items { font-size: 9.5pt; color: var(--text); }
 {% endblock %}
 
@@ -56,7 +56,7 @@
 <div class="entry">
   <div class="entry-header clearfix">
     <span class="entry-title">{{ job.title }}</span>, <span class="entry-org">{{ job.company }}</span>
-    <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
+    <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none), sep="-") }}</span>
   </div>
   {% if job.location %}<div class="entry-location">{{ job.location }}</div>{% endif %}
   {% if job.highlights %}
@@ -76,7 +76,7 @@
 <div class="entry">
   <div class="entry-header clearfix">
     <span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
-    <span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>
+    <span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none), sep="-") }}</span>
   </div>
   <div>{{ edu.institution }}{% if edu.location %}, <span class="muted">{{ edu.location }}</span>{% endif %}</div>
   {% if edu.highlights %}
@@ -99,7 +99,7 @@
       {% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
     </span>
     {% if proj.start_date %}
-    <span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none)) }}</span>
+    <span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none), sep="-") }}</span>
     {% endif %}
   </div>
   {% if proj.description %}<p>{{ proj.description | md }}</p>{% endif %}
@@ -139,7 +139,7 @@
 <div class="entry">
   <div class="entry-header clearfix">
     <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
-    {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</span>{% endif %}
+    {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} - {{ cert.expiry_date }}{% endif %}</span>{% endif %}
   </div>
   {% if cert.issuer or cert.identifier %}<div class="muted">{{ cert.issuer }}{% if cert.issuer and cert.identifier %}, {% endif %}{{ cert.identifier }}</div>{% endif %}
 </div>

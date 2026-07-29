@@ -412,8 +412,11 @@ font subset carrying that glyph, and a custom font could omit it. ASCII has no s
 mode. On the two templates whose entire purpose is conservatism, that trade is worth making;
 on the design-led ones it is not.
 
-Date ranges keep an en dash (`2021-03 – Present`) in every template — that is correct
-typography for a range and the convention the `date_range` filter emits.
+The same two templates also use a hyphen in date ranges (`2021-03 - Present`), so their
+extracted text is pure ASCII apart from the bullet glyph WeasyPrint renders for list
+markers. Date ranges are one of the few things an ATS genuinely tries to parse, which is
+why they follow the same rule. The design-led templates keep the en dash, which is correct
+typography for a range.
 
 ### Cover letter templates
 

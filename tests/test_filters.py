@@ -102,3 +102,16 @@ def test_link_anchor_escapes_the_url():
 
 def test_link_anchor_of_a_urlless_link_is_empty():
     assert link_anchor({"label": "Broken"}) == ""
+
+
+def test_date_range_accepts_an_ascii_separator():
+    """ASCII-first templates pass sep="-" so the whole line stays ASCII."""
+    assert date_range("2020-01", "2022-03", sep="-") == "2020-01 - 2022-03"
+
+
+def test_date_range_ascii_separator_still_collapses_identical_dates():
+    assert date_range("2017", "2017", sep="-") == "2017"
+
+
+def test_date_range_ascii_separator_handles_present():
+    assert date_range("2020-01", None, sep="-") == "2020-01 - Present"

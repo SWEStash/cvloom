@@ -146,11 +146,16 @@ Renders a Markdown string to HTML. Unwraps single `<p>` tags for inline use.
 
 ### `date_range`
 
-Formats a date range from two date strings, using "Present" as the fallback for missing end dates.
+Formats a date range from two date strings, using "Present" as the fallback for missing end
+dates. Identical endpoints collapse to a single date, so a qualification known only by its
+completion year renders "2017", not "2017 – 2017".
 
 ```jinja2
 {{ entry.start_date | date_range(entry.end_date) }}
 {# → "2021-03 – Present" or "2018-06 – 2021-02" #}
+
+{{ entry.start_date | date_range(entry.end_date, sep="-") }}
+{# → "2021-03 - Present" — see Separator Convention below #}
 ```
 
 ### `skill_level_bar`
@@ -196,8 +201,16 @@ templates may use a middot (`·`); the built-in `cv/ats-single` and `cv/academic
 because U+00B7 depends on the embedded font subset carrying the glyph while ASCII does not.
 Extraction is not the issue — every separator extracts cleanly from a WeasyPrint PDF.
 
-`tests/test_renderer.py` asserts the two ASCII-first templates emit no middot, so a new
-separator in either one fails the suite.
+Date ranges follow the same split. `date_range` takes a `sep` argument defaulting to an
+en dash; the ASCII-first templates pass `sep="-"`:
+
+```jinja2
+{{ job.start_date | date_range(job.end_date | default(none), sep="-") }}
+{# ASCII-first: "2021-03 - Present"   design-led: "2021-03 – Present" #}
+```
+
+`tests/test_renderer.py` asserts the two ASCII-first templates emit no middot and no en
+dash, and that the four design-led ones still do, so drifting either way fails the suite.
 
 ---
 
