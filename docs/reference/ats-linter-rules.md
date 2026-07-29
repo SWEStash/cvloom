@@ -364,7 +364,7 @@ with equal weight, so the tail visually competes with the degrees and pushes the
 `certifications.yaml`, which renders as a compact one-line-per-entry section.
 
 **Fix hint:** Move certifications and short courses to `data/certifications.yaml`. Alternatively
-tag the tail (e.g. `tags: [certification]`) and filter it out per profile with `include_tags`.
+tag the tail (e.g. `tags: [certification]`) and narrow the section per profile with `select`.
 
 ### wl-019: chronological-order
 

@@ -80,7 +80,6 @@ def load_data(
     data_dir: Path,
     private_dir: Path | None,
     public: bool = False,
-    include_tags: list[str] | None = None,
 ) -> dict[str, Any]:
     """Load all CV data sections and return a merged context dict.
 
@@ -88,9 +87,9 @@ def load_data(
         data_dir: Path to the ``data/`` directory.
         private_dir: Path to the ``private/`` directory (may not exist).
         public: If True, use placeholder contact data instead of private/contact.yaml.
-        include_tags: If given, filter projects/work/education/publications to entries
-            with at least one matching tag. Only projects are filtered strictly:
-            elsewhere an entry with no tags at all is always included.
+
+    Selection by tag is not done here — see :mod:`cvloom.select`, which the
+    builder applies to the loaded data. This function is I/O and merge only.
     """
     result: dict[str, Any] = {}
 
@@ -125,17 +124,6 @@ def load_data(
                     f"[yellow]Warning:[/yellow] {path} not found — section will be empty."
                 )
             result[section.name] = []
-
-    # Apply tag filtering
-    if include_tags:
-        tag_set = set(include_tags)
-        for section in sections.SECTIONS:
-            result[section.name] = [
-                entry
-                for entry in result.get(section.name, [])
-                if (set(entry.get("tags", [])) & tag_set)
-                or (not section.strict_tags and not entry.get("tags"))
-            ]
 
     # Contact data
     contact_path = (private_dir / "contact.yaml") if private_dir else None

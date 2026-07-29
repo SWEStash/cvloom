@@ -303,33 +303,6 @@ class TestArrayOverlay:
 
 
 class TestSkillsOverlay:
-    def test_include_categories(self):
-        data = _base_data()
-        profile = {
-            "overlays": {
-                "skills": {
-                    "include_categories": ["Languages", "Data & Messaging"],
-                }
-            }
-        }
-        apply_overlays(data, profile)
-        cats = [s["category"] for s in data["skills"]]
-        assert cats == ["Languages", "Data & Messaging"]
-
-    def test_exclude_categories(self):
-        data = _base_data()
-        profile = {
-            "overlays": {
-                "skills": {
-                    "exclude_categories": ["Frameworks & Libraries"],
-                }
-            }
-        }
-        apply_overlays(data, profile)
-        cats = [s["category"] for s in data["skills"]]
-        assert "Frameworks & Libraries" not in cats
-        assert len(cats) == 3
-
     def test_category_override_exclude_items(self):
         data = _base_data()
         profile = {
@@ -345,22 +318,6 @@ class TestSkillsOverlay:
         langs = [s for s in data["skills"] if s["category"] == "Languages"][0]
         assert "TypeScript" not in langs["items"]
         assert "Python" in langs["items"]
-
-    def test_include_plus_override(self):
-        data = _base_data()
-        profile = {
-            "overlays": {
-                "skills": {
-                    "include_categories": ["Languages"],
-                    "category_overrides": {
-                        "Languages": {"exclude_items": ["Go"]},
-                    },
-                }
-            }
-        }
-        apply_overlays(data, profile)
-        assert len(data["skills"]) == 1
-        assert "Go" not in data["skills"][0]["items"]
 
 
 # ── Highlight normalization / flattening ─────────────────────────
@@ -441,19 +398,6 @@ class TestValidateOverlays:
         }
         warnings = validate_overlays(data, profile)
         assert warnings == []
-
-    def test_warns_mutually_exclusive_skills(self):
-        data = _base_data()
-        profile = {
-            "overlays": {
-                "skills": {
-                    "include_categories": ["Languages"],
-                    "exclude_categories": ["Frameworks"],
-                },
-            }
-        }
-        warnings = validate_overlays(data, profile)
-        assert any("mutually exclusive" in w for w in warnings)
 
     def test_warns_unmatched_work_overlay(self):
         data = _base_data()
@@ -548,16 +492,6 @@ class TestValidateOverlays:
         }
         warnings = validate_overlays(data, profile)
         assert any("unknown match field 'foo'" in w for w in warnings)
-
-    def test_warns_unknown_skill_category(self):
-        data = _base_data()
-        profile = {
-            "overlays": {
-                "skills": {"include_categories": ["Nonexistent"]},
-            }
-        }
-        warnings = validate_overlays(data, profile)
-        assert any("unknown category 'Nonexistent'" in w for w in warnings)
 
     def test_warns_unknown_category_override(self):
         data = _base_data()

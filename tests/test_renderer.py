@@ -107,7 +107,6 @@ def test_render_brief_cover_letter() -> None:
 def test_render_project_card() -> None:
     html = render_template("project-summary/card", _FULL_CONTEXT)
     assert "proj" in html
-    assert "python" in html
     assert "A project." in html
 
 
@@ -317,3 +316,20 @@ def test_templates_render_without_any_links(template: str) -> None:
     context = {**_FULL_CONTEXT, "basics": {"headline": "Engineer", "summary": "S."}}
     html = render_template(template, context)
     assert "Engineer" in html
+
+
+# ── entry tags are never rendered ────────────────────────────────
+
+_TAGGED_CONTEXT = {
+    **_FULL_CONTEXT,
+    "work": [{**_FULL_CONTEXT["work"][0], "tags": ["FILINGTAG"]}],
+    "projects": [{**_FULL_CONTEXT["projects"][0], "tags": ["FILINGTAG"]}],
+}
+
+
+@pytest.mark.parametrize("template", [*_CV_TEMPLATES, "project-summary/card"])
+def test_entry_tags_are_never_rendered(template: str) -> None:
+    """`tags` is a filing field. Rendering it published the filing vocabulary —
+    career-phase and employer labels ended up as chips on the CV."""
+    html = render_template(template, _TAGGED_CONTEXT)
+    assert "FILINGTAG" not in html

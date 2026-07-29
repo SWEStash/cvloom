@@ -35,6 +35,7 @@ cvloom/
 ├── renderer.py         # Jinja2 rendering, template discovery
 ├── filters.py          # Custom Jinja2 filters: md, date_range, skill_level_bar, link_anchor
 ├── links.py            # Profile-link vocabulary: network_of, link_username, normalize_url
+├── select.py           # Per-section content selection: apply_selection()
 ├── linter.py           # Writing lint: 22 categorized rules, LintFinding, lint()
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
@@ -141,9 +142,8 @@ awards, languages). Each record carries what the pipeline needs:
 | `summary_label` | the CLI's post-build section summary |
 | `from_directory` | `data/<name>/*.yaml` (projects) vs one `data/<name>.yaml` |
 | `warn_if_missing` | whether an absent file warns; false for opt-in sections |
-| `strict_tags` | under `include_tags`, drop untagged entries (projects only) |
 
-`loader`, `schema.validate_all`, `builder`, `cli`, `export`, `trim` and `diff` all derive
+`loader`, `schema.validate_all`, `builder`, `cli`, `export`, `trim`, `diff` and `select` all derive
 from it, so adding a section is a table entry plus its schema, template macros and
 export/import mapping — not an edit across a dozen files where forgetting one fails
 silently.

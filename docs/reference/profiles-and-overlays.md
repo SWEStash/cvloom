@@ -74,53 +74,76 @@ sections:
 | `output_filename`   | No       | Profile name                            | Base name for output files (`.html`, `.pdf`)                          |
 | `pdf_filename_format` | No     | `{first}_{last}_Resume_{profile}.pdf`   | Override the PDF filename. `{first}`/`{last}`/`{name}` come from the contact name; `{profile}` is the profile name |
 | `sections`          | No       | All `true`                              | Toggle sections on or off                                             |
-| `include_tags`      | No       | `[]` (include all)                      | Only include entries with at least one matching tag                   |
-| `include_entries`   | No       | —                                       | Force-include entries excluded by tag filtering                       |
+| `select`            | No       | —                                       | Per-section content selection (see below)                             |
 | `section_order`     | No       | `[skills, work, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
 | `job_context`       | No       | —                                       | Metadata passed to cover letter templates and AI commands             |
 | `overlays`          | No       | —                                       | Per-job data patches (see below)                                      |
 
 ---
 
-## Tag-Based Filtering
+## Selecting Content
 
-Entries in your `data/` YAML files can carry a `tags` list. When a profile sets
-`include_tags`, only entries whose tags overlap with that list are included.
+Entries in your `data/` YAML files can carry a `tags` list. A profile's `select`
+block narrows individual sections by tag:
 
 ```yaml
 # profiles/backend-focused.yaml
 template: cv/ats-single
-include_tags: [python, kafka, aws, microservices]
-```
-
-This filters every entry-list section: `work`, `education`, `projects`, `publications`,
-`certifications`, `awards`, and `languages`. Everywhere except `projects`, an entry with
-no `tags` field at all is always included (it is treated as universally relevant).
-Projects are filtered strictly — `tags` is a required field on a project, so an untagged
-project cannot exist.
-
----
-
-## Force-Including Entries
-
-Sometimes tag filtering removes an entry you still want. Use `include_entries` to
-force-include specific entries by matching on a field value:
-
-```yaml
-include_tags: [python, aws]
-
-include_entries:
+select:
   work:
-    - match: {company: "Acme Corp"}
+    tags: [python, kafka, aws, microservices]
   projects:
-    - match: {name: "open-source-tool"}
+    tags: [python]
+  skills:
+    exclude_categories: [Design]
 ```
 
-The `match` object can use any field present on the entry. If the entry was already
-included by tag filtering, the force-include is a no-op.
+**Selection is per-section and opt-in.** A section you do not name is untouched —
+in the example above, `education`, `publications`, `certifications`, `awards` and
+`languages` all keep every entry. This is what lets you narrow one section without
+disturbing the rest.
 
-Under the hood, cvloom performs a second unfiltered data load to retrieve the
-excluded entries, then merges the matched ones back in.
+### The rules
+
+For an entry section:
+
+1. `tags` is set → keep only entries carrying at least one of those tags
+2. otherwise → keep every entry
+
+For `skills`, which is keyed on `category` rather than `tags`:
+
+1. category is in `exclude_categories` → drop it
+2. otherwise, if `categories` is set → keep only the listed categories
+3. otherwise → keep every category
+
+### Untagged entries do not match
+
+**An entry with no tags does not match a `tags` list.** An include list is a query,
+and untagged content answers no query — the same way filtering issues by label
+does not surface unlabelled ones. This holds uniformly for every section.
+
+The trap is adding a new entry and forgetting to tag it: it disappears from every
+profile that filters that section. cvloom warns when this happens:
+
+```
+Warning: select.work: dropped 1 entry that carries no tags.
+         Tag them to keep them in this profile.
+```
+
+Take that warning seriously — it usually means your newest role is missing from
+the CV you are about to send.
+
+### Why tags have no exclusion, but categories do
+
+Tags work best as a **one-dimensional classification** — one axis, such as
+practice area (`backend`, `data`, `academic`). Keep them to that axis and an
+allow-list expresses everything you need. Mixing in a second dimension
+(seniority, employer, career phase) is what makes filtering awkward, because no
+single list then cuts cleanly.
+
+Skill categories are different: they are a *closed*, enumerable set declared in
+`data/skills.yaml`. Excluding three of fifteen is both equally expressive and far
+shorter than listing the other twelve, so `exclude_categories` exists there.
 
 ---
 
@@ -292,35 +315,19 @@ text, then append new items.
 
 ### Skills Overlay
 
-The skills overlay filters entire categories or removes individual items within a
-category.
+The skills overlay removes individual items within a category. Choosing *which
+categories appear* is selection, not patching — that lives in
+[`select.skills`](#selecting-content).
 
-#### Filtering categories
-
-`include_categories` and `exclude_categories` are mutually exclusive. If both are
-set, only `include_categories` takes effect (a validation warning is emitted).
+Use `category_overrides` to remove specific items while keeping the category:
 
 ```yaml
+select:
+  skills:
+    categories: [Languages, Cloud]
+
 overlays:
   skills:
-    include_categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
-```
-
-```yaml
-overlays:
-  skills:
-    exclude_categories: ["Frameworks & Tools"]
-```
-
-#### Removing individual items
-
-Use `category_overrides` to remove specific items from a category while keeping
-the category itself:
-
-```yaml
-overlays:
-  skills:
-    include_categories: [Languages, Cloud]
     category_overrides:
       Languages:
         exclude_items: [Go, Rust]
@@ -379,6 +386,9 @@ You maintain one work entry. Each highlight has a stable `id` so overlays can ad
 template: cv/ats-single
 output_filename: backend-cv
 job_context: { company: Acme, role: Senior Backend Engineer }
+select:
+  skills:
+    categories: [Languages, Backend]
 overlays:
   basics:
     headline: "Senior Backend Engineer — Python & APIs"
@@ -388,8 +398,6 @@ overlays:
       highlights:
         mode: pick
         items: [api, kafka, mentoring]   # the 'dbt' bullet is dropped
-  skills:
-    include_categories: [Languages, Backend]
 ```
 
 **Application B — an analytics-engineering role.** Emphasize the warehouse and dbt work;
@@ -400,6 +408,9 @@ show data skills — *from the exact same base data*:
 template: cv/ats-single
 output_filename: data-cv
 job_context: { company: Globex, role: Analytics Engineer }
+select:
+  skills:
+    categories: [Languages, Data]
 overlays:
   basics:
     headline: "Analytics Engineer — dbt & Warehousing"
@@ -409,8 +420,6 @@ overlays:
       highlights:
         mode: pick
         items: [dbt, kafka, mentoring]   # the 'api' bullet is dropped
-  skills:
-    include_categories: [Languages, Data]
 ```
 
 The `kafka` and `mentoring` bullets appear in both; `api` is backend-only; `dbt` is
@@ -487,15 +496,16 @@ sections:
 # Lead with skills for an infra role, then work experience.
 section_order: [skills, work, projects, education]
 
-# ── Tag filtering ──────────────────────────────────────────────────
-# Only include entries tagged with at least one of these.
-include_tags: [python, kafka, aws, microservices, infrastructure]
-
-# ── Force-includes ─────────────────────────────────────────────────
-# Keep the "Acme Corp" work entry even if its tags don't overlap.
-include_entries:
+# ── Content selection ──────────────────────────────────────────────
+# Narrow only the sections named here; education keeps every entry.
+# Remember: an entry with no tags does not match a `tags` list.
+select:
   work:
-    - match: {company: "Acme Corp"}
+    tags: [python, kafka, aws, microservices, infrastructure]
+  projects:
+    tags: [python, infrastructure]
+  skills:
+    categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
 
 # ── Job context (for cover letter templates and AI commands) ───────
 job_context:
@@ -534,9 +544,8 @@ overlays:
     - match: {company: "Old Startup Inc"}
       exclude: true
 
-  # Keep only relevant skill categories, drop a niche item.
+  # Drop a niche item. Which categories appear is set in `select` above.
   skills:
-    include_categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
     category_overrides:
       Languages:
         exclude_items: [PHP]

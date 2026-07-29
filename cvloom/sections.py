@@ -54,14 +54,6 @@ class Section:
     warn_if_missing: bool = False
     """Warn when the data file is absent. False for opt-in sections."""
 
-    strict_tags: bool = False
-    """Under ``include_tags``, drop entries with no tags at all.
-
-    Only true for projects, where ``tags`` is a required field so an untagged
-    project cannot exist. Everywhere else an untagged entry is treated as
-    universally relevant and always included.
-    """
-
     sort_date_keys: tuple[str, ...] = ()
     """Date fields ranking an entry chronologically; the first present wins.
 
@@ -107,7 +99,6 @@ SECTIONS: tuple[Section, ...] = (
         "Projects",
         "projects",
         from_directory=True,
-        strict_tags=True,
         sort_date_keys=_DATED,
         range_keys=_RANGE,
     ),

@@ -42,7 +42,8 @@ def project_dir(tmp_path: Path) -> str:
                 "highlights:\n  - Implemented a high-performance parser.\n"
             ),
             "profiles/backend.yaml": (
-                "template: cv/modern-single\noutput_filename: backend-cv\ninclude_tags: [python]\n"
+                "template: cv/modern-single\noutput_filename: backend-cv\n"
+                "select:\n  work:\n    tags: [python]\n"
             ),
         },
     )

@@ -114,20 +114,14 @@ def _apply_entry_overlay(entry: dict[str, Any], overlay: dict[str, Any]) -> None
 
 
 def _apply_skills_overlay(data: dict[str, Any], overlay: dict[str, Any]) -> None:
-    """Filter skill categories and items."""
+    """Override the items within a skill category.
+
+    Choosing *which* categories appear is selection, not patching, and lives in
+    :mod:`cvloom.select` under ``select.skills``.
+    """
     skills: list[dict[str, Any]] = data.get("skills", [])
     if not skills:
         return
-
-    include = overlay.get("include_categories")
-    exclude = overlay.get("exclude_categories")
-
-    if include is not None:
-        include_set = set(include)
-        skills = [s for s in skills if s["category"] in include_set]
-    elif exclude is not None:
-        exclude_set = set(exclude)
-        skills = [s for s in skills if s["category"] not in exclude_set]
 
     # Per-category item overrides
     cat_overrides = overlay.get("category_overrides", {})
@@ -163,18 +157,7 @@ def validate_overlays(data: dict[str, Any], profile: dict[str, Any]) -> list[str
 
     # --- Skills overlay checks ---
     skills_ov = overlays.get("skills", {})
-    if skills_ov.get("include_categories") and skills_ov.get("exclude_categories"):
-        warnings.append(
-            "skills overlay: include_categories and exclude_categories "
-            "are mutually exclusive — only include_categories will be used."
-        )
-
     existing_categories = {g.get("category") for g in data.get("skills", [])}
-
-    for key in ("include_categories", "exclude_categories"):
-        for cat in skills_ov.get(key, []):
-            if cat not in existing_categories:
-                warnings.append(f"skills overlay: {key} references unknown category '{cat}'.")
 
     for cat_name in skills_ov.get("category_overrides", {}):
         if cat_name not in existing_categories:

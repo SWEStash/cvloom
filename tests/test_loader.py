@@ -87,12 +87,10 @@ def test_load_data_private(data_dir: Path, private_dir: Path) -> None:
     assert result["contact"]["email"] == "test@example.com"
 
 
-def test_tag_filtering(data_dir: Path) -> None:
-    result = load_data(data_dir, private_dir=None, public=True, include_tags=["python"])
+def test_load_data_does_not_filter(data_dir: Path) -> None:
+    """Selection lives in cvloom.select; the loader is I/O and merge only."""
+    result = load_data(data_dir, private_dir=None, public=True)
     assert len(result["projects"]) == 1
-
-    result2 = load_data(data_dir, private_dir=None, public=True, include_tags=["rust"])
-    assert len(result2["projects"]) == 0
 
 
 def test_load_profile(tmp_path: Path) -> None:

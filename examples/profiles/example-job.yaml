@@ -1,6 +1,5 @@
 template: cv/ats-single
 output_filename: example-job-cv
-include_tags: [python, kafka, aws, microservices]
 
 section_order: [skills, work, projects, education]
 
@@ -9,6 +8,17 @@ sections:
   education: true
   skills: true
   projects: true
+
+# Narrow individual sections. A section not named here keeps every entry —
+# `education` is untouched below, so all of it renders. An entry with no tags
+# does not match a `tags` list, so only tag the sections you mean to filter.
+select:
+  work:
+    tags: [python, kafka, aws, microservices]
+  projects:
+    tags: [python]
+  skills:
+    categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
 
 job_context:
   company: Stripe
@@ -28,6 +38,3 @@ overlays:
         items: [kafka-pipeline, microservices-migration]
         append:
           - "Designed zero-downtime deployment for 200-node Kafka cluster."
-
-  skills:
-    include_categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]

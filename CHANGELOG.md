@@ -11,6 +11,34 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Removed
 
+- **BREAKING: `include_tags` and `include_entries` are replaced by `select`; entry tags are no longer rendered.**
+
+  `include_tags` was *global* — one tag set applied to all seven entry sections at once — so narrowing one section silently gutted the others, and `include_entries` existed purely to claw back what the global filter over-removed. A patch on a patch. Skills, meanwhile, were selected by a different key in a different block (`overlays.skills.include_categories`).
+
+  ```yaml
+  # before — global, plus an escape hatch for its own over-reach
+  include_tags: [python, aws]
+  include_entries:
+    work:
+      - match: {company: "Acme Corp"}
+  overlays:
+    skills:
+      include_categories: [Languages, Cloud]
+
+  # after — per-section and opt-in; a section not named keeps every entry
+  select:
+    work:
+      tags: [python, aws]
+    skills:
+      categories: [Languages, Cloud]
+  ```
+
+  **Untagged entries no longer survive an include list.** An include list is a query, and untagged content answers no query — the same way filtering issues by label does not surface unlabelled ones. This is now uniform: `strict_tags` is deleted from the section registry, so projects' behaviour became the rule rather than a per-section exception. Per-section, opt-in selection is what makes that safe — the old lenient rule existed only to stop the *global* filter wiping out sections you never meant to touch. cvloom warns when a selector drops untagged entries, because the failure mode is a newly added, untagged role vanishing from the CV you are about to send.
+
+  **Entry `tags` are no longer rendered.** Tags are a filing vocabulary, and rendering them published the filing system: a leadership CV showed chips reading `early-career`, `freelance`, `support`, and former employers' names next to roles. Those keywords already counted toward `cvloom match` coverage without being rendered, and duplicated `skills`. Three of six CV templates printed work tags and all six printed project tags; none do now, and a parametrised render test holds the line.
+
+  Tags work best as a **one-dimensional classification** — one axis, such as practice area. That is why `select` has no `exclude_tags`: on a single axis, an allow-list expresses everything. Skill *categories* do get `exclude_categories`, because they are a closed enumerable set where excluding three of fifteen is both equally expressive and far shorter than listing the other twelve.
+
 - **BREAKING: `linkedin`, `github`, and `website` are gone from `private/contact.yaml`, and `basics.public_links` is now `basics.links`.** The same profile link could previously be written two ways — a handle field in the gitignored contact file, or a labelled URL in committed `basics.yaml` — and both rendered. The header reconciled them at render time by substring-matching the handle against the URL, which silently failed whenever the two disagreed, printing LinkedIn and GitHub twice. It also broke on `www.` prefixes, trailing slashes, and case. The split was along the wrong axis: `--public` strips only `email` and `phone`, so links in `contact.yaml` were never actually being hidden, while a public build with no `private/` directory lost them entirely — the same profile rendering differently depending on whether a gitignored file happened to exist.
 
   Profile links now live only in `data/basics.yaml`, which every build reads:
@@ -34,20 +62,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`cvloom/select.py`** — one home for all content selection, replacing filtering that was spread across `loader`, `builder`, and `overlays`. Returns warnings for a selector that matches nothing, one naming an unknown section or category, and one that drops untagged entries.
+- `cvloom list-profiles` gained a **Narrows** column showing which sections each profile selects.
+
 - **Header links are now real anchors.** Every CV template and the standard cover letter render `basics.links` through a new `link_anchor` filter, which emits `<a href="…">` with the URL as its *visible* text (scheme and `www.` trimmed). ATS parsers split on whether they read visible text or the `href`; anchor text that hides the URL leaves the text-reading half nothing usable, so both halves now get a complete address. WeasyPrint turns each `href` into a real PDF link annotation, so the human reviewer gets a clickable link from the same markup. Previously nothing in the header was a link at all.
 - **`cv/modern-single`, `cv/executive-dark`, `cv/timeline-clean`, and `cv/sidebar-compact` render profile links.** Only `cv/ats-single` and `cv/academic` ever read `public_links`; on the other four, links set in `basics.yaml` were silently dropped. A parametrised render test now asserts every CV template emits each link exactly once.
 - **`public_name` works.** `loader._apply_public_mode` has always implemented it — replacing `name` in `--public` builds only, so you can publish under a pen name — but `contact.json` sets `additionalProperties: false` and never declared the key, so setting it failed validation. It is now in the schema and documented.
 - **Lint rule `wl-022` (duplicate-links, structure):** flags two `links` entries resolving to the same destination, comparing after normalising away scheme, `www.`, host case, and trailing slash.
 - **`wl-021` (unfilled-placeholders) now scans link URLs.** A scaffolded `https://github.com/[handle]` reaching a PDF is exactly what the rule exists to catch, and it was not looking there.
 - **`cvloom/links.py`** — the shared profile-link vocabulary (`network_of`, `link_username`, `normalize_url`) used by export, import, and the linter, so host recognition and URL comparison are defined once.
-
-### Changed
-
-- **Export and import follow the single source.** `to_json_resume` builds `basics.profiles` from `links` alone, recovering `username` from the URL path for LinkedIn and GitHub and deduplicating on the normalised URL; Markdown and DOCX headers list `links` instead of contact handles. `from_json_resume` writes *every* profile to `data/basics.yaml`, including LinkedIn and GitHub, with JSON Resume's `basics.url` importing as a `Website` link — nothing PII-adjacent, so nothing belongs in `private/`. The round trip stays closed.
-- **`wl-010` (profile-links) checks `basics.links`** and recognises networks by host rather than by handle substring, so `linkedin.com/in/jane`, `https://www.linkedin.com/in/jane/`, and subdomains all satisfy it.
-- **The scaffold no longer hardcodes `SWEStash`.** `cvloom init` wrote `github: "SWEStash"` into every user's contact file and placeholder — one project's org name in generic sample data. Scaffolded links now use `[handle]`, which `wl-021` flags if left unedited.
-
-### Added
 
 - **Four new lint rules.** `wl-019` (chronological-order) flags any dated section not ordered newest-first — cvloom renders entries in load order and never sorts, so ordering is entirely the author's, and nothing previously checked it. `wl-020` (date-sanity) catches an `end_date` before its `start_date`, dates in the future, and expired credentials via `expiry_date`; the first two can make a parser compute a negative tenure and drop or mis-assign an entry, and the third is a credibility risk (AWS certifications, for instance, lapse after three years). `wl-021` (unfilled-placeholders) catches scaffold text like `[Company Name]` or `[X]%` surviving into the rendered PDF — `cvloom init` ships placeholders by design and nothing else in the pipeline stops one reaching an application, since schema validation only checks types and every other rule reads placeholder text as ordinary prose; Markdown links are exempt. The section registry gained `sort_date_keys`, `range_keys` and `expiry_key` so all three derive their date knowledge from one table rather than three copies of a field list.
 - **`type` on certification entries, separating credentials from coursework.** A single "Certifications" heading over a list that mixes an exam-backed AWS credential with a Udemy course overclaims the courses, and there was no way to say so. Entries now take an optional `type` — `certification`, `license`, `course`, or `micro-credential` — following [Open Badges 3.0](https://www.imsglobal.org/spec/ob/v3p0)'s `achievementType` vocabulary. Credentials render under **Certifications**, completion records under **Professional Development**, credentials first, empty groups omitted; omitting `type` means `certification`, so existing files render unchanged. A type discriminator was chosen over a separate top-level `courses` section deliberately: JSON Resume has no such section (its `courses` lives *inside* an education entry, meaning subjects within a degree), so a new section would export to a private extension nothing else reads — whereas `type` maps directly onto the two profile sections LinkedIn actually has, which is what the planned LinkedIn export needs.
@@ -62,6 +85,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **`loader.load_data` no longer filters.** It is I/O and merge only; selection is a separate pipeline step in `resolve()`, applied before normalisation so overlays only ever see what survives.
+- **`overlays.skills` keeps only `category_overrides`.** Choosing which categories appear is selection, not patching. The `include_categories`/`exclude_categories` mutual-exclusion warning is gone with the keys.
+
+- **Export and import follow the single source.** `to_json_resume` builds `basics.profiles` from `links` alone, recovering `username` from the URL path for LinkedIn and GitHub and deduplicating on the normalised URL; Markdown and DOCX headers list `links` instead of contact handles. `from_json_resume` writes *every* profile to `data/basics.yaml`, including LinkedIn and GitHub, with JSON Resume's `basics.url` importing as a `Website` link — nothing PII-adjacent, so nothing belongs in `private/`. The round trip stays closed.
+- **`wl-010` (profile-links) checks `basics.links`** and recognises networks by host rather than by handle substring, so `linkedin.com/in/jane`, `https://www.linkedin.com/in/jane/`, and subdomains all satisfy it.
+- **The scaffold no longer hardcodes `SWEStash`.** `cvloom init` wrote `github: "SWEStash"` into every user's contact file and placeholder — one project's org name in generic sample data. Scaffolded links now use `[handle]`, which `wl-021` flags if left unedited.
+
 - **`wl-002` (missing-quantification) now reports once per entry instead of once per bullet.** It fired on every bullet without a digit — eleven findings on a single role — which buried every other rule on exactly the CVs that needed them most. The underlying claim does not survive scrutiny either: recruiter-preference evidence supports *a role showing measurable impact*, not a number in every bullet. One quantified highlight now satisfies the entry.
 - **The default PDF filename carries a `_<profile>` suffix.** The default was contact-derived only (`Jane_Doe_Resume.pdf`) and therefore identical for every profile, so building several profiles produced several HTML files but a **single** PDF — whichever profile built last silently overwrote the rest, with no warning. `pdf_filename_format` also accepts a new `{profile}` token for placing it elsewhere in the name.
 
@@ -71,7 +101,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Internal slop-audit cleanup, phase 2 (no behavior change): killed the two biggest sources of structural duplication. Added `builder.resolve_project`/`build_project` wrappers over the fixed `data/`+`private/`+`profiles/` project layout and migrated all 23 call sites in the CLI and MCP server, so the 5-argument wiring block exists once. Added `cvloom/projects.py` (a shared profile/project-listing data layer behind both the CLI table and the MCP JSON) and `cvloom/sections.py` (single home for the CV data walk: `highlight_text`, `skill_name`, `entry_label`, `iter_entry_text`/`count_words`, and one NFKD-normalizing `slugify`). The `~18` copies of the `str | {text}` highlight guard, the three hand-copied word-count walks, the section→label maps, and the two divergent slugifiers now resolve to those shared helpers
 - Internal slop-audit cleanup, phase 1 (no behavior change): removed a meaningless, never-surfaced `frequency_cv` field from `match`; factored the four AI orchestrators' identical LLM call-and-parse block into a shared `ai.provider.complete_json` helper; unified the four AI MCP tool responses on `dataclasses.asdict`; corrected `filters.register_filters` to a real `jinja2.Environment` type (dropping three `type: ignore`s); tightened several tests (real assertions for the unmatched-overlay warning, the `init --force` overwrite, and the `_suggest_section` "work" branch) and removed a dead fixture, a subsumed test, and dead code (a no-op contact `pop`, unused `_init_*` `force` params, a stale renderer comment). The `dev` extra now pulls `cvloom[docx]` instead of re-pinning `python-docx`
 
----
+### Changed (internal)
+
+- **Section registry (`sections.SECTIONS`), no behavior change.** Adding a section previously meant editing ~16 sites across 13 files — `_ENTRY_SCHEMAS`, file loading, tag filtering, `validate_all`, three `sections.py` constants, `section_defaults`, `default_order`, `_section_summary`, export headings, and more — where forgetting one failed *silently*. The entry-list sections are now frozen `Section` records carrying `schema`, `label_key`, `heading`, `summary_label`, `from_directory` and `warn_if_missing`; loader, schema validation, builder, CLI, export and `select` all derive from them. `skills` and `basics` stay out deliberately — their shapes genuinely differ, and forcing them in would buy uniformity at the price of exceptions everywhere. `tests/test_sections_registry.py` guards what the registry cannot derive: `profile.json`'s `sections`/`section_order` enum, and each section's entry schema existing.
+- `export.py`'s five near-identical `_map_*` functions — each a hand-rolled block of conditional field assignments — collapsed into one table-driven `_map_entry` over `_Field(src, dest, kind)` tuples. Adding the namespaced extensions above was then a table edit rather than a sixth copy of the same block. `tests/conftest.py`'s `make_resolved` factory had drifted behind the data model; it now derives its section defaults from the registry itself, so it cannot drift again.
+
+- Slop-audit cleanup, phase 5 (SLOP-024, no behavior change): decomposed the `cli.py` God-file. The project-scaffolding logic (`init`/`sync` file operations and the managed-file registry) moved into a new `cvloom.scaffold` package, and the ~100 lines of embedded sample-YAML string constants became real files under `cvloom/scaffold/samples/`, loaded at runtime. `cli.py` dropped from ~1,190 to ~940 lines and no longer mixes command definitions with scaffold internals and inline data. Verified: a fresh `cvloom init` scaffolds and builds identically.
+- Slop-audit cleanup, phase 4: added `tests/conftest.py` with shared `make_resolved` and `make_project` factories. The six per-file `_make_resolved` copies now delegate to one `ResolvedProfile` builder (defaults no longer drift), and the duplicated on-disk project scaffolds for the builder and MCP suites are single-sourced through `make_project`. (Bespoke fixtures whose content is load-bearing for their own assertions — loader, match, CLI-list — keep their tailored data.)
 
 ### Fixed
 
@@ -92,13 +128,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Omitting an optional field no longer crashes the build.** Templates render under Jinja2's `StrictUndefined`, where reading a dict key that is simply *absent* raises `UndefinedError` rather than evaluating falsy — so `{% if edu.field %}` blew up on any `work`/`education`/`project` entry that left out a field the schema and docs both call optional (`field`, `location`, `highlights`, `url`, `start_date`, `description`, `tags`, …). Every built-in template was affected, and the only workaround was to write out `field: ""`, `highlights: []` by hand. `resolve()` now fills each entry's schema-declared optional keys with typed empties (`""`/`[]`) via the new `schema.entry_defaults()`, so "optional" means optional for current and future templates alike. The same fix covers partially-specified `job_context` in cover-letter profiles. `contact` is deliberately excluded — its templates guard with `is defined` so that `--public` redaction keeps email/phone invisible rather than blank — and the three templates that instead tested contact keys for truthiness (`cover-letter/brief`, `cover-letter/standard`, `project-summary/card`, which crashed on any public build) now check presence first. Regression test renders all 9 templates against a project carrying only schema-required fields.
 - MCP tools now surface **real validation errors**. Previously every pipeline failure collapsed to the unactionable string `"exit code 1"`; the tools now return `{"error": "resolve failed", "details": [...]}` with the actual schema/profile messages an agent needs. The four AI tools also resolve inside their `try` block (a resolve failure no longer escapes uncaught) and catch specific error types instead of a blanket `except Exception`.
 
-### Changed (internal)
-
-- **Section registry (`sections.SECTIONS`), no behavior change.** Adding a section previously meant editing ~16 sites across 13 files — `_ENTRY_SCHEMAS`, file loading, tag filtering, `validate_all`, three `sections.py` constants, `section_defaults`, `default_order`, `_section_summary`, export headings, and more — where forgetting one failed *silently*. The entry-list sections are now frozen `Section` records carrying `schema`, `label_key`, `heading`, `summary_label`, `from_directory`, `warn_if_missing`, and `strict_tags`; loader, schema validation, builder, CLI and export all derive from them. `skills` and `basics` stay out deliberately — their shapes genuinely differ, and forcing them in would buy uniformity at the price of exceptions everywhere. `tests/test_sections_registry.py` guards what the registry cannot derive: `profile.json`'s `sections`/`section_order` enum, and each section's entry schema existing.
-- `export.py`'s five near-identical `_map_*` functions — each a hand-rolled block of conditional field assignments — collapsed into one table-driven `_map_entry` over `_Field(src, dest, kind)` tuples. Adding the namespaced extensions above was then a table edit rather than a sixth copy of the same block. `tests/conftest.py`'s `make_resolved` factory had drifted behind the data model; it now derives its section defaults from the registry itself, so it cannot drift again.
-
-- Slop-audit cleanup, phase 5 (SLOP-024, no behavior change): decomposed the `cli.py` God-file. The project-scaffolding logic (`init`/`sync` file operations and the managed-file registry) moved into a new `cvloom.scaffold` package, and the ~100 lines of embedded sample-YAML string constants became real files under `cvloom/scaffold/samples/`, loaded at runtime. `cli.py` dropped from ~1,190 to ~940 lines and no longer mixes command definitions with scaffold internals and inline data. Verified: a fresh `cvloom init` scaffolds and builds identically.
-- Slop-audit cleanup, phase 4: added `tests/conftest.py` with shared `make_resolved` and `make_project` factories. The six per-file `_make_resolved` copies now delegate to one `ResolvedProfile` builder (defaults no longer drift), and the duplicated on-disk project scaffolds for the builder and MCP suites are single-sourced through `make_project`. (Bespoke fixtures whose content is load-bearing for their own assertions — loader, match, CLI-list — keep their tailored data.)
+---
 
 ## [0.6.0] — 2026-07-18
 

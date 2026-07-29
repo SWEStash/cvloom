@@ -112,7 +112,7 @@ These variables are available in every template:
 | `education` | list | Education entries |
 | `skills` | list | Skill categories with items |
 | `projects` | list | Project entries |
-| `profile` | dict | The raw profile YAML (`template`, `output_filename`, `include_tags`, etc.) |
+| `profile` | dict | The raw profile YAML (`template`, `output_filename`, `select`, etc.) |
 | `show` | dict | Section visibility flags. Keys: `work`, `education`, `skills`, `projects`. Value: `True`/`False` |
 | `section_order` | list | Ordered list of section names to render |
 | `job_context` | dict or None | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`) |

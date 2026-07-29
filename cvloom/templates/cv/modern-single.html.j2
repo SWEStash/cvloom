@@ -80,11 +80,6 @@
     {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
   </ul>
   {% endif %}
-  {% if job.tags %}
-  <div class="tags" style="margin-top:4px;">
-    {% for tag in job.tags %}<span class="skill-tag">{{ tag }}</span>{% endfor %}
-  </div>
-  {% endif %}
 </div>
 {% endfor %}
 {% endif %}
@@ -131,11 +126,6 @@
   <ul>
     {% for h in proj.highlights %}<li>{{ h | md }}</li>{% endfor %}
   </ul>
-  {% endif %}
-  {% if proj.tags %}
-  <div class="tags" style="margin-top:4px;">
-    {% for tag in proj.tags %}<span class="skill-tag">{{ tag }}</span>{% endfor %}
-  </div>
   {% endif %}
 </div>
 {% endfor %}

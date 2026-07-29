@@ -22,7 +22,8 @@ class ProfileSummary:
     name: str
     template: str
     output_filename: str
-    include_tags: list[str]
+    selected_sections: list[str]
+    """Sections the profile narrows via ``select`` — empty means "everything"."""
     job_context: dict[str, Any] | None
 
 
@@ -52,7 +53,7 @@ def list_profiles(root: Path) -> list[ProfileSummary]:
                 name=pf.stem,
                 template=data.get("template", ""),
                 output_filename=data.get("output_filename") or pf.stem,
-                include_tags=data.get("include_tags") or [],
+                selected_sections=sorted(data.get("select") or {}),
                 job_context=data.get("job_context"),
             )
         )

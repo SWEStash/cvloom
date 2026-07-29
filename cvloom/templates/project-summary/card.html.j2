@@ -24,8 +24,6 @@ h2 { display: none; }
 .card-highlights { margin-bottom: 14px; }
 .card-highlights ul { padding-left: 1.4em; }
 .card-highlights li { margin-bottom: 4px; }
-.card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.card-tags .tag { display: inline-block; background: #eff6ff; color: var(--accent); border-radius: 3px; padding: 2px 8px; font-size: 8.5pt; }
 .card-author { margin-top: 20px; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--border); padding-top: 10px; }
 {% endblock %}
 
@@ -56,13 +54,6 @@ h2 { display: none; }
   </div>
   {% endif %}
 
-  {% if project.tags is defined and project.tags %}
-  <div class="card-tags">
-    {% for tag in project.tags %}
-    <span class="tag">{{ tag }}</span>
-    {% endfor %}
-  </div>
-  {% endif %}
 </div>
 
 <div class="card-author">{{ contact.name }}{% if contact.email is defined and contact.email %} · {{ contact.email }}{% endif %}</div>

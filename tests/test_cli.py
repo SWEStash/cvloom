@@ -69,7 +69,7 @@ def project_root(tmp_path: Path) -> Path:
     (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
     (profiles / "backend.yaml").write_text(
         "template: cv/modern-single\noutput_filename: backend-cv\n"
-        "include_tags: [python]\n"
+        "select:\n  work:\n    tags: [python]\n"
         "job_context:\n  company: Acme\n  role: Senior Engineer\n"
     )
 

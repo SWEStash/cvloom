@@ -3,7 +3,9 @@
   "$id": "profile",
   "title": "Build Profile",
   "type": "object",
-  "required": ["template"],
+  "required": [
+    "template"
+  ],
   "additionalProperties": false,
   "properties": {
     "template": {
@@ -19,30 +21,175 @@
       "description": "Per-section include/exclude overrides",
       "additionalProperties": false,
       "properties": {
-        "work": {"type": "boolean", "default": true},
-        "education": {"type": "boolean", "default": true},
-        "skills": {"type": "boolean", "default": true},
-        "projects": {"type": "boolean", "default": true},
-        "publications": {"type": "boolean", "default": true},
-        "certifications": {"type": "boolean", "default": true},
-        "awards": {"type": "boolean", "default": true},
-        "languages": {"type": "boolean", "default": true}
+        "work": {
+          "type": "boolean",
+          "default": true
+        },
+        "education": {
+          "type": "boolean",
+          "default": true
+        },
+        "skills": {
+          "type": "boolean",
+          "default": true
+        },
+        "projects": {
+          "type": "boolean",
+          "default": true
+        },
+        "publications": {
+          "type": "boolean",
+          "default": true
+        },
+        "certifications": {
+          "type": "boolean",
+          "default": true
+        },
+        "awards": {
+          "type": "boolean",
+          "default": true
+        },
+        "languages": {
+          "type": "boolean",
+          "default": true
+        }
       }
     },
-    "include_tags": {
-      "type": "array",
-      "items": {"type": "string"},
-      "description": "Only include projects/work with at least one of these tags. Empty = include all."
+    "select": {
+      "type": "object",
+      "description": "Per-section content selection. A section not named here is untouched.",
+      "additionalProperties": false,
+      "properties": {
+        "work": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "education": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "projects": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "publications": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "certifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "awards": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "languages": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only entries carrying at least one of these tags. An entry with no tags does not match."
+            }
+          }
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only these skill categories"
+            },
+            "exclude_categories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Drop these skill categories; applied before `categories`"
+            }
+          }
+        }
+      }
     },
     "job_context": {
       "type": "object",
       "description": "Job-specific context for cover letter template",
       "additionalProperties": false,
       "properties": {
-        "company": {"type": "string"},
-        "role": {"type": "string"},
-        "hiring_manager": {"type": "string"},
-        "notes": {"type": "string"}
+        "company": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "hiring_manager": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
       }
     },
     "section_order": {
@@ -62,21 +209,6 @@
       },
       "description": "Render sections in this order (overrides template default)"
     },
-    "include_entries": {
-      "type": "object",
-      "description": "Force-include entries that would be excluded by tag filtering",
-      "additionalProperties": false,
-      "properties": {
-        "work": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/match_spec"}
-        },
-        "projects": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/match_spec"}
-        }
-      }
-    },
     "overlays": {
       "type": "object",
       "description": "Per-job data patches applied after tag filtering",
@@ -86,22 +218,32 @@
           "type": "object",
           "description": "Shallow merge into basics data",
           "properties": {
-            "headline": {"type": "string"},
-            "summary": {"type": "string"}
+            "headline": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
           },
           "additionalProperties": false
         },
         "work": {
           "type": "array",
-          "items": {"$ref": "#/$defs/entry_overlay"}
+          "items": {
+            "$ref": "#/$defs/entry_overlay"
+          }
         },
         "education": {
           "type": "array",
-          "items": {"$ref": "#/$defs/entry_overlay"}
+          "items": {
+            "$ref": "#/$defs/entry_overlay"
+          }
         },
         "projects": {
           "type": "array",
-          "items": {"$ref": "#/$defs/entry_overlay"}
+          "items": {
+            "$ref": "#/$defs/entry_overlay"
+          }
         },
         "skills": {
           "$ref": "#/$defs/skills_overlay"
@@ -113,38 +255,58 @@
     "match_spec": {
       "type": "object",
       "description": "Field-value pairs to identify an entry (AND logic)",
-      "additionalProperties": {"type": "string"}
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "entry_overlay": {
       "type": "object",
-      "required": ["match"],
+      "required": [
+        "match"
+      ],
       "additionalProperties": false,
       "properties": {
-        "match": {"$ref": "#/$defs/match_spec"},
-        "exclude": {"type": "boolean"},
-        "title": {"type": "string"},
+        "match": {
+          "$ref": "#/$defs/match_spec"
+        },
+        "exclude": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string"
+        },
         "highlights": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
             "mode": {
               "type": "string",
-              "enum": ["all", "pick", "exclude"],
+              "enum": [
+                "all",
+                "pick",
+                "exclude"
+              ],
               "default": "all"
             },
             "items": {
               "type": "array",
-              "items": {"type": "string"},
+              "items": {
+                "type": "string"
+              },
               "description": "Highlight IDs to pick or exclude"
             },
             "append": {
               "type": "array",
-              "items": {"type": "string"},
+              "items": {
+                "type": "string"
+              },
               "description": "Extra highlights to add after filtered ones"
             },
             "replace": {
               "type": "object",
-              "additionalProperties": {"type": "string"},
+              "additionalProperties": {
+                "type": "string"
+              },
               "description": "Map of highlight ID to replacement text"
             }
           }
@@ -155,16 +317,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "include_categories": {
-          "type": "array",
-          "items": {"type": "string"},
-          "description": "Only include these skill categories"
-        },
-        "exclude_categories": {
-          "type": "array",
-          "items": {"type": "string"},
-          "description": "Exclude these skill categories"
-        },
         "category_overrides": {
           "type": "object",
           "additionalProperties": {
@@ -173,14 +325,13 @@
             "properties": {
               "exclude_items": {
                 "type": "array",
-                "items": {"type": "string"}
+                "items": {
+                  "type": "string"
+                }
               }
             }
           }
         }
-      },
-      "not": {
-        "required": ["include_categories", "exclude_categories"]
       }
     }
   }

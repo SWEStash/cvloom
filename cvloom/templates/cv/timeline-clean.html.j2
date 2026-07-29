@@ -99,7 +99,6 @@
 .entry-header { overflow: hidden; margin-bottom: 2px; }
 .entry-title { font-weight: 600; font-size: 10.5pt; }
 .entry-date { float: right; color: var(--muted); font-size: 8.5pt; }
-.tags { display: flex; flex-wrap: wrap; gap: 4px; }
 {% endblock %}
 
 {# ── Section macros ────────────────────────────────────────────── #}
@@ -191,11 +190,6 @@
   <ul>
     {% for h in proj.highlights %}<li>{{ h | md }}</li>{% endfor %}
   </ul>
-  {% endif %}
-  {% if proj.tags %}
-  <div class="tags" style="margin-top:4px;">
-    {% for tag in proj.tags %}<span class="skill-tag">{{ tag }}</span>{% endfor %}
-  </div>
   {% endif %}
 </div>
 {% endfor %}

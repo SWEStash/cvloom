@@ -48,22 +48,12 @@ def test_registry_names_are_unique() -> None:
     assert len(names) == len(set(names))
 
 
-def test_only_projects_filters_tags_strictly() -> None:
-    """Strict filtering is only safe where `tags` is a required field."""
-    strict = {s.name for s in sections.SECTIONS if s.strict_tags}
-    assert strict == {"projects"}
-    project_schema = json.loads((_SCHEMAS_DIR / "project.json").read_text())
-    assert "tags" in project_schema["required"]
-
-
-def test_lenient_sections_do_not_require_tags() -> None:
-    """The converse: an untagged entry is only "always included" where it can exist."""
+def test_every_section_accepts_tags() -> None:
+    """Selection is uniform across sections, so every schema must allow `tags`."""
     for section in sections.SECTIONS:
-        if section.strict_tags:
-            continue
         schema = json.loads((_SCHEMAS_DIR / f"{section.schema}.json").read_text())
         entry = schema["items"] if schema.get("type") == "array" else schema
-        assert "tags" not in entry.get("required", []), section.name
+        assert "tags" in entry["properties"], section.name
 
 
 def test_default_order_leads_with_skills() -> None:

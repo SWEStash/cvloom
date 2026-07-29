@@ -94,7 +94,7 @@ A list of work experience entries.
 | `start_date` | Yes | `YYYY-MM` or `YYYY` |
 | `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
 | `highlights` | No | Bullet points; plain strings or `{id, text}` objects |
-| `tags` | No | Used for profile `include_tags` filtering |
+| `tags` | No | Used for profile `select` filtering; never rendered |
 
 **Highlight IDs** — give highlights an `id` if you want to target them in overlay `pick`, `exclude`, or `replace` operations. Plain strings work but cannot be individually addressed.
 
@@ -212,11 +212,11 @@ template.
 | `identifier` | No | ISBN, DOI, or arXiv ID |
 | `url` | No | Link to the publication |
 | `summary` | No | Short description (Markdown supported) |
-| `tags` | No | Used for profile filtering |
+| `tags` | No | Used for profile `select` filtering; never rendered |
 
-Tag filtering follows `work.yaml` semantics rather than `projects/`: an entry
-with **no** `tags` is always included, so `include_tags` never silently drops
-untagged publications.
+Selection is per-section: publications are only narrowed if a profile names
+them under `select`. When it does, an entry with **no** `tags` does not match —
+cvloom warns when that drops something.
 
 Hide the section for a given profile with `sections: { publications: false }`,
 or place it explicitly with `section_order`.
@@ -364,8 +364,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `output_filename` | Profile name | Base name for output files (without extension) |
 | `pdf_filename_format` | `{first}_{last}_Resume_{profile}.pdf` | PDF filename override. `{first}`/`{last}`/`{name}` come from contact name; `{profile}` is the profile name |
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
-| `include_tags` | `[]` (all) | Only include data entries whose `tags` overlap with this list |
-| `include_entries` | — | Force-include specific entries excluded by tag filtering |
+| `select` | — | Per-section content selection; see [Selecting Content](../reference/profiles-and-overlays.md#selecting-content) |
 | `section_order` | `[skills, work, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |

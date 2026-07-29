@@ -563,8 +563,13 @@ Create `profiles/backend-role.yaml`:
 template: cv/ats-single
 output_filename: backend-role-cv
 
-# Only include entries tagged with at least one of these
-include_tags: [python, kafka, aws, microservices]
+# Narrow individual sections. Sections not named here keep every entry, and
+# an entry with no tags does not match a `tags` list.
+select:
+  work:
+    tags: [python, kafka, aws, microservices]
+  skills:
+    categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
 
 # Lead with skills for this role
 section_order: [skills, work, projects, education]
@@ -606,9 +611,8 @@ overlays:
         replace:
           api-redesign: "Redesigned REST API handling 10k req/sec, reducing p95 latency by 85%."
 
-  # Only show relevant skill categories, remove a niche item
+  # Remove a niche item; which categories appear is set in `select` above.
   skills:
-    include_categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
     category_overrides:
       Languages:
         exclude_items: [TypeScript]

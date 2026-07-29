@@ -157,7 +157,7 @@ def build(
     if result.pages > 2 and not result.resolved.template_name.startswith("cv/academic"):
         _console.print(
             "[yellow]Warning:[/yellow] Output exceeds 2 pages. "
-            "Consider trimming content or using include_tags to filter sections."
+            "Consider trimming content or using `select` to narrow sections."
         )
 
     if run_check or strict is not None:
@@ -646,11 +646,11 @@ def list_profiles() -> None:
     table.add_column("Profile")
     table.add_column("Template")
     table.add_column("Output")
-    table.add_column("Tags")
+    table.add_column("Narrows")
     table.add_column("Job context")
 
     for p in summaries:
-        tags = ", ".join(p.include_tags) or "—"
+        tags = ", ".join(p.selected_sections) or "—"
         jctx = p.job_context or {}
         job_str = ""
         if jctx.get("role") and jctx.get("company"):

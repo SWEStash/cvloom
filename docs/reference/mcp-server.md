@@ -100,7 +100,7 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 
 | Tool | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
-| `list_profiles` | `project_root?` | Array of profile objects (`name`, `template`, `output_filename`, `include_tags`, `job_context`) | Lists all profiles found in `profiles/*.yaml`. |
+| `list_profiles` | `project_root?` | Array of profile objects (`name`, `template`, `output_filename`, `select`, `job_context`) | Lists all profiles found in `profiles/*.yaml`. |
 | `list_projects` | `project_root?`, `tags?` (string array) | Array of project objects (`name`, `description`, `tags`) | Lists projects from `data/projects/*.yaml`. When `tags` is provided, only projects matching at least one tag are returned. |
 | `get_section` | `section` (string), `project_root?` | Section data (object or array) | Reads raw YAML for a section. Valid values: `basics`, `skills`, `contact`, and every entry-list section — `work`, `education`, `projects`, `publications`, `certifications`, `awards`, `languages`. |
 | `build_cv` | `profile?` (default `"general"`), `public?` (bool), `skip_pdf?` (bool), `project_root?` | `{html_path, pdf_path, words, pages, section_word_counts}` | Builds the CV for the given profile. Set `public` to use placeholder contact info. |

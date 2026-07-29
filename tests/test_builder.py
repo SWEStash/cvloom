@@ -367,36 +367,35 @@ def test_resolve_loads_publications(publications_project_dir: Path) -> None:
     assert pubs[1]["tags"] == []
 
 
-def test_publications_tag_filter_keeps_untagged(publications_project_dir: Path) -> None:
-    """Untagged publications survive include_tags, matching work's semantics."""
-    (publications_project_dir / "profiles" / "tagged.yaml").write_text(
-        "template: cv/academic\ninclude_tags: [research]\n"
-    )
+def _publications_for(root: Path, profile_body: str) -> list[str]:
+    (root / "profiles" / "tagged.yaml").write_text(f"template: cv/academic\n{profile_body}")
     result = resolve(
-        data_dir=publications_project_dir / "data",
-        private_dir=publications_project_dir / "private",
-        profiles_dir=publications_project_dir / "profiles",
+        data_dir=root / "data",
+        private_dir=root / "private",
+        profiles_dir=root / "profiles",
         profile_name="tagged",
         public=True,
     )
-    assert [p["name"] for p in result.data["publications"]] == [
-        "A paper on automata",
-        "An untagged paper",
-    ]
+    return [p["name"] for p in result.data["publications"]]
 
 
-def test_publications_tag_filter_excludes_non_matching(publications_project_dir: Path) -> None:
-    (publications_project_dir / "profiles" / "tagged.yaml").write_text(
-        "template: cv/academic\ninclude_tags: [python]\n"
-    )
-    result = resolve(
-        data_dir=publications_project_dir / "data",
-        private_dir=publications_project_dir / "private",
-        profiles_dir=publications_project_dir / "profiles",
-        profile_name="tagged",
-        public=True,
-    )
-    assert [p["name"] for p in result.data["publications"]] == ["An untagged paper"]
+def test_publications_selection_drops_untagged(publications_project_dir: Path) -> None:
+    """An include list is a query; untagged content answers no query."""
+    body = "select:\n  publications:\n    tags: [research]\n"
+    names = _publications_for(publications_project_dir, body)
+    assert names == ["A paper on automata"]
+
+
+def test_publications_selection_excludes_non_matching(publications_project_dir: Path) -> None:
+    body = "select:\n  publications:\n    tags: [python]\n"
+    assert _publications_for(publications_project_dir, body) == []
+
+
+def test_publications_untouched_without_a_selector(publications_project_dir: Path) -> None:
+    """A section the profile does not name keeps every entry, tagged or not."""
+    body = "select:\n  work:\n    tags: [python]\n"
+    names = _publications_for(publications_project_dir, body)
+    assert names == ["A paper on automata", "An untagged paper"]
 
 
 def test_publications_section_can_be_hidden(publications_project_dir: Path) -> None:
@@ -443,7 +442,7 @@ def tagged_education_dir(tmp_path: Path) -> Path:
 
 def _degrees_only(root: Path) -> list[str]:
     (root / "profiles" / "degrees.yaml").write_text(
-        "template: cv/ats-single\ninclude_tags: [degree]\n"
+        "template: cv/ats-single\nselect:\n  education:\n    tags: [degree]\n"
     )
     result = resolve(
         data_dir=root / "data",
@@ -459,9 +458,9 @@ def test_education_tag_filter_drops_non_matching(tagged_education_dir: Path) -> 
     assert "Cloud Academy" not in _degrees_only(tagged_education_dir)
 
 
-def test_education_tag_filter_keeps_untagged(tagged_education_dir: Path) -> None:
-    """Untagged education survives include_tags, matching work's semantics."""
-    assert _degrees_only(tagged_education_dir) == ["Uni", "Old School"]
+def test_education_selection_drops_untagged(tagged_education_dir: Path) -> None:
+    """Strict everywhere: `tags: [degree]` selects only entries tagged `degree`."""
+    assert _degrees_only(tagged_education_dir) == ["Uni"]
 
 
 # ── certifications section ───────────────────────────────────────────
@@ -505,9 +504,9 @@ def test_resolve_loads_certifications(certifications_project_dir: Path) -> None:
     assert certs[1]["expiry_date"] == ""  # schema-optional key filled
 
 
-def test_certifications_tag_filter_keeps_untagged(certifications_project_dir: Path) -> None:
+def test_certifications_selection_drops_untagged(certifications_project_dir: Path) -> None:
     (certifications_project_dir / "profiles" / "tagged.yaml").write_text(
-        "template: cv/ats-single\ninclude_tags: [python]\n"
+        "template: cv/ats-single\nselect:\n  certifications:\n    tags: [cloud]\n"
     )
     result = resolve(
         data_dir=certifications_project_dir / "data",
@@ -516,8 +515,9 @@ def test_certifications_tag_filter_keeps_untagged(certifications_project_dir: Pa
         profile_name="tagged",
         public=True,
     )
+    # AWS carries `cloud`; the untagged CKA entry does not match and is dropped.
     assert [c["name"] for c in result.data["certifications"]] == [
-        "Certified Kubernetes Administrator"
+        "AWS Certified Solutions Architect"
     ]
 
 

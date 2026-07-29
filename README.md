@@ -207,7 +207,9 @@ sections:
   education: true
   skills: true
   projects: true
-include_tags: [python, kafka, aws]
+select:
+  work:
+    tags: [python, kafka, aws]
 job_context:
   company: Stripe
   role: Senior Platform Engineer
@@ -222,8 +224,17 @@ overlays:
       highlights:
         mode: pick
         items: [perf-boost, api-redesign]
+```
+
+Choosing *which* content appears is a separate `select` block — per-section, so
+narrowing `work` leaves `education` alone:
+
+```yaml
+select:
+  work:
+    tags: [python, kafka, aws]
   skills:
-    include_categories: [Languages, Cloud]
+    categories: [Languages, Cloud]
 ```
 
 Because tailoring is declarative config, two variants are **diffable** (`cvloom diff A B`) and always consistent — update a fact once in `data/` and every profile that uses it updates on the next build. See the worked [one dataset, N applications example](docs/reference/profiles-and-overlays.md#one-dataset-n-applications--a-worked-example), or the [full overlay reference](docs/reference/profiles-and-overlays.md).

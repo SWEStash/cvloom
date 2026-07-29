@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from cvloom import loader, overlays, renderer, schema, sections
+from cvloom import loader, overlays, renderer, schema, sections, select
 from cvloom.models import BuildResult, ResolvedProfile
 
 
@@ -31,27 +31,6 @@ def _estimate_pages(html: str) -> tuple[int, int]:
     words = len(text.split())
     pages = max(1, round(words / 350))
     return words, pages
-
-
-def _apply_force_includes(
-    data: dict[str, Any],
-    unfiltered: dict[str, Any],
-    include_entries: dict[str, list[dict[str, str]]],
-) -> None:
-    """Re-add entries from *unfiltered* that match *include_entries* specs."""
-    for section, matchers in include_entries.items():
-        existing = data.get(section, [])
-        pool = unfiltered.get(section, [])
-        for match in matchers:
-            # Skip if already present
-            already = any(all(e.get(k) == v for k, v in match.items()) for e in existing)
-            if already:
-                continue
-            for entry in pool:
-                if all(entry.get(k) == v for k, v in match.items()):
-                    existing.append(entry)
-                    break
-        data[section] = existing
 
 
 def resolve(
@@ -89,27 +68,14 @@ def resolve(
         )
 
     output_filename = profile.get("output_filename") or profile_name
-    include_tags: list[str] = profile.get("include_tags", []) or []
     sections_cfg: dict[str, bool] = profile.get("sections", {}) or {}
 
     # Load data
-    data = loader.load_data(
-        data_dir=data_dir,
-        private_dir=private_dir,
-        public=public,
-        include_tags=include_tags if include_tags else None,
-    )
+    data = loader.load_data(data_dir=data_dir, private_dir=private_dir, public=public)
 
-    # Force-include entries that were excluded by tag filtering
-    include_entries = profile.get("include_entries")
-    if include_entries and include_tags:
-        unfiltered = loader.load_data(
-            data_dir=data_dir,
-            private_dir=private_dir,
-            public=public,
-            include_tags=None,
-        )
-        _apply_force_includes(data, unfiltered, include_entries)
+    # Narrow each section the profile names. Selection runs before anything
+    # normalizes or patches the data, so overlays only ever see what survives.
+    select_warnings = select.apply_selection(data, profile.get("select", {}) or {})
 
     # Fill schema-optional keys, then normalize highlights to {id, text} for
     # overlay processing.
@@ -153,7 +119,7 @@ def resolve(
         section_order=section_order,
         template_name=template_name,
         output_filename=output_filename,
-        warnings=overlay_warnings,
+        warnings=select_warnings + overlay_warnings,
         profile_name=profile_name,
     )
 

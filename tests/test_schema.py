@@ -102,10 +102,20 @@ def test_valid_profile_full():
         "template": "cv/ats-single",
         "output_filename": "my-cv",
         "sections": {"work": True, "education": True, "skills": True, "projects": False},
-        "include_tags": ["python"],
+        "select": {
+            "work": {"tags": ["python"]},
+            "skills": {"exclude_categories": ["Tools"]},
+        },
         "section_order": ["skills", "work", "education", "projects"],
     }
     assert validate("profile", data) == []
+
+
+def test_removed_profile_keys_are_rejected():
+    """The old global filter is gone; an unmigrated profile must fail loudly."""
+    for key, value in (("include_tags", ["python"]), ("include_entries", {"work": []})):
+        errors = validate("profile", {"template": "cv/ats-single", key: value})
+        assert any(key in e for e in errors), key
 
 
 def test_profile_missing_template():
