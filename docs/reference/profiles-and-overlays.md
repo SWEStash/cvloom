@@ -20,13 +20,14 @@ This guide starts with simple profiles and progressively introduces the overlay 
    - [Untagged entries do not match](#untagged-entries-do-not-match)
    - [Why tags have no exclusion, but categories do](#why-tags-have-no-exclusion-but-categories-do)
 4. [Section Ordering](#section-ordering)
-5. [Job Context](#job-context)
-6. [Overlays](#overlays)
+5. [Section Headings](#section-headings)
+6. [Job Context](#job-context)
+7. [Overlays](#overlays)
    - [Basics Overlay](#basics-overlay)
    - [Array Section Overlays](#array-section-overlays-work-education-projects)
    - [Skills Overlay](#skills-overlay)
-7. [One Dataset, N Applications — A Worked Example](#one-dataset-n-applications--a-worked-example)
-8. [Full Annotated Example](#full-annotated-example)
+8. [One Dataset, N Applications — A Worked Example](#one-dataset-n-applications--a-worked-example)
+9. [Full Annotated Example](#full-annotated-example)
 
 ---
 
@@ -55,7 +56,7 @@ Profiles live in `profiles/*.yaml`. The only required key is `template`.
 
 ```yaml
 # profiles/general.yaml — the simplest useful profile
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: cv
 sections:
   work: true
@@ -72,12 +73,13 @@ sections:
 
 | Key                 | Required | Default                                 | Description                                                           |
 |---------------------|----------|-----------------------------------------|-----------------------------------------------------------------------|
-| `template`          | Yes      | —                                       | Template path (e.g. `cv/ats-single`)                                  |
+| `template`          | Yes      | —                                       | Template path (e.g. `cv/ats-clean`)                                  |
 | `output_filename`   | No       | Profile name                            | Base name for output files (`.html`, `.pdf`)                          |
 | `pdf_filename_format` | No     | `{first}_{last}_Resume_{profile}.pdf`   | Override the PDF filename. `{first}`/`{last}`/`{name}` come from the contact name; `{profile}` is the profile name |
 | `sections`          | No       | All `true`                              | Toggle sections on or off                                             |
 | `select`            | No       | —                                       | Per-section content selection (see below)                             |
-| `section_order`     | No       | `[skills, work, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
+| `section_order`     | No       | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
+| `section_titles`    | No       | Template's own wording                  | Rename section headings (text only — see below)                        |
 | `job_context`       | No       | —                                       | Metadata passed to cover letter templates and AI commands             |
 | `overlays`          | No       | —                                       | Per-job data patches (see below)                                      |
 
@@ -90,7 +92,7 @@ block narrows individual sections by tag:
 
 ```yaml
 # profiles/backend-focused.yaml
-template: cv/ats-single
+template: cv/ats-clean
 select:
   work:
     tags: [python, kafka, aws, microservices]
@@ -152,12 +154,57 @@ shorter than listing the other twelve, so `exclude_categories` exists there.
 ## Section Ordering
 
 The default rendering order is
-`[skills, work, education, projects, publications, certifications, awards, languages]`
+`[work, skills, education, projects, publications, certifications, awards, languages]`
 (`cv/academic` instead leads with `[education, publications, ...]`).
 Override it per-profile:
 
 ```yaml
 section_order: [work, skills, projects, education]
+```
+
+Work leads by default. Skills used to, and moving it down was deliberate: the Ladders
+eye-tracking study found recruiters fixate on job titles before anything else during the
+~7-second initial scan, so a skills block at the top spends that fixation on a keyword
+list rather than on your most recent role.
+
+---
+
+## Section Headings
+
+`section_titles` renames any section heading. **Text only** — styling stays in the
+template, so this is safe to set on any of them.
+
+```yaml
+section_titles:
+  work: "Professional Experience"
+  skills: "Technical Toolkit"
+  summary: "Profile"
+  professional_development: "Continuing Education"
+```
+
+A key you leave out keeps whatever wording the chosen template supplies. That is the
+point: `cv/executive-dark` heads skills "Core Competencies" and `cv/academic` says
+"Positions Held", and this feature adds an override rather than flattening six designs
+into one voice.
+
+| Key | Renames |
+|---|---|
+| `work` `education` `projects` `publications` `awards` `languages` `skills` | The matching section heading |
+| `certifications` | The credentials group — entries with `type: certification` or `license` |
+| `professional_development` | The coursework group — entries with `type: course` or `micro-credential` |
+| `summary` | The heading over `basics.summary`, which every template words differently ("About", "Executive Summary", "Research Interests") |
+| `contact` | The sidebar contact heading (`cv/sidebar-compact` only) |
+
+`certifications` takes two keys because the section renders as two headed groups, split
+by each entry's `type` — see
+[Credentials vs coursework](../user/user-guide.md#credentials-vs-coursework).
+
+A key outside that list fails validation with the valid list, rather than silently doing
+nothing:
+
+```
+Validation errors:
+  ✗ profiles/x.yaml:section_titles: 'nonsense' is not one of ['work', 'skills', ...]
 ```
 
 Only sections that are enabled in `sections` (or left at their default of `true`) are
@@ -386,7 +433,7 @@ You maintain one work entry. Each highlight has a stable `id` so overlays can ad
 
 ```yaml
 # profiles/backend-role.yaml
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: backend-cv
 job_context: { company: Acme, role: Senior Backend Engineer }
 select:
@@ -408,7 +455,7 @@ show data skills — *from the exact same base data*:
 
 ```yaml
 # profiles/data-role.yaml
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: data-cv
 job_context: { company: Globex, role: Analytics Engineer }
 select:
@@ -485,7 +532,7 @@ role at Stripe.
 # profiles/stripe-infra.yaml
 
 # ── Template & output ──────────────────────────────────────────────
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: stripe-infra-cv
 
 # ── Section visibility ─────────────────────────────────────────────
@@ -496,8 +543,9 @@ sections:
   projects: true
 
 # ── Section ordering ───────────────────────────────────────────────
-# Lead with skills for an infra role, then work experience.
-section_order: [skills, work, projects, education]
+# Promote projects above education for a role where the shipped work is the pitch.
+# Work stays first — see "Section Ordering" for why skills does not lead.
+section_order: [work, skills, projects, education]
 
 # ── Content selection ──────────────────────────────────────────────
 # Narrow only the sections named here; education keeps every entry.

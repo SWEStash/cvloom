@@ -59,7 +59,7 @@ on Python 3.11, 3.12, and 3.13.
 
 1. Create `templates/<category>/<name>.html.j2`.
 2. Extend `base.html.j2` and override the `css_vars`, `css_extra`, and `body`
-   blocks as needed. See `templates/cv/ats-single.html.j2` for a minimal
+   blocks as needed. See `templates/cv/ats-clean.html.j2` for a minimal
    example.
 3. Add a render test in `tests/test_renderer.py` that exercises the template
    with minimal fixture data.
@@ -71,7 +71,7 @@ on Python 3.11, 3.12, and 3.13.
 - Prefer **Inter** or **Roboto** (sans-serif) for modern/professional templates; **Georgia** for academic templates.
 - Always include system font fallbacks in every `--font-body` stack (e.g. `Inter, Arial, Helvetica, sans-serif`). Web fonts load over HTTPS; fallbacks ensure output when offline.
 - Load web fonts via `{% block fonts %}` (defined in `base.html.j2`). Override it in your template with a Google Fonts `<link>` tag. Do not load more than 2 typefaces per template.
-- `ats-single` intentionally uses **no web fonts** — keep it system fonts only for ATS compatibility.
+- `ats-clean` intentionally uses **no web fonts** — keep it system fonts only for ATS compatibility.
 
 **Template contract:**
 

@@ -33,7 +33,8 @@ cvloom/
 ├── overlays.py         # Match-and-patch system for per-job customization
 ├── projects.py         # Shared profile/project listing behind the CLI and MCP
 ├── renderer.py         # Jinja2 rendering, template discovery
-├── filters.py          # Custom Jinja2 filters: md, date_range, skill_level_bar, link_anchor
+├── templates_meta.py   # Per-template parse-risk registry: columns, ats rating, fonts, caveat
+├── filters.py          # Jinja2 filters (md, date_range, cert_groups, …) + section_title global
 ├── links.py            # Profile-link vocabulary: network_of, link_username, normalize_url
 ├── select.py           # Per-section content selection: apply_selection()
 ├── linter.py           # Writing lint: 22 categorized rules, LintFinding, lint()
@@ -195,13 +196,29 @@ Jinja2 environment with `StrictUndefined`. Template discovery:
 
 ### `filters.py`
 
-Three custom Jinja2 filters registered via `register_filters(env)`:
+Registered via `register_filters(env)`, which also installs the one Jinja global:
 
 | Filter | Input | Output |
 |---|---|---|
 | `md` | Markdown string | HTML; unwraps single `<p>` for inline use |
-| `date_range` | `start, end` | Formatted date range string |
-| `skill_level_bar` | Level string | `<span class="skill-level skill-level-N">` |
+| `date_range` | `start, end, sep="–"` | Formatted date range; identical endpoints collapse to one date |
+| `skill_level_bar` | Level string | `<span class="skill-level skill-level-N">` — **renders no text**, so nothing an ATS can read; unused by every built-in template |
+| `link_anchor` | One `basics.links` entry | Anchor whose visible text is the URL itself |
+| `cert_groups` | Certification entries | `(title_key, default_heading, entries)` per group |
+
+| Global | Signature | Purpose |
+|---|---|---|
+| `section_title` | `(key, default) -> str` | Profile's `section_titles` override, else the template's own wording. Reads the context, so a caller that supplies no overrides still renders. |
+
+### `templates_meta.py`
+
+`info_for(template_name) -> TemplateInfo | None` — the per-template parse-risk registry
+(`columns`, `ats`, `fonts`, `summary`, `caveat`). Deliberately outside the linter:
+`check` grades what the user wrote, and whether a layout survives PDF text extraction is
+a property of the template. Surfaced by `cvloom list-templates` and warned about by
+`build` and `check`. `None` means unrated — a template of the user's own — and is
+reported as such rather than assumed safe. A test fails for any packaged `cv/` template
+missing an entry.
 
 ### `linter.py`
 
@@ -269,8 +286,11 @@ class ResolvedProfile:
     data: dict[str, Any]             # resolved CV data (all sections + basics, contact)
     show_sections: dict[str, bool]   # section visibility flags
     section_order: list[str]         # render order
-    template_name: str               # e.g. "cv/ats-single"
+    template_name: str               # e.g. "cv/ats-clean"
     output_filename: str             # base filename for output
+    warnings: list[str]              # non-fatal select/overlay warnings
+    profile_name: str                # profile this resolved from
+    section_titles: dict[str, str]   # heading overrides; empty = template defaults stand
 ```
 
 ### `BuildResult`

@@ -13,10 +13,13 @@ cvloom's templates are Jinja2 HTML files that extend a shared base. You can crea
 3. [Template Blocks](#template-blocks)
 4. [Render Context Variables](#render-context-variables)
 5. [Custom Jinja2 Filters](#custom-jinja2-filters)
-6. [CSS Variables](#css-variables)
-7. [Handling Optional Fields](#handling-optional-fields)
-8. [Annotated Example](#annotated-example)
-9. [Third-Party Template Packages](#third-party-template-packages)
+6. [Section Headings](#section-headings)
+7. [Separator Convention](#separator-convention)
+8. [CSS Variables](#css-variables)
+9. [Handling Optional Fields](#handling-optional-fields)
+10. [Annotated Example](#annotated-example)
+11. [Layout Choices That Break Extraction](#layout-choices-that-break-extraction)
+12. [Third-Party Template Packages](#third-party-template-packages)
 
 ---
 
@@ -113,9 +116,14 @@ These variables are available in every template:
 | `skills` | list | Skill categories with items |
 | `projects` | list | Project entries |
 | `profile` | dict | The raw profile YAML (`template`, `output_filename`, `select`, etc.) |
-| `show` | dict | Section visibility flags. Keys: `work`, `education`, `skills`, `projects`. Value: `True`/`False` |
+| `publications` | list | Publication entries |
+| `certifications` | list | Certification entries (render them through the `cert_groups` filter) |
+| `awards` | list | Award entries |
+| `languages` | list | Language entries |
+| `show` | dict | Section visibility flags, one per orderable section. Value: `True`/`False` |
 | `section_order` | list | Ordered list of section names to render |
-| `job_context` | dict or None | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`) |
+| `section_titles` | dict | Heading overrides from the profile. Read it through the `section_title` global, not directly |
+| `job_context` | dict | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`); keys always present, empty string when unset |
 | `public` | bool | `True` when built with `--public` |
 | `today` | str | Current date formatted as `"Month DD, YYYY"` |
 
@@ -126,6 +134,14 @@ These variables are available in every template:
 **Skills category fields:** `category` (string), `items` (list of strings or `{name, level}` dicts)
 
 **Project entry fields:** `name`, `description`, `url`, `start_date`, `end_date`, `highlights`, `tags`
+
+**Publication entry fields:** `name`, `publisher`, `release_date`, `identifier`, `url`, `summary`, `tags`
+
+**Certification entry fields:** `name`, `issuer`, `type`, `date`, `expiry_date`, `identifier`, `url`, `tags`
+
+**Award entry fields:** `title`, `awarder`, `date`, `summary`, `tags`
+
+**Language entry fields:** `language`, `fluency`
 
 ---
 
@@ -173,6 +189,11 @@ Level-to-number mapping: `beginner` → 1, `intermediate` → 2, `advanced` → 
 
 Style `.skill-level-1` through `.skill-level-4` in your CSS to control the visual appearance.
 
+> **This renders an empty `<span>`.** The proficiency is carried entirely by a CSS class,
+> so there is **no text in the PDF** and no parser can read it. None of the built-in
+> templates use this filter. If proficiency matters to a reader, write it as text
+> (`Python (expert)`); a bar is decoration that also happens to be invisible to an ATS.
+
 ### `link_anchor`
 
 Renders one `basics.links` entry as an anchor whose visible text is the URL itself.
@@ -191,13 +212,56 @@ scheme and `www.` from the display text, so both halves get a complete address,
 and WeasyPrint turns the `href` into a real PDF link annotation for the human
 reader.
 
+### `cert_groups`
+
+Splits `certifications` into its rendered groups, yielding
+`(title_key, default_heading, entries)` per group. Credentials
+(`type: certification` / `license`) come first, coursework
+(`type: course` / `micro-credential`) second, and a group with no entries is omitted —
+so a file of nothing but courses gets an accurate heading rather than one claiming they
+are certifications.
+
+```jinja2
+{% for title_key, heading, group in certifications | cert_groups %}
+<h2>{{ section_title(title_key, heading) }}</h2>
+{% for cert in group %}…{% endfor %}
+{% endfor %}
+```
+
+`title_key` is `"certifications"` or `"professional_development"` — pass it to
+`section_title` so a profile can rename each group. Do not reverse-map the visible
+heading text: it is the thing being overridden.
+
+---
+
+## Section Headings
+
+`section_title(key, default)` is a Jinja **global**, not a filter. Templates pass their
+own wording as *default*, and a profile's `section_titles` overrides it:
+
+```jinja2
+<h2>{{ section_title("skills", "Core Competencies") }}</h2>
+```
+
+This is how `cv/executive-dark` keeps saying "Core Competencies" while a profile that
+sets `section_titles.skills` still wins. Route **every** heading through it — a
+hardcoded `<h2>Skills</h2>` is simply not renameable.
+
+Valid keys are `cvloom.sections.TITLE_KEYS`; the profile schema enumerates the same list,
+so a template asking for a key outside it gets the default forever and a profile setting
+one fails validation. Adding a key means adding it in both places.
+
+It reads `section_titles` off the render context rather than being injected as a callable,
+so a template renders fine when a caller supplies no overrides — which matters because
+`render_template` is public API and is called directly by tests and by the MCP server.
+
 ---
 
 ## Separator Convention
 
 If you are writing a template meant to survive an unknown ATS, join fields with ASCII:
 `|` between contact-line fields, `,` between a role and its organisation. Design-led
-templates may use a middot (`·`); the built-in `cv/ats-single` and `cv/academic` do not,
+templates may use a middot (`·`); the built-in `cv/ats-clean` and `cv/academic` do not,
 because U+00B7 depends on the embedded font subset carrying the glyph while ASCII does not.
 Extraction is not the issue — every separator extracts cleanly from a WeasyPrint PDF.
 
@@ -234,12 +298,20 @@ Example:
 
 ```jinja2
 {% block css_vars %}
---accent: #7c3aed;
---font-body: "Inter", Arial, sans-serif;
+:root {
+  --accent: #4a5568;
+  --font-body: Lato, Calibri, Arial, sans-serif;
+}
 {% endblock %}
 ```
 
-Pre-built utility CSS classes from `base.html.j2`: `.muted`, `.right`, `.clearfix`, `.skill-tag`, `.skill-level`, `.skill-level-{1-4}`.
+Pre-built utility CSS classes from `base.html.j2`: `.muted`, `.right`, `.clearfix`,
+`.skill-tag`, `.skill-level`, `.skill-level-{1-4}`.
+
+`base.html.j2` also sets the pagination rules, so you get them for free: `break-after:
+avoid` on `h2`/`h3`/`.section-title`, and `break-inside: avoid` plus `orphans`/`widows`
+of 2 on `.entry`, `.timeline-entry`, and `li`. Use those class names and a heading will
+not strand at the foot of a page, and a job will not split from its own bullets.
 
 ---
 
@@ -349,6 +421,35 @@ A complete minimal CV template:
 </div>
 {% endblock %}
 ```
+
+---
+
+## Layout Choices That Break Extraction
+
+Every ATS extracts the PDF's text layer before it parses anything, and a layout can
+scramble that without looking wrong on the page. Three rules, all measured against
+WeasyPrint output — see [ATS-readiness](../reference/ats-readiness.md):
+
+**Cap heading `letter-spacing` at `.08em`.** WeasyPrint writes it as real inter-glyph
+advance, and extractors reinsert a word break past roughly that point: `EDUCATION` comes
+back as `E D U C AT I O N`. Section headings are what a parser segments on, so a tracked
+heading costs its whole section a label. The built-in templates use `.06em`, and
+`tests/test_renderer.py` fails the build above `.08em`.
+
+**Right-align a date only on entries that carry a bullet list.** A floated date is its own
+geometric column, and an extractor flushes that column when the text beside it ends. On
+work, education, and projects the bullets keep it open and the date lands correctly. On
+publications, certifications, and awards it closes early and the date surfaces late — in
+the worst measured case after the document's final section. Put those inline on the meta
+line instead.
+
+**Two columns interleave.** There is no styling that fixes it; `cv/sidebar-compact` is
+kept and labelled rather than fixed. Use one column unless a human is the only reader.
+
+If you add a template to the package, add it to `cvloom/templates_meta.py` — a test fails
+for any packaged `cv/` template without an entry. A template of your own under
+`templates/` shows as `unrated` in `cvloom list-templates`, which means "never measured",
+not "safe".
 
 ---
 

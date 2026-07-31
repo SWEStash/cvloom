@@ -56,7 +56,7 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | `wl-008` | vague-buzzwords         | writing    | warning    | work, projects, basics     | Overused vague terms (e.g. "motivated", "proactive") |
 | `wl-009` | skill-count             | structure  | warning    | skills                     | Fewer than 8 or more than 25 total skills |
 | `wl-010` | profile-links           | structure  | warning    | contact                    | No LinkedIn or GitHub link present |
-| `wl-011` | page-count              | structure  | warning    | (whole CV)                 | Estimated page count exceeds 2 |
+| `wl-011` | page-count              | structure  | warning    | (whole CV)                 | Estimated page count exceeds 3 |
 | `wl-012` | date-format-consistency | ats-parse  | warning    | work, education            | Mixed YYYY-MM / YYYY date formats |
 | `wl-013` | tense-consistency       | writing    | warning    | work                       | Past tense in current role or present tense in past role |
 | `wl-014` | summary-length          | structure  | warning    | basics                     | Summary shorter than 20 or longer than 80 words |
@@ -241,11 +241,13 @@ completeness gap.
 
 **Category:** structure | **Sections checked:** whole CV (word estimate) | **Severity:** warning
 
-Estimates page count as total words ÷ 500. Warns if estimated pages > 2. Skipped for
+Estimates page count as total words ÷ 500. Warns if estimated pages > 3. Skipped for
 `cv/academic` template (academic CVs may be longer).
 
-**Basis:** the 1–2 page convention for non-academic CVs; a longer document risks not being
-read in full.
+**Basis:** ResumeGo's simulation with 482 recruiters over 7,712 resume choices found
+two-page resumes preferred 2.3x over one-page overall, and 2.9x at managerial level — so
+the ceiling is set where length starts to cost attention rather than at the folk
+one-page rule. `cvloom build` warns at the same threshold.
 
 **Fix hint:** Remove the least impactful highlights or shorten descriptions.
 

@@ -49,6 +49,8 @@ example.
 | | Named profiles with per-section content selection | `--profile NAME` |
 | | Per-job overlays — patch highlights without duplicating data | `overlays:` in profile |
 | | Per-section reordering and visibility | `section_order:` / `sections:` |
+| | Rename any section heading, styling untouched | `section_titles:` in profile |
+| | Build every profile in one run | `cvloom build --all` |
 | | Public mode with placeholder contact data | `--public` |
 | **Analyse** | Writing lint — 22 rules across writing / structure / ats-parse axes | `cvloom check` |
 | | Per-axis lint breakdown inline after build (no fake "ATS score") | `--check` / `--strict N` |
@@ -62,6 +64,7 @@ example.
 | **Export** | JSON Resume, Markdown, LinkedIn text, DOCX | `cvloom export` |
 | **Inspect** | List projects with tag filtering | `cvloom list-projects` |
 | | List all build profiles | `cvloom list-profiles` |
+| | List templates with their PDF text-extraction rating | `cvloom list-templates` |
 | **Integrate** | Agent-safe MCP server — 16 tools over a schema-validated, PII-fenced data model | `cvloom-mcp` |
 | | Publish to GitHub Pages — reusable, opt-in workflow scaffolded by `init` | `publish-cv.yml` |
 | **Safety** | PII compartmentalisation + pre-commit scanner + `--public` builds | `private/` + hook |
@@ -180,14 +183,26 @@ See [docs/user/ai-features.md](docs/user/ai-features.md) for backend quickstarts
 
 ## Templates
 
+`Parses` is how the rendered PDF survives text extraction — the step every ATS runs
+first. Ratings are measured with two independent extractors (pdftotext, which rebuilds
+columns from glyph geometry, and pypdf, which follows the content stream); only what
+survives both is rated safe. It is a property of the layout, not of your writing, so `cvloom check` does not
+cover it; `cvloom list-templates` prints this table, and `build` warns on anything not
+rated safe. See [ATS-readiness](docs/reference/ats-readiness.md) for the measurements.
+
+| Template | Cols | Parses | Font | Use case |
+|---|:--:|:--:|---|---|
+| `cv/ats-clean` | 1 | ✅ safe | Arial (system) | Single column, no web fonts. The one to upload to a portal. |
+| `cv/academic` | 1 | ✅ safe | Georgia (system) | Education-first serif CV. Runs long by convention; no page-count warning. |
+| `cv/modern-single` | 1 | ✅ safe | Lato | Single column, slate rule system, aligned skills column. |
+| `cv/timeline-clean` | 1 | ✅ safe | Inter | Swiss minimal, timeline rule down the experience section. |
+| `cv/executive-dark` | 1 | ✅ safe | Source Sans 3 | Carbon header band, steel accent, company-first entries. |
+| `cv/sidebar-compact` | 2 | ❌ unsafe | Lato | Two-column coloured sidebar. Best-looking for a human; do not upload it to a portal. |
+
+The non-CV templates are unrated — they are not documents an ATS parses:
+
 | Template | Use case |
 |---|---|
-| `cv/ats-single` | ATS-optimised, single column, Arial font, no web fonts |
-| `cv/modern-single` | Visual hierarchy, accent colour, skill tags, Inter |
-| `cv/academic` | Education-first layout, serif font, research sections |
-| `cv/timeline-clean` | Timeline-style work history, Roboto |
-| `cv/executive-dark` | Dark headings, bold typographic hierarchy |
-| `cv/sidebar-compact` | Two-column with sidebar, compact for dense CVs |
 | `cover-letter/standard` | Professional cover letter driven by `job_context` |
 | `cover-letter/brief` | Compact cover letter, no boilerplate sign-off |
 | `project-summary/card` | Single-page project summary card |
@@ -196,11 +211,11 @@ See [docs/user/ai-features.md](docs/user/ai-features.md) for backend quickstarts
 
 ## Profiles and Overlays
 
-Each profile in `profiles/` controls template, section visibility, content selection, and section order:
+Each profile in `profiles/` controls template, section visibility, content selection, section order, and heading text:
 
 ```yaml
 # profiles/backend-role.yaml
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: jane-smith-backend
 sections:
   work: true
@@ -210,6 +225,8 @@ sections:
 select:
   work:
     tags: [python, kafka, aws]
+section_titles:
+  work: "Professional Experience"   # text only — styling stays in the template
 job_context:
   company: Stripe
   role: Senior Platform Engineer

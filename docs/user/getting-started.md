@@ -268,7 +268,7 @@ This builds `profiles/general.yaml` using your real contact info from `private/c
 
 ```
 Profile:   general
-Template:  cv/ats-single
+Template:  cv/ats-clean
 HTML:      dist/cv.html
 PDF:       dist/cv.pdf
 Words:     ~480
@@ -283,18 +283,18 @@ Override the template at build time without changing the profile:
 
 ```bash
 # ATS-optimized, single-column (no web fonts)
-cvloom build --template cv/ats-single
+cvloom build --template cv/ats-clean
 
-# Modern single-column with accent colors and skill tags
+# Modern single-column, slate accent, aligned skills column
 cvloom build --template cv/modern-single
 
-# Timeline-style work history
+# Swiss minimal with a timeline rule down the experience section
 cvloom build --template cv/timeline-clean
 
-# Dark headings, bold typographic hierarchy
+# Carbon header band, steel accent
 cvloom build --template cv/executive-dark
 
-# Two-column with sidebar — compact for dense CVs
+# Two-column sidebar — best-looking for a human, do not upload to a portal
 cvloom build --template cv/sidebar-compact
 
 # Academic layout (education-first, serif font)
@@ -303,14 +303,17 @@ cvloom build --template cv/academic
 
 Available CV templates:
 
-| Template | Use case |
-|---|---|
-| `cv/ats-single` | ATS-optimised, clean, single-column |
-| `cv/modern-single` | Visual hierarchy with accent color and skill tags |
-| `cv/timeline-clean` | Timeline-style work history |
-| `cv/executive-dark` | Bold typographic hierarchy with dark headings |
-| `cv/sidebar-compact` | Two-column sidebar layout for dense CVs |
-| `cv/academic` | Education-first, serif font, suited for longer CVs |
+| Template | Parses | Use case |
+|---|:--:|---|
+| `cv/ats-clean` | ✅ safe | Single-column, no web fonts. The one to upload to a portal. |
+| `cv/academic` | ✅ safe | Education-first, serif, suited for longer CVs |
+| `cv/modern-single` | ✅ safe | Slate rule system, aligned skills column |
+| `cv/timeline-clean` | ✅ safe | Swiss minimal, timeline rule on the experience section |
+| `cv/executive-dark` | ✅ safe | Carbon header band, steel accent |
+| `cv/sidebar-compact` | ❌ unsafe | Two-column sidebar. Send it to a person, not a portal. |
+
+Run `cvloom list-templates` for the caveat behind each rating; `build` prints it for
+whichever template you use.
 
 ### 3.3 Public build (no real contact data)
 
@@ -346,7 +349,7 @@ The writing lint checks your bullet points and CV structure for common quality i
 | `wl-008` | warning | Vague buzzwords (motivated, passionate, proactive, …) |
 | `wl-009` | warning | Fewer than 8 or more than 25 total skills |
 | `wl-010` | warning | No LinkedIn or GitHub link in contact |
-| `wl-011` | warning | Estimated page count exceeds 2 |
+| `wl-011` | warning | Estimated page count exceeds 3 |
 | `wl-012` | warning | Mixed date formats (YYYY-MM vs YYYY) |
 | `wl-013` | warning | Wrong verb tense for current vs past roles |
 | `wl-014` | warning | Summary shorter than 20 or longer than 80 words |
@@ -429,29 +432,29 @@ cvloom trim
 Sample output:
 
 ```
-Section      Words   Entries
-───────────  ──────  ───────
-work           280        2
-education       45        1
-skills          38        4
-projects        55        1
-───────────  ──────  ───────
-Total          418
-Estimated    ~1.2 pages
-Target       1 page
-To cut       ~68 words
+ Section         Words  Entries
+ work               76        2
+ education          25        1
+ projects           43        1
+ publications       17        1
+ certifications     22        3
+ awards             11        1
+ languages           7        3
+ skills             30        —
+
+Total: 252 words · ~1 page(s) · target: 3
 
 Recommendations:
-  - work / Acme Corp: 160 words (largest entry — trim first)
-  - work / Acme Corp: 22 words/bullet avg (consider tightening)
+  • Your CV fits within the target page count.
 ```
 
 ### 5.2 Target a different page count
 
-For an academic CV where 2 pages is acceptable:
+The default target is 3 pages. Aim tighter for a one-pager, or looser for an academic CV:
 
 ```bash
-cvloom trim --target-pages 2
+cvloom trim --target-pages 1
+cvloom trim --profile academic --target-pages 5
 ```
 
 ### 5.3 Iterate
@@ -560,7 +563,7 @@ This is where cvloom shines. You will create a job-specific profile that:
 Create `profiles/backend-role.yaml`:
 
 ```yaml
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: backend-role-cv
 
 # Narrow individual sections. Sections not named here keep every entry, and
@@ -571,8 +574,8 @@ select:
   skills:
     categories: [Languages, "Data & Messaging", "Infrastructure & Cloud"]
 
-# Lead with skills for this role
-section_order: [skills, work, projects, education]
+# Promote projects above education for this role
+section_order: [work, skills, projects, education]
 
 sections:
   work: true
@@ -685,7 +688,7 @@ Sample output:
 
 ```
                 general          backend-role
-Template:       cv/ats-single    cv/ats-single
+Template:       cv/ats-clean    cv/ats-clean
 Words:          418              312 (-106)
 
 Sections only in general:

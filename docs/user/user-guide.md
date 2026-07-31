@@ -360,12 +360,13 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 
 | Key | Default | Description |
 |---|---|---|
-| `template` | *(required)* | Template path, e.g. `cv/ats-single` |
+| `template` | *(required)* | Template path, e.g. `cv/ats-clean` |
 | `output_filename` | Profile name | Base name for output files (without extension) |
 | `pdf_filename_format` | `{first}_{last}_Resume_{profile}.pdf` | PDF filename override. `{first}`/`{last}`/`{name}` come from contact name; `{profile}` is the profile name |
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `select` | — | Per-section content selection; see [Selecting Content](../reference/profiles-and-overlays.md#selecting-content) |
-| `section_order` | `[skills, work, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
+| `section_order` | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
+| `section_titles` | Template's own wording | Rename section headings — text only, styling stays in the template. See [Section Headings](../reference/profiles-and-overlays.md#section-headings) |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 
@@ -375,35 +376,79 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 
 ### CV templates
 
-| Template | Layout | Parse safety | Description |
-|---|---|:--:|---|
-| `cv/ats-single` | single-column | ✅ safest | ATS-optimised single-column. No web fonts. Best for maximum ATS compatibility. |
-| `cv/modern-single` | single-column | ✅ safe | Single-column with accent color, skill level bars, and Inter font. |
-| `cv/executive-dark` | single-column | ✅ safe | Bold typographic hierarchy with dark headings. Good for senior roles. |
-| `cv/academic` | single-column | ✅ safe | Education-first layout. Serif font. Orders publications directly after education and labels projects "Research & Projects". No page-count limit warning. |
-| `cv/timeline-clean` | two-column grid | ⚠️ check | Timeline-style work history with Roboto font. |
-| `cv/sidebar-compact` | sidebar + main | ⚠️ check | Two-column with sidebar. Compact — fits more on one page. |
+| Template | Layout | Parses | Font | Description |
+|---|---|:--:|---|---|
+| `cv/ats-clean` | single column | ✅ safe | Arial (system) | No web fonts, nothing fetched at build time. The one to upload to a portal. |
+| `cv/academic` | single column | ✅ safe | Georgia (system) | Education-first. Orders publications directly after education and labels projects "Research & Projects". No page-count warning. |
+| `cv/modern-single` | single column | ✅ safe | Lato | Slate rule system, aligned skills column. |
+| `cv/timeline-clean` | single column | ✅ safe | Inter | Swiss minimal, timeline rule down the experience section. |
+| `cv/executive-dark` | single column | ✅ safe | Source Sans 3 | Carbon header band, steel accent, company-first entries. |
+| `cv/sidebar-compact` | sidebar + main | ❌ unsafe | Lato | Two-column coloured sidebar. Best-looking of the set for a human; do not upload it to a portal. |
 
-#### On the parse-safety column
+Run `cvloom list-templates` for this table plus the caveat behind each ⚠️ and ❌. `build`
+and `check` print the caveat for whichever template you are actually using.
 
-Multi-column layouts are the one formatting choice with a well-supported effect on résumé
-parsing: parsers walk the document in source order, not visual order, so content laid out
-side by side can be interleaved or attributed to the wrong section. The two ⚠️ templates
-place content in CSS grid columns; the ✅ templates keep one column throughout.
+#### On the parses column
 
-This is a *risk* flag, not a prohibition — parser behaviour varies, and a two-column CV is
-perfectly reasonable when a human is the primary reader (a referral, a portfolio site, a
-conference handout). If you are applying through an unknown ATS, prefer a ✅ template, or
-build both and send the single-column one.
+These ratings come from rendering each template to PDF and pulling the text layer back
+out — the step every ATS runs before it parses anything. They are not estimates, and
+they are measured with **two** extractors that work differently: pdftotext rebuilds
+columns from glyph geometry, pypdf follows the content stream. They disagree, and only
+what survives both is rated safe.
+
+- **✅ safe** — every entry extracts as a contiguous block, in order, in both.
+- **⚠️ caution** — order-preserving but adjacency-losing. No template is currently here.
+- **❌ unsafe** — the two columns interleave line by line: contact details and skills land
+  in the middle of the work history. Send it to a person; do not upload it to a portal.
+
+Five of the six are now safe. Four constructs were doing the damage and none of them was
+visible on the page:
+
+- a date pushed to the right margin, which is a separate text column however it is built,
+  and poppler flushes a column when the *page* ends — one corrupted date per page;
+- kerning, which WeasyPrint emits as two positioned runs, so extractors put a space
+  *inside* words (`PAYPAL` → `P AYP AL`);
+- a 2px gap under the name, below the delta at which pypdf infers a line break, welding
+  the name to the headline;
+- a skills label column whose gutter is CSS padding, which puts no character in the text
+  stream, so a full-width label ran into its first value.
+
+All four are fixed, and `tests/test_extraction_fidelity.py` builds real PDFs and reads
+them back through every installed engine so they stay fixed.
+
+`cvloom check` grades what you *wrote* and cannot see any of this — whether a layout
+survives extraction is a property of the template, and no amount of editing a bullet
+changes it. That is why it is reported by `list-templates` and warned about on `build`.
 
 What cvloom does **not** do in any template, because these break parsing much harder than
-columns: `<table>` layout, text in headers/footers, or text baked into images.
+columns: `<table>` layout for content, text in headers/footers, or text baked into images.
+
+Dates run **inline**, next to the title, in every template. Right-aligning them to the
+margin makes them a separate text column, and poppler flushes a column when the page ends
+— so the last entry on each page had its date emitted after its own bullets and welded to
+the next entry's title. Six different ways of right-aligning were measured and all six
+fail. The right-hand date column is a real loss for skimming; it did not survive being
+read. See [ATS-readiness](../reference/ats-readiness.md).
+
+You can check any of this yourself:
+
+```bash
+cvloom build --profile general --extract-text
+```
+
+That writes the PDF's text layer next to it, once per installed engine, so you can read
+exactly what a parser gets.
+
+The remaining difference between the safe templates is not parsing, it is the build:
+`cv/ats-clean` and `cv/academic` use system fonts and fetch nothing, while the other
+three pull a web font at render time. Offline they fall back to Arial, which changes
+pagination but not extraction.
 
 #### On field separators
 
-`cv/ats-single` and `cv/academic` join fields with ASCII only — `|` between contact-line
-fields, `,` between a role and its organisation (`Senior Engineer, Acme Corp`, which reads
-as apposition). The four design-led templates use a middot (`·`).
+`cv/ats-clean` and `cv/academic` join fields with ASCII only — `|` between contact-line
+fields and between the parts of an entry's meta line (`Acme Corp | Remote`). The four
+design-led templates use a middot (`·`).
 
 This is **not** because a middot fails to extract. Every separator — middot, pipe, comma,
 em dash, bullet — survives PDF text extraction intact; claims that an ATS "cannot read"

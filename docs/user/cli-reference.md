@@ -21,6 +21,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [sync](#sync)
 - [list-projects](#list-projects)
 - [list-profiles](#list-profiles)
+- [list-templates](#list-templates)
 - [ai](#ai)
 
 ---
@@ -44,6 +45,8 @@ cvloom build [OPTIONS]
 | `--skip-pdf` | | off | Skip PDF generation; produce HTML only |
 | `--check` | | off | Run the writing lint after build and print a per-axis breakdown |
 | `--strict N` | | off | Exit non-zero if more than N lint findings (implies `--check`) |
+| `--extract-text` | | off | Also write the PDF's text layer, one file per installed extractor |
+| `--all` | | off | Build every profile in `profiles/` instead of one (ignores `--profile`) |
 
 ### Examples
 
@@ -68,24 +71,55 @@ cvloom build --profile backend-role --check
 
 # Build and fail CI if there are more than 10 lint findings
 cvloom build --profile backend-role --strict 10
+
+# Write what a parser actually reads, beside the PDF
+cvloom build --extract-text
+
+# Rebuild every profile in profiles/ after editing your data
+cvloom build --all
+
+# Same, for GitHub Pages
+cvloom build --all --public --skip-pdf
 ```
 
 ### Sample Output
 
 ```
-Profile:   backend-role
-Template:  cv/ats-single
-HTML:      dist/backend-role.html
-PDF:       dist/backend-role.pdf
-Words:     482
-Pages:     ~1
-Sections:  work (3 entries), education (2), skills (4 categories), projects (2)
+✓ HTML  → /home/you/cv/dist/cv.html
+✓ PDF   → /home/you/cv/dist/Your_Name_Resume_general.pdf
+  302 words · ~1 page(s)  [work×2  skills×4  edu×1  projects×1  pubs×1  certs×3  awards×1  langs×3]
 ```
 
-If the estimated page count exceeds 2 on a non-academic template, a warning is printed:
+With `--all`, each profile is announced before its own block and the run ends with a
+count. A profile that fails to resolve stops the batch rather than being skipped — a run
+that reports success while one CV silently did not rebuild is worse than one that stops
+and names the profile.
+
+If the estimated page count exceeds 3 on a non-academic template, a warning is printed:
 
 ```
-WARNING: Estimated 3 pages — consider trimming (run `cvloom trim`).
+Warning: Output exceeds 3 pages. Consider trimming content or using `select` to narrow sections.
+```
+
+`--extract-text` writes one file per engine beside the PDF:
+
+```
+✓ TEXT  → dist/Your_Name_Resume_general.poppler.txt   (poppler)
+✓ TEXT  → dist/Your_Name_Resume_general.pypdf.txt     (pypdf)
+✓ TEXT  → dist/Your_Name_Resume_general.pdfminer.txt  (pdfminer)
+```
+
+One file per engine, not one merged file: they read the document by different means and
+they disagree, and the disagreements are where layout defects hide. `poppler` needs the
+system `pdftotext` binary; the other two come with `uv sync --extra extract`.
+
+If the profile's template is not rated safe for PDF text extraction, a note is printed
+with the specific caveat — see [list-templates](#list-templates):
+
+```
+Note: cv/sidebar-compact does not parse reliably. The two columns interleave line by line
+when the text layer is extracted: contact details and skills land in the middle of the work
+history. Send it to a person or link it from a portfolio; do not upload it to an ATS portal.
 ```
 
 ---
@@ -122,7 +156,7 @@ cvloom check [OPTIONS]
 | `wl-008` | warning | Vague buzzwords (motivated, proactive, …) |
 | `wl-009` | warning | Fewer than 8 or more than 25 total skills |
 | `wl-010` | warning | No LinkedIn or GitHub link present |
-| `wl-011` | warning | Estimated page count exceeds 2 |
+| `wl-011` | warning | Estimated page count exceeds 3 |
 | `wl-012` | warning | Mixed YYYY-MM / YYYY date formats |
 | `wl-013` | warning | Wrong tense for current vs past roles |
 | `wl-014` | warning | Summary shorter than 20 or longer than 80 words |
@@ -170,38 +204,39 @@ cvloom trim [OPTIONS]
 | Flag | Short | Default | Description |
 |---|---|---|---|
 | `--profile` | `-p` | `general` | Profile name (without `.yaml` extension) |
-| `--target-pages` | | `1` | Target page count |
+| `--target-pages` | | `3` | Target page count |
 
 ### Examples
 
 ```bash
-# Analyse the default profile (targeting 1 page)
+# Analyse the default profile (targeting 3 pages)
 cvloom trim
 
-# Target 2 pages for an academic CV
-cvloom trim --profile academic --target-pages 2
+# Allow 5 pages for an academic CV
+cvloom trim --profile academic --target-pages 5
 ```
 
 ### Sample Output
 
 ```
-Section      Words   Entries
-───────────  ──────  ───────
-work           312        3
-education       87        2
-skills          45        4
-projects        68        2
-───────────  ──────  ───────
-Total          512
-Estimated    ~1.2 pages
-Target       1 page
-To cut       ~90 words
+ Section         Words  Entries
+ work               76        2
+ education          25        1
+ projects           43        1
+ publications       17        1
+ certifications     22        3
+ awards             11        1
+ languages           7        3
+ skills             30        —
+
+Total: 252 words · ~1 page(s) · target: 3
 
 Recommendations:
-  - work / Acme Corp: 142 words (largest entry — trim first)
-  - work / Initech: 18 words/bullet avg (consider tightening)
-  - skills: 4 categories — consider dropping lowest-relevance category
+  • Your CV fits within the target page count.
 ```
+
+When the CV is over target, the total line is followed by
+`Cut ~N words to reach target.` and the recommendations name the largest entries.
 
 ---
 
@@ -226,7 +261,7 @@ cvloom diff general backend-role
 
 ```
                 general          backend-role
-Template:       cv/ats-single    cv/modern-single
+Template:       cv/ats-clean    cv/modern-single
 Words:          512              387 (-125)
 
 Sections only in general:
@@ -537,8 +572,8 @@ This command takes no options.
 ```
 Profile         Template                Output              Narrows            Job context
 ──────────────  ──────────────────────  ──────────────────  ─────────────────  ──────────────────
-general         cv/ats-single           cv                  —                  —
-backend-role    cv/ats-single           jane-smith-backend  skills, work       Acme Corp / Staff Engineer
+general         cv/ats-clean           cv                  —                  —
+backend-role    cv/ats-clean           jane-smith-backend  skills, work       Acme Corp / Staff Engineer
 academic        cv/academic             academic-cv         publications       —
 cover-letter    cover-letter/standard   cover-letter        —                  Acme Corp / Staff Engineer
 
@@ -547,6 +582,60 @@ cover-letter    cover-letter/standard   cover-letter        —                 
 
 **Narrows** lists the sections the profile selects content for via `select`. A dash
 means the profile uses every entry in every section.
+
+---
+
+## `list-templates`
+
+List the built-in templates with how each one survives PDF text extraction.
+
+```bash
+cvloom list-templates
+```
+
+This command takes no options. It reads the packaged templates, so it works outside a
+project directory.
+
+### Sample Output
+
+```
+ Template               Cols  Parses   Fonts    Notes
+ cover-letter/brief        —  unrated  —
+ cover-letter/standard     —  unrated  —
+ cv/academic               1  safe     system   Education-first serif CV. Runs
+                                                long by convention; page cap
+                                                does not apply.
+ cv/ats-clean              1  safe     system   Single column, system fonts, no
+                                                network. The one to upload.
+ cv/executive-dark         1  safe     network  Carbon header band, steel
+                                                accent, company-first entries.
+ cv/modern-single          1  safe     network  Single column, slate rule
+                                                system, aligned skills column.
+ cv/sidebar-compact        2  unsafe   network  Two-column, coloured sidebar.
+                                                Best-looking of the set for a
+                                                human.
+ cv/timeline-clean         1  safe     network  Swiss minimal, timeline rule
+                                                down the experience section.
+ project-summary/card      —  unrated  —
+```
+
+The caveat behind each `caution` and `unsafe` rating is printed underneath the table.
+Ratings are measured with two extractors that work differently — pdftotext rebuilds
+columns from glyph geometry, pypdf follows the content stream — and only what survives
+both is rated safe.
+
+| Column | Meaning |
+|---|---|
+| `Cols` | Layout columns. More than one is never rated safe. |
+| `Parses` | How the rendered PDF survives text extraction — the step every ATS runs first. |
+| `Fonts` | `system` fetches nothing; `network` pulls a web font at render time, so the build needs network access and falls back to Arial without it. |
+
+`Parses` is a property of the layout, not of your writing, so `cvloom check` does not
+cover it — `build` and `check` both print the caveat for whichever template you are
+using. `unrated` means cvloom has no measurement: the cover-letter and project-summary
+templates are not documents an ATS parses, and a template of your own has never been
+measured. It does not mean "safe". See
+[ATS-readiness](../reference/ats-readiness.md) for the measurements behind the ratings.
 
 ---
 
