@@ -2,21 +2,31 @@
 
 {% block fonts %}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap">
 {% endblock %}
 
 {% block css_vars %}
 :root {
-  --accent: #b45309;
-  --accent-light: #fef3c7;
-  --header-bg: #1c1917;
-  --header-text: #fafaf9;
-  --header-muted: #a8a29e;
-  --font-body: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Carbon and steel, replacing near-black stone with amber. Amber-on-black is
+     the single most reproduced "executive template" palette on the resume-builder
+     sites, and at #b45309 it also sat at about 4.5:1 on white — legible on screen,
+     muddy off an office laser printer. Steel is quieter, prints, and is not what
+     everyone else is using.
+
+     Two accents, because one cannot serve both grounds: --accent is dark enough
+     to read on white (~6.5:1) and would disappear into the carbon band, so the
+     band gets --accent-on-dark instead. */
+  --accent: #3f5a68;
+  --accent-on-dark: #8fb3c7;
+  --header-bg: #1f2328;
+  --header-text: #f4f5f6;
+  --header-muted: #9aa4ad;
+  --font-body: "Source Sans 3", "Source Sans Pro", Calibri, Arial, sans-serif;
 }
 {% endblock %}
 
 {% block css_extra %}
+.entry-header > .entry-date::before { content: " \00b7\0020"; }
 /* Executive dark-header design */
 body { font-size: 10.5pt; }
 .header {
@@ -24,20 +34,20 @@ body { font-size: 10.5pt; }
   color: var(--header-text);
   padding: 20px 24px;
   margin: -12mm -14mm 0 -14mm;
-  border-bottom: 3px solid var(--accent);
+  border-bottom: 3px solid var(--accent-on-dark);
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
 }
 .header h1 {
   font-size: 24pt;
   color: var(--header-text);
-  margin-bottom: 2px;
+  margin-bottom: 0.4em;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 .header .headline {
   font-size: 12pt;
-  color: var(--accent);
+  color: var(--accent-on-dark);
   margin-bottom: 10px;
   font-weight: 400;
 }
@@ -49,12 +59,19 @@ body { font-size: 10.5pt; }
   color: var(--header-muted);
   align-items: center;
 }
-.contact-row .sep { color: var(--accent); margin: 0 4px; }
+/* Separators come from CSS, not from the markup. Emitting a literal `|` before
+   each field assumes the fields before it rendered — under `--public`, where
+   email/phone/location are dropped entirely, the line opened with a dangling
+   separator. An adjacent-sibling rule can only match a span that actually has a
+   span before it. */
+/* `.contact-row` is a flex container, so the spans are flex items and the spaces
+   inside `content` collapse against the flex gap. The gutter has to be margin. */
+.contact-row span + span::before { content: "|"; color: var(--accent-on-dark); margin-right: 5px; }
 
 .section-title {
   font-size: 11pt;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--accent);
   font-weight: 700;
   border-left: 3px solid var(--accent);
@@ -70,7 +87,7 @@ body { font-size: 10.5pt; }
   line-height: 1.5;
 }
 .entry { margin-bottom: 14px; }
-.entry-header { overflow: hidden; margin-bottom: 2px; }
+.entry-header { margin-bottom: 2px; }
 .entry-company {
   font-weight: 700;
   font-size: 11pt;
@@ -82,24 +99,48 @@ body { font-size: 10.5pt; }
   color: var(--muted);
 }
 .entry-date {
-  float: right;
+  
   color: var(--muted);
   font-size: 9pt;
   font-weight: 600;
 }
 .entry-meta { color: var(--muted); font-size: 9pt; margin-bottom: 3px; }
 
-.skills-compact { margin-bottom: 6px; }
-.skills-compact .skill-category {
+.skills-list { margin-bottom: 2px; }
+/* An aligned label column and single-line text extraction cannot both be had: the
+   whitespace that does the aligning is exactly what an extractor reads as a column
+   boundary, so a short label like `Networking` comes back on its own line ahead of
+   its values. The pairing survives as reading order rather than as adjacency, which
+   is the trade the design-led templates make and `cv/ats-clean` does not — it runs
+   `Category: items` ragged and inline, and extracts as one line every time.
+   `vertical-align: top` gives a label that wraps a hanging indent rather than
+   pushing its own values down. */
+/* A table row, for the same reason the entry header is one: two inline-blocks
+   sitting side by side are only implicitly one line, and pypdf resolved that
+   implication differently from pdftotext — a value at the wrap point drifted out
+   of its own category's run. Table cells state the relationship outright, and both
+   extractors then emit `category` immediately followed by all of its values.
+
+   The colon after the label is a separator, not decoration. The gap between the
+   columns is padding, and padding puts no character in the text stream — so when a
+   label fills its cell, pypdf emitted `CLOUDOPSSV01i0`, fusing the category and its
+   first skill into a single unsearchable token. A colon guarantees a separator that
+   every tokeniser splits on, whatever the label's width. */
+.skill-row { display: table; width: 100%; margin-bottom: 3px; font-size: 9.5pt; }
+.skill-category {
+  display: table-cell;
+  width: 10.5em;
+  padding-right: 0.7em;
+  vertical-align: top;
   font-weight: 700;
   color: var(--accent);
-  font-size: 9.5pt;
 }
-.skills-compact .skill-items { font-size: 9.5pt; }
+.skill-items { display: table-cell; vertical-align: top; }
+.entry.compact { margin-bottom: 5px; }
 
 @media print {
   .header { margin: -18mm -16mm 0 -16mm; padding: 16mm 16mm 10px 16mm; }
-  .entry-title, h2, h3, .section-title, .skills-compact .skill-category { color: #111111 !important; }
+  .entry-title, h2, h3, .section-title, .skill-category { color: #111111 !important; }
 }
 {% endblock %}
 
@@ -107,24 +148,23 @@ body { font-size: 10.5pt; }
 
 {% macro section_skills() %}
 {% if show.skills and skills %}
-<div class="section-title">Core Competencies</div>
-{% for group in skills %}
-<div class="skills-compact">
-  <span class="skill-category">{{ group.category }}:</span>
-  <span class="skill-items">
+<div class="section-title">{{ section_title("skills", "Core Competencies") }}</div>
+<div class="skills-list">
+  {% for group in skills %}
+  <div class="skill-row"><span class="skill-category">{{ group.category }}:</span><span class="skill-items">
     {%- for item in group['items'] -%}
       {%- if item is mapping -%}{{ item.name }}{%- else -%}{{ item }}{%- endif -%}
-      {%- if not loop.last -%}, {% endif -%}
+      {%- if not loop.last %}, {% endif -%}
     {%- endfor -%}
-  </span>
+  </span></div>
+  {% endfor %}
 </div>
-{% endfor %}
 {% endif %}
 {% endmacro %}
 
 {% macro section_work() %}
 {% if show.work and work %}
-<div class="section-title">Experience</div>
+<div class="section-title">{{ section_title("work", "Experience") }}</div>
 {% for job in work %}
 <div class="entry">
   <div class="entry-header clearfix">
@@ -144,7 +184,7 @@ body { font-size: 10.5pt; }
 
 {% macro section_education() %}
 {% if show.education and education %}
-<div class="section-title">Education</div>
+<div class="section-title">{{ section_title("education", "Education") }}</div>
 {% for edu in education %}
 <div class="entry">
   <div class="entry-header clearfix">
@@ -164,7 +204,7 @@ body { font-size: 10.5pt; }
 
 {% macro section_projects() %}
 {% if show.projects and projects %}
-<div class="section-title">Notable Projects</div>
+<div class="section-title">{{ section_title("projects", "Notable Projects") }}</div>
 {% for proj in projects %}
 <div class="entry">
   <div class="entry-header clearfix">
@@ -188,15 +228,18 @@ body { font-size: 10.5pt; }
 
 {% macro section_publications() %}
 {% if show.publications and publications %}
-<div class="section-title">Publications</div>
+<div class="section-title">{{ section_title("publications", "Publications") }}</div>
 {% for pub in publications %}
 <div class="entry">
-  <div class="entry-header clearfix">
-    <span class="entry-company">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</span>
-    {% if pub.release_date %}<span class="entry-date">{{ pub.release_date }}</span>{% endif %}
-  </div>
-  {% if pub.publisher or pub.identifier %}
-  <div class="entry-title">{{ pub.publisher }}{% if pub.publisher and pub.identifier %} · {% endif %}{{ pub.identifier }}</div>
+{# Date runs inline on the meta line, unlike work/education above. A right-aligned
+   date is its own geometric column, and an extractor flushes that column when the
+   left-hand run beside it ends — which for an entry carrying a trailing summary
+   paragraph is well past the entry, in the measured case at the very end of the
+   document. Work and education have no trailing paragraph and keep the right-hand
+   date a recruiter scans for. #}
+  <div class="entry-company">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</div>
+  {% if pub.publisher or pub.identifier or pub.release_date %}
+  <div class="entry-title">{{ pub.publisher }}{% if pub.publisher and pub.identifier %} · {% endif %}{{ pub.identifier }}{% if pub.release_date %} · {{ pub.release_date }}{% endif %}</div>
   {% endif %}
   {% if pub.summary %}<p>{{ pub.summary | md }}</p>{% endif %}
 </div>
@@ -206,15 +249,14 @@ body { font-size: 10.5pt; }
 
 {% macro section_certifications() %}
 {% if show.certifications and certifications %}
-{% for heading, group in certifications | cert_groups %}
-<div class="section-title">{{ heading }}</div>
+{% for title_key, heading, group in certifications | cert_groups %}
+<div class="section-title">{{ section_title(title_key, heading) }}</div>
 {% for cert in group %}
-<div class="entry">
-  <div class="entry-header clearfix">
-    <span class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</span>
-    {% if cert.date %}<span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}</span>{% endif %}
-  </div>
-  {% if cert.issuer or cert.identifier %}<div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}</div>{% endif %}
+<div class="entry compact">
+  <div class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</div>
+  {% if cert.issuer or cert.identifier or cert.date %}
+  <div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}{% if cert.date %} · {{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}{% endif %}</div>
+  {% endif %}
 </div>
 {% endfor %}
 {% endfor %}
@@ -223,14 +265,13 @@ body { font-size: 10.5pt; }
 
 {% macro section_awards() %}
 {% if show.awards and awards %}
-<div class="section-title">Awards</div>
+<div class="section-title">{{ section_title("awards", "Awards") }}</div>
 {% for award in awards %}
 <div class="entry">
-  <div class="entry-header clearfix">
-    <span class="entry-title">{{ award.title }}</span>
-    {% if award.date %}<span class="entry-date">{{ award.date }}</span>{% endif %}
-  </div>
-  {% if award.awarder %}<div class="entry-meta">{{ award.awarder }}</div>{% endif %}
+  <div class="entry-title">{{ award.title }}</div>
+  {% if award.awarder or award.date %}
+  <div class="entry-meta">{{ award.awarder }}{% if award.awarder and award.date %} · {% endif %}{{ award.date }}</div>
+  {% endif %}
   {% if award.summary %}<p>{{ award.summary | md }}</p>{% endif %}
 </div>
 {% endfor %}
@@ -239,7 +280,7 @@ body { font-size: 10.5pt; }
 
 {% macro section_languages() %}
 {% if show.languages and languages %}
-<div class="section-title">Languages</div>
+<div class="section-title">{{ section_title("languages", "Languages") }}</div>
 <div class="languages">
   {%- for lang in languages -%}
   {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}
@@ -269,20 +310,20 @@ body { font-size: 10.5pt; }
   <div class="headline">{{ basics.headline }}</div>
   <div class="contact-row">
     {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
-    {% if contact.phone is defined %}<span class="sep">|</span><span>{{ contact.phone }}</span>{% endif %}
-    {% if contact.location is defined %}<span class="sep">|</span><span>{{ contact.location }}</span>{% endif %}
-    {% for link in basics.links | default([]) %}<span class="sep">|</span><span>{{ link | link_anchor }}</span>{% endfor %}
+    {% if contact.phone is defined %}<span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span>{{ contact.location }}</span>{% endif %}
+    {% for link in basics.links | default([]) %}<span>{{ link | link_anchor }}</span>{% endfor %}
   </div>
 </div>
 
 <!-- EXECUTIVE SUMMARY -->
 {% if basics.summary %}
-<div class="section-title">Executive Summary</div>
+<div class="section-title">{{ section_title("summary", "Executive Summary") }}</div>
 <div class="summary">{{ basics.summary | md }}</div>
 {% endif %}
 
 <!-- SECTIONS (ordered) -->
-{% for sec in section_order | default(["skills", "work", "education", "projects", "publications", "certifications", "awards", "languages"]) %}
+{% for sec in section_order | default(["work", "skills", "education", "projects", "publications", "certifications", "awards", "languages"]) %}
 {{ _section_macros[sec]() }}
 {% endfor %}
 {% endblock %}

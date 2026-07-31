@@ -1,7 +1,7 @@
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: example-job-cv
 
-section_order: [skills, work, projects, education]
+section_order: [work, skills, projects, education]
 
 sections:
   work: true

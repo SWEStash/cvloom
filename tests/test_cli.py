@@ -66,7 +66,7 @@ def project_root(tmp_path: Path) -> Path:
 
     profiles = tmp_path / "profiles"
     profiles.mkdir()
-    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
+    (profiles / "general.yaml").write_text("template: cv/ats-clean\noutput_filename: cv\n")
     (profiles / "backend.yaml").write_text(
         "template: cv/modern-single\noutput_filename: backend-cv\n"
         "select:\n  work:\n    tags: [python]\n"
@@ -356,3 +356,49 @@ def test_sync_reports_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     # --force writes the missing file back.
     CliRunner().invoke(cli, ["sync", "--force"])
     assert (proj / ".github" / "workflows" / "publish-cv.yml").is_file()
+
+
+# ── build --all ──────────────────────────────────────────────────────
+
+
+def test_build_all_builds_every_profile(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build", "--all", "--public", "--skip-pdf"])
+    assert result.exit_code == 0, result.output
+    assert "general" in result.output
+    assert "backend" in result.output
+    assert "Built 2 profile(s)." in result.output
+    assert (project_root / "dist" / "cv.html").exists()
+    assert (project_root / "dist" / "backend-cv.html").exists()
+
+
+def test_build_all_without_profiles_dir_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["build", "--all", "--public", "--skip-pdf"])
+    assert result.exit_code == 1
+
+
+def test_build_all_stops_on_a_broken_profile(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A batch that reports success while one CV silently did not rebuild is worse
+    than one that stops and names the profile."""
+    (project_root / "profiles" / "broken.yaml").write_text(
+        "template: cv/ats-clean\noutput_filename: broken\nsection_titles:\n  nope: 'X'\n"
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build", "--all", "--public", "--skip-pdf"])
+    assert result.exit_code == 1
+    assert "Built 3 profile(s)." not in result.output
+
+
+def test_list_templates_reports_extraction_ratings(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = CliRunner().invoke(cli, ["list-templates"])
+    assert result.exit_code == 0
+    assert "cv/ats-clean" in result.output
+    assert "safe" in result.output
+    assert "unsafe" in result.output

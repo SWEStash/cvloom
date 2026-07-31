@@ -196,6 +196,8 @@ _MAX_SKILLS = 25
 _MAX_EDUCATION_ENTRIES = 6
 _WORDS_PER_PAGE = 500
 
+from cvloom.trim import MAX_PAGES as _MAX_PAGES  # noqa: E402  (one ceiling, one place)
+
 _DATE_YYYY_MM_RE = re.compile(r"^\d{4}-\d{2}$")
 _DATE_YYYY_RE = re.compile(r"^\d{4}$")
 
@@ -1107,7 +1109,7 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
     total_words = sum(len(t.split()) for t in texts)
     estimated_pages = max(1, round(total_words / _WORDS_PER_PAGE))
 
-    if estimated_pages > 2:
+    if estimated_pages > _MAX_PAGES:
         return [
             LintFinding(
                 rule_id="wl-011",
@@ -1116,7 +1118,7 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="page estimate",
                 bullet_index=None,
                 bullet_text=None,
-                message=f"Estimated ~{estimated_pages} pages; target 1–2 pages.",
+                message=f"Estimated ~{estimated_pages} pages; target 1–{_MAX_PAGES} pages.",
                 fix_hint="Reduce highlights or shorten descriptions.",
             )
         ]

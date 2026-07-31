@@ -58,9 +58,18 @@ dev = [
     "types-PyYAML",
     "types-jsonschema",
     "cvloom[docx]",
+    "cvloom[extract]",
 ]
 mcp = [
     "mcp>=1.0",
+]
+# Extra PDF text extractors for `build --extract-text`. Optional because poppler's
+# `pdftotext` binary is the one that matters most and is a system package, not a
+# Python one — these two add engines that read the document by different means, so
+# agreement between them is worth more than any single engine's verdict.
+extract = [
+    "pypdf>=4.0",
+    "pdfminer.six>=20231228",
 ]
 docx = [
     "python-docx>=1.1",
@@ -98,3 +107,11 @@ select = ["E", "F", "I", "UP"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+# Optional extractors: present with `[extract]`, absent without it, and the code
+# imports them inside functions guarded by `available_engines()`. An inline
+# `type: ignore` would be correct in one environment and an "unused ignore" error
+# in the other, so the exemption lives here instead.
+[[tool.mypy.overrides]]
+module = ["pypdf.*", "pdfminer.*"]
+ignore_missing_imports = true

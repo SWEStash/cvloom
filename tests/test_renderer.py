@@ -1,5 +1,6 @@
 """Tests for template renderer."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -114,7 +115,7 @@ def test_render_project_card() -> None:
 
 
 def test_render_ats_single_template() -> None:
-    html = render_template("cv/ats-single", _FULL_CONTEXT)
+    html = render_template("cv/ats-clean", _FULL_CONTEXT)
     assert "Jane" in html
     assert "Engineer" in html
     assert "Experience" in html or "Skills" in html
@@ -182,27 +183,27 @@ def test_timeline_clean_has_inter_font_link() -> None:
     assert "Inter" in html
 
 
-def test_modern_single_has_inter_font_link() -> None:
+def test_modern_single_has_lato_font_link() -> None:
     html = render_template("cv/modern-single", _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Inter" in html
+    assert "Lato" in html
 
 
-def test_executive_dark_has_roboto_font_link() -> None:
+def test_executive_dark_has_source_sans_font_link() -> None:
     html = render_template("cv/executive-dark", _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Roboto" in html
+    assert "Source+Sans+3" in html
 
 
-def test_sidebar_compact_has_roboto_font_link() -> None:
+def test_sidebar_compact_has_lato_font_link() -> None:
     html = render_template("cv/sidebar-compact", _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Roboto" in html
+    assert "Lato" in html
 
 
 def test_ats_single_has_no_google_fonts_link() -> None:
     """ATS template must use system fonts only."""
-    html = render_template("cv/ats-single", _FULL_CONTEXT)
+    html = render_template("cv/ats-clean", _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN not in html
 
 
@@ -255,7 +256,7 @@ def _context_with_certs(certifications):
 def test_certifications_render_grouped_by_type():
     """Courses must not render under a "Certifications" heading."""
     html = render_template(
-        "cv/ats-single",
+        "cv/ats-clean",
         _context_with_certs(
             [
                 _cert("GenAI with LLMs", "DeepLearning.AI", type="course"),
@@ -271,7 +272,7 @@ def test_certifications_render_grouped_by_type():
 
 def test_certifications_untyped_render_under_certifications_only():
     """Data predating the `type` field keeps rendering exactly as before."""
-    html = render_template("cv/ats-single", _context_with_certs([_cert("Legacy cert", "Acme")]))
+    html = render_template("cv/ats-clean", _context_with_certs([_cert("Legacy cert", "Acme")]))
     assert "Certifications" in html
     assert "Professional Development" not in html
 
@@ -279,7 +280,7 @@ def test_certifications_untyped_render_under_certifications_only():
 # ── profile links in the header ──────────────────────────────────────
 
 _CV_TEMPLATES = [
-    "cv/ats-single",
+    "cv/ats-clean",
     "cv/academic",
     "cv/modern-single",
     "cv/executive-dark",
@@ -337,7 +338,7 @@ def test_entry_tags_are_never_rendered(template: str) -> None:
 
 # ── separator convention ─────────────────────────────────────────
 
-_ASCII_FIRST_TEMPLATES = ["cv/ats-single", "cv/academic"]
+_ASCII_FIRST_TEMPLATES = ["cv/ats-clean", "cv/academic"]
 
 # U+00B7 MIDDLE DOT. Every separator extracts cleanly from a WeasyPrint PDF, so
 # this is not about extraction; it is that a non-ASCII glyph depends on the
@@ -353,8 +354,8 @@ def test_ats_first_templates_use_ascii_separators(template: str) -> None:
 
 
 @pytest.mark.parametrize("template", _ASCII_FIRST_TEMPLATES)
-def test_ats_first_templates_join_title_and_org_with_a_comma(template: str) -> None:
-    """`Senior Engineer, Acme Corp` is apposition — what a parser expects."""
+def test_ats_first_templates_keep_title_and_org_adjacent(template: str) -> None:
+    """Title and employer must land in the same extracted block, pipe-separated."""
     html = render_template(template, _FULL_CONTEXT)
     assert "Acme" in html and "Engineer" in html
     assert " | " in html  # contact line separator survives
@@ -376,3 +377,173 @@ def test_design_templates_keep_en_dash_date_ranges(template: str) -> None:
     """The design-led templates keep correct range typography."""
     html = render_template(template, _FULL_CONTEXT)
     assert "2020-01 – Present" in html
+
+
+# ── Heading tracking ceiling ─────────────────────────────────────────
+
+# WeasyPrint writes CSS letter-spacing as real inter-glyph advance in the PDF,
+# and text extractors reinsert a word break wherever the advance exceeds their
+# threshold. Measured against WeasyPrint output at heading sizes, .08em still
+# extracts as one word and .10em does not: "EDUCATION" comes out "E D U C ATION".
+# Section headings are what an ATS segments the document on, so a heading that
+# extracts as loose letters costs the whole section its label. .06em keeps the
+# tracked-uppercase look with margin under the cliff.
+_MAX_HEADING_LETTER_SPACING_EM = 0.08
+
+_LETTER_SPACING_RE = re.compile(r"letter-spacing:\s*(-?[\d.]+)em")
+
+_ALL_CV_TEMPLATES = [
+    "cv/ats-clean",
+    "cv/academic",
+    "cv/modern-single",
+    "cv/executive-dark",
+    "cv/timeline-clean",
+    "cv/sidebar-compact",
+]
+
+
+@pytest.mark.parametrize("template", _ALL_CV_TEMPLATES)
+def test_letter_spacing_stays_under_the_extraction_cliff(template: str) -> None:
+    html = render_template(template, _FULL_CONTEXT)
+    excessive = [
+        v
+        for v in (float(m) for m in _LETTER_SPACING_RE.findall(html))
+        if v > _MAX_HEADING_LETTER_SPACING_EM
+    ]
+    assert not excessive, (
+        f"{template} declares letter-spacing {excessive}em, above the "
+        f"{_MAX_HEADING_LETTER_SPACING_EM}em ceiling at which PDF text "
+        f"extraction starts splitting words into loose letters"
+    )
+
+
+# ── Where a right-aligned date is safe ───────────────────────────────
+
+# Right-aligning a date puts it in its own geometric column, and an extractor
+# flushes that column when the text beside it ends. Measured against WeasyPrint
+# output: on work/education/projects, whose entries end in a bullet list, the date
+# lands beside its own entry. On publications, certifications, and awards — short
+# entries, some with a trailing summary paragraph — the column stayed open past
+# the entry and the date surfaced late, in the worst case after the final section
+# of the document. Those three therefore run the date inline on the meta line.
+_DESIGN_TEMPLATES = [
+    "cv/modern-single",
+    "cv/timeline-clean",
+    "cv/executive-dark",
+    "cv/ats-clean",
+    "cv/academic",
+]
+
+
+def _body_of(html: str) -> str:
+    """Just the rendered body — the CSS names `.entry-date` whatever the markup does."""
+    return html.split("<body>", 1)[1]
+
+
+def _context_only(section: str, entries: list[dict]) -> dict:
+    ctx = dict(_FULL_CONTEXT)
+    ctx[section] = entries
+    ctx["show"] = dict.fromkeys(_FULL_CONTEXT["show"], False) | {section: True}
+    ctx["section_order"] = [section]
+    ctx["basics"] = {**_FULL_CONTEXT["basics"], "summary": ""}
+    return ctx
+
+
+@pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
+def test_compact_sections_run_dates_inline(template: str) -> None:
+    award = {"title": "Prize", "date": "2023", "awarder": "Acme", "summary": ""}
+    html = _body_of(render_template(template, _context_only("awards", [award])))
+    assert "2023" in html
+    # `.entry-header` is what carries `float: right`; the class alone is also used
+    # for the inline date, so the header wrapper is the thing to assert against.
+    assert "entry-header" not in html, f"{template} right-aligns an award date"
+
+
+@pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
+def test_compact_certifications_run_dates_inline(template: str) -> None:
+    ctx = _context_only("certifications", [_cert("CKA", "CNCF", date="2023")])
+    html = _body_of(render_template(template, ctx))
+    assert "2023" in html
+    assert "entry-header" not in html, f"{template} right-aligns a certification date"
+
+
+@pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
+@pytest.mark.parametrize("section", ["work", "education"])
+def test_bullet_sections_keep_their_right_aligned_date(template: str, section: str) -> None:
+    """The scan column recruiters use is kept everywhere it measured safe.
+
+    Including on `ats-clean` and `academic`: the first sweep gave it up on those
+    two as a precaution, and re-measuring showed the precaution was unnecessary
+    for entries that carry a bullet list.
+    """
+    ctx = _context_only(section, _FULL_CONTEXT[section])
+    html = _body_of(render_template(template, ctx))
+    assert 'class="entry-header' in html
+    assert "entry-date" in html
+
+
+# ── Constructs that decide extraction fidelity ───────────────────────
+
+# Two extractors disagree about the same PDF: pdftotext rebuilds columns from glyph
+# geometry, pypdf follows the content stream. `overflow: hidden` + `float: right`
+# reads correctly in the first and fuses the title into the date in the second. The
+# table-row form survives both. These tests pin the form, because the failure is
+# invisible in the rendered page and in whichever extractor you happen to try.
+
+_SINGLE_COLUMN_TEMPLATES = [
+    "cv/ats-clean",
+    "cv/academic",
+    "cv/modern-single",
+    "cv/timeline-clean",
+    "cv/executive-dark",
+]
+
+
+def _entry_css_lines(template: str) -> list[str]:
+    """CSS lines that style an entry header or its date.
+
+    Scoped deliberately: `base.html.j2` ships a generic `.right { float: right }`
+    utility, and asserting over the whole stylesheet flags that instead.
+    """
+    css = render_template(template, _FULL_CONTEXT).split("<body>", 1)[0]
+    return [ln.strip() for ln in css.splitlines() if ".entry-date" in ln or ".entry-header" in ln]
+
+
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES)
+def test_entry_headers_do_not_float_their_date(template: str) -> None:
+    floated = [ln for ln in _entry_css_lines(template) if "float: right" in ln]
+    assert not floated, f"{template} floats a date: {floated}"
+
+
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES)
+def test_entry_headers_are_not_a_block_formatting_context(template: str) -> None:
+    """`overflow: hidden` on the header is the construct pypdf mis-reads."""
+    bfc = [ln for ln in _entry_css_lines(template) if ".entry-header" in ln and "overflow" in ln]
+    assert not bfc, f"{template}: {bfc}"
+
+
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES + ["cv/sidebar-compact"])
+def test_header_dates_carry_a_separator_glyph(template: str) -> None:
+    """A visible separator, because padding puts no character in the text stream.
+
+    Without one, a title that reaches the date fuses with it into a single token and
+    the date — one of the few fields an ATS genuinely parses — stops being findable.
+    """
+    css = render_template(template, _FULL_CONTEXT).split("<body>", 1)[0]
+    assert ".entry-header > .entry-date::before" in css, f"{template} has no date separator"
+
+
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES + ["cv/sidebar-compact"])
+def test_header_dates_are_not_a_right_hand_column(template: str) -> None:
+    """Right-aligning a date is a column, and poppler flushes a column per *page*.
+
+    Every construct that does it — float, table cell, absolute, flex — emitted the
+    last entry's date on each page after that entry's bullets, fused to the next
+    entry's title. Measured on a real 2-page CV. The date is inline now, and this
+    test exists so nobody re-adds the scan column without re-measuring.
+    """
+    css = render_template(template, _FULL_CONTEXT).split("<body>", 1)[0]
+    header_css = [ln.strip() for ln in css.splitlines() if ".entry-header" in ln]
+    banned = ("float:", "display: table-cell", "position: absolute", "text-align: right")
+    offenders = [ln for ln in header_css for b in banned if b in ln]
+    assert not offenders, f"{template} re-introduces a date column: {offenders}"

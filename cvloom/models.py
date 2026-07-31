@@ -26,6 +26,9 @@ class ResolvedProfile:
     profile_name: str = ""
     """Profile this was resolved from — disambiguates per-profile output filenames."""
 
+    section_titles: dict[str, str] = field(default_factory=dict)
+    """Heading text overrides from the profile. Empty means every template default stands."""
+
 
 @dataclass
 class BuildResult:

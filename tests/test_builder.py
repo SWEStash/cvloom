@@ -105,7 +105,7 @@ def test_word_count_by_section():
         data=data,
         show_sections=show,
         section_order=[],
-        template_name="cv/ats-single",
+        template_name="cv/ats-clean",
         output_filename="cv",
     )
     counts = count_words(resolved)
@@ -202,7 +202,7 @@ def test_resolve_returns_resolved_profile(project_dir: Path) -> None:
         profile_name="general",
         public=True,
     )
-    assert result.template_name == "cv/ats-single"
+    assert result.template_name == "cv/ats-clean"
     assert result.output_filename == "cv"
     assert "basics" in result.data
     assert "work" in result.data
@@ -243,7 +243,7 @@ def test_resolve_invalid_data_raises_resolve_error_silently(
 
 
 def test_template_exists_true() -> None:
-    assert template_exists("cv/ats-single") is True
+    assert template_exists("cv/ats-clean") is True
 
 
 def test_template_exists_false() -> None:
@@ -252,7 +252,7 @@ def test_template_exists_false() -> None:
 
 def test_list_templates_contains_known() -> None:
     templates = list_templates()
-    assert "cv/ats-single" in templates
+    assert "cv/ats-clean" in templates
     assert "cv/modern-single" in templates
     assert "cv/academic" in templates
 
@@ -400,7 +400,7 @@ def test_publications_untouched_without_a_selector(publications_project_dir: Pat
 
 def test_publications_section_can_be_hidden(publications_project_dir: Path) -> None:
     (publications_project_dir / "profiles" / "nopubs.yaml").write_text(
-        "template: cv/ats-single\nsections:\n  publications: false\n"
+        "template: cv/ats-clean\nsections:\n  publications: false\n"
     )
     result = build_project(
         publications_project_dir, profile_name="nopubs", public=True, skip_pdf=True
@@ -442,7 +442,7 @@ def tagged_education_dir(tmp_path: Path) -> Path:
 
 def _degrees_only(root: Path) -> list[str]:
     (root / "profiles" / "degrees.yaml").write_text(
-        "template: cv/ats-single\nselect:\n  education:\n    tags: [degree]\n"
+        "template: cv/ats-clean\nselect:\n  education:\n    tags: [degree]\n"
     )
     result = resolve(
         data_dir=root / "data",
@@ -506,7 +506,7 @@ def test_resolve_loads_certifications(certifications_project_dir: Path) -> None:
 
 def test_certifications_selection_drops_untagged(certifications_project_dir: Path) -> None:
     (certifications_project_dir / "profiles" / "tagged.yaml").write_text(
-        "template: cv/ats-single\nselect:\n  certifications:\n    tags: [cloud]\n"
+        "template: cv/ats-clean\nselect:\n  certifications:\n    tags: [cloud]\n"
     )
     result = resolve(
         data_dir=certifications_project_dir / "data",
@@ -523,7 +523,7 @@ def test_certifications_selection_drops_untagged(certifications_project_dir: Pat
 
 def test_certifications_section_can_be_hidden(certifications_project_dir: Path) -> None:
     (certifications_project_dir / "profiles" / "nocerts.yaml").write_text(
-        "template: cv/ats-single\nsections:\n  certifications: false\n"
+        "template: cv/ats-clean\nsections:\n  certifications: false\n"
     )
     result = build_project(
         certifications_project_dir, profile_name="nocerts", public=True, skip_pdf=True

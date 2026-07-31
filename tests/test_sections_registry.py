@@ -56,9 +56,14 @@ def test_every_section_accepts_tags() -> None:
         assert "tags" in entry["properties"], section.name
 
 
-def test_default_order_leads_with_skills() -> None:
-    """skills is not in the registry (bespoke shape) but must still be ordered."""
-    assert sections.DEFAULT_SECTION_ORDER[0] == "skills"
+def test_default_order_leads_with_work_then_skills() -> None:
+    """Work leads; skills follows it rather than opening the CV.
+
+    Recruiters fixate on job titles first during the initial scan, so a skills
+    block at the top spends that fixation on a keyword list. skills is not in the
+    registry (bespoke shape) but must still be ordered.
+    """
+    assert sections.DEFAULT_SECTION_ORDER[:2] == ("work", "skills")
     assert set(sections.DEFAULT_SECTION_ORDER) - set(sections.ARRAY_SECTIONS) == {"skills"}
 
 

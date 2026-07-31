@@ -381,7 +381,7 @@ class TestNoOverlays:
     def test_profile_without_overlays(self):
         data = _base_data()
         original = copy.deepcopy(data)
-        apply_overlays(data, {"template": "cv/ats-single"})
+        apply_overlays(data, {"template": "cv/ats-clean"})
         assert data == original
 
 

@@ -1,0 +1,223 @@
+{% extends "base.html.j2" %}
+
+{% block title %}{{ contact.name }} | Resume{% endblock %}
+
+{% block css_vars %}
+:root {
+  --accent: #1e3a5f;
+  --font-body: Arial, Helvetica, sans-serif;
+}
+{% endblock %}
+
+{% block css_extra %}
+/* ATS-optimised single-column layout */
+.header { margin-bottom: 10px; }
+.header h1 { font-size: 18pt; margin-bottom: 0.4em; }
+.header .headline { font-size: 11pt; color: var(--muted); margin-bottom: 4px; }
+.contact-line { font-size: 9pt; color: var(--muted); }
+.contact-line span + span::before { content: " | "; }
+.entry { margin-bottom: 10px; }
+/* Where the date goes is decided per section, not per template.
+
+   A right-aligned date is its own geometric column, and an extractor flushes that
+   column when the text beside it ends. Measured against WeasyPrint output: on
+   entries that carry a bullet list — work, education, projects — the bullets keep
+   the column open and the date lands beside its own entry every time (0 mismatches
+   over 12 real entries across 2 pages, and over 86 generated entries spanning 0-8
+   bullets and 1-11 word titles). On the compact sections — publications,
+   certifications, awards — the column closes early and the date surfaces late, in
+   the worst measured case after the document's final section.
+
+   So the scan column recruiters actually use is kept where it is safe, and given
+   up only where it is not. */
+.entry-title { font-weight: 700; font-size: 10.5pt; }
+.entry-meta { font-size: 9.5pt; margin-bottom: 2px; }
+.entry-org { font-weight: 600; }
+.entry-date { color: var(--muted); }
+/* Bullet-bearing sections only — see above. */
+.entry-header .entry-date { font-size: 9pt; }
+.entry-sep { color: var(--muted); }
+.skills-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.skill-row { display: flex; gap: 6px; }
+.skill-category { font-weight: 600; font-size: 9.5pt; }
+.skill-items { font-size: 9.5pt; color: var(--text); }
+{% endblock %}
+
+{# ── Section macros ────────────────────────────────────────────── #}
+
+{% macro section_skills() %}
+{% if show.skills and skills %}
+<h2>{{ section_title("skills", "Skills") }}</h2>
+<div class="skills-grid">
+  {% for group in skills %}
+  <div class="skill-row">
+    <span class="skill-category">{{ group.category }}:</span>
+    <span class="skill-items">
+      {%- for item in group['items'] -%}
+        {%- if item is mapping -%}{{ item.name }}{%- else -%}{{ item }}{%- endif -%}
+        {%- if not loop.last %}, {% endif -%}
+      {%- endfor -%}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro section_work() %}
+{% if show.work and work %}
+<h2>{{ section_title("work", "Experience") }}</h2>
+{% for job in work %}
+<div class="entry">
+  <div class="entry-header clearfix"><span class="entry-title">{{ job.title }}</span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none), sep="-") }}</span></div>
+  <div class="entry-meta"><span class="entry-org">{{ job.company }}</span>{% if job.location %}<span class="entry-sep"> | </span>{{ job.location }}{% endif %}</div>
+  {% if job.highlights %}
+  <ul>
+    {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_education() %}
+{% if show.education and education %}
+<h2>{{ section_title("education", "Education") }}</h2>
+{% for edu in education %}
+<div class="entry">
+  <div class="entry-header clearfix"><span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span><span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none), sep="-") }}</span></div>
+  <div class="entry-meta"><span class="entry-org">{{ edu.institution }}</span>{% if edu.location %}<span class="entry-sep"> | </span>{{ edu.location }}{% endif %}</div>
+  {% if edu.highlights %}
+  <ul>
+    {% for h in edu.highlights %}<li>{{ h | md }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_projects() %}
+{% if show.projects and projects %}
+<h2>{{ section_title("projects", "Projects") }}</h2>
+{% for proj in projects %}
+<div class="entry">
+  <div class="entry-header clearfix"><span class="entry-title">{% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</span>{% if proj.start_date %}<span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none), sep="-") }}</span>{% endif %}</div>
+  {% if proj.description %}<p>{{ proj.description | md }}</p>{% endif %}
+  {% if proj.highlights %}
+  <ul>
+    {% for h in proj.highlights %}<li>{{ h | md }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_publications() %}
+{% if show.publications and publications %}
+<h2>{{ section_title("publications", "Publications") }}</h2>
+{% for pub in publications %}
+<div class="entry">
+  <div class="entry-title">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</div>
+  {% if pub.publisher or pub.identifier or pub.release_date %}
+  <div class="entry-meta">
+    {% if pub.publisher %}<span class="entry-org">{{ pub.publisher }}</span>{% endif %}
+    {% if pub.identifier %}{% if pub.publisher %}<span class="entry-sep"> | </span>{% endif %}{{ pub.identifier }}{% endif %}
+    {% if pub.release_date %}<span class="entry-sep"> | </span><span class="entry-date">{{ pub.release_date }}</span>{% endif %}
+  </div>
+  {% endif %}
+  {% if pub.summary %}<p>{{ pub.summary | md }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_certifications() %}
+{% if show.certifications and certifications %}
+{% for title_key, heading, group in certifications | cert_groups %}
+<h2>{{ section_title(title_key, heading) }}</h2>
+{% for cert in group %}
+<div class="entry">
+  <div class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</div>
+  {% if cert.issuer or cert.identifier or cert.date %}
+  <div class="entry-meta">
+    {% if cert.issuer %}<span class="entry-org">{{ cert.issuer }}</span>{% endif %}
+    {% if cert.identifier %}{% if cert.issuer %}<span class="entry-sep"> | </span>{% endif %}{{ cert.identifier }}{% endif %}
+    {% if cert.date %}<span class="entry-sep"> | </span><span class="entry-date">{{ cert.date }}{% if cert.expiry_date %} - {{ cert.expiry_date }}{% endif %}</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_awards() %}
+{% if show.awards and awards %}
+<h2>{{ section_title("awards", "Awards") }}</h2>
+{% for award in awards %}
+<div class="entry">
+  <div class="entry-title">{{ award.title }}</div>
+  {% if award.awarder or award.date %}
+  <div class="entry-meta">
+    {% if award.awarder %}<span class="entry-org">{{ award.awarder }}</span>{% endif %}
+    {% if award.date %}{% if award.awarder %}<span class="entry-sep"> | </span>{% endif %}<span class="entry-date">{{ award.date }}</span>{% endif %}
+  </div>
+  {% endif %}
+  {% if award.summary %}<p>{{ award.summary | md }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro section_languages() %}
+{% if show.languages and languages %}
+<h2>{{ section_title("languages", "Languages") }}</h2>
+<div class="languages">
+  {%- for lang in languages -%}
+  {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}
+  {%- if not loop.last %}, {% endif -%}
+  {%- endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# ── Section dispatch ──────────────────────────────────────────── #}
+
+{% set _section_macros = {
+  "skills": section_skills,
+  "work": section_work,
+  "education": section_education,
+  "projects": section_projects,
+  "publications": section_publications,
+  "certifications": section_certifications,
+  "awards": section_awards,
+  "languages": section_languages,
+} %}
+
+{% block body %}
+<!-- HEADER -->
+<div class="header">
+  <h1>{{ contact.name }}</h1>
+  <div class="headline">{{ basics.headline }}</div>
+  <div class="contact-line">
+    {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined %}<span>{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span>{{ contact.location }}</span>{% endif %}
+    {% for link in basics.links | default([]) %}<span>{{ link | link_anchor }}</span>{% endfor %}
+  </div>
+</div>
+
+<!-- SUMMARY -->
+{% if basics.summary %}
+<h2>{{ section_title("summary", "Summary") }}</h2>
+<p>{{ basics.summary | md }}</p>
+{% endif %}
+
+<!-- SECTIONS (ordered) -->
+{% for sec in section_order | default(["work", "skills", "education", "projects", "publications", "certifications", "awards", "languages"]) %}
+{{ _section_macros[sec]() }}
+{% endfor %}
+{% endblock %}

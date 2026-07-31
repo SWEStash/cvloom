@@ -9,12 +9,36 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from cvloom import builder, export, importer, linter, projects, scaffold, sections
+from cvloom import (
+    builder,
+    export,
+    importer,
+    linter,
+    projects,
+    renderer,
+    scaffold,
+    sections,
+    templates_meta,
+)
+from cvloom import (
+    extract as extract_mod,
+)
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
 from cvloom.models import ResolvedProfile
 
 _console = Console()
+
+# Page ceiling before `build` nags.
+_MAX_PAGES = trim_mod.MAX_PAGES
+
+# How a template's extraction rating is shown. Colour carries the same ordering as
+# the words, for anyone piping this through a pager that drops it.
+_ATS_LABEL = {
+    templates_meta.ATS_SAFE: "[green]safe[/green]",
+    templates_meta.ATS_CAUTION: "[yellow]caution[/yellow]",
+    templates_meta.ATS_UNSAFE: "[red]unsafe[/red]",
+}
 _err = Console(stderr=True)
 
 
@@ -66,6 +90,48 @@ def cli() -> None:
 # ---------------------------------------------------------------------------
 # build
 # ---------------------------------------------------------------------------
+
+
+def _warn_template_parse_risk(template_name: str) -> None:
+    """Warn at build time when the chosen layout does not survive extraction.
+
+    This has to fire on `build` rather than only in `list-templates`: the whole
+    failure mode is invisible from the output the user is looking at. The PDF
+    renders beautifully; it is the copy an ATS makes of it that is scrambled, and
+    nobody opens that copy. Warning once per build is the only point at which the
+    person about to upload the file is actually present.
+    """
+    meta = templates_meta.info_for(template_name)
+    if meta is None or meta.ats == templates_meta.ATS_SAFE:
+        return
+    label = (
+        "does not parse reliably"
+        if meta.ats == templates_meta.ATS_UNSAFE
+        else "parses with caveats"
+    )
+    colour = "red" if meta.ats == templates_meta.ATS_UNSAFE else "yellow"
+    _console.print(f"[{colour}]Note:[/{colour}] {template_name} {label}. {meta.caveat}")
+
+
+def _write_extracted_text(pdf_path: Path) -> None:
+    """Write the PDF's text layer beside it, once per available engine.
+
+    One engine is not enough to trust: poppler rebuilds columns from geometry and
+    pypdf follows the content stream, and a layout can read correctly in one and
+    scramble in the other. Naming the engine in the filename is the point — a
+    single `.txt` invites the conclusion that there is one right answer.
+    """
+    engines = extract_mod.available_engines()
+    if not engines:
+        _err.print(
+            "[yellow]Warning:[/yellow] no PDF text extractor available. "
+            "Install poppler-utils for `pdftotext`, or `uv sync --extra extract`."
+        )
+        return
+    for result in extract_mod.extract_all(pdf_path):
+        out = pdf_path.with_name(f"{pdf_path.stem}.{result.engine}.txt")
+        out.write_text(result.text, encoding="utf-8")
+        _console.print(f"[green]✓[/green] TEXT  → {out}  [dim]({result.engine})[/dim]")
 
 
 def _lint_breakdown(findings: list[linter.LintFinding]) -> str:
@@ -121,6 +187,20 @@ def _lint_breakdown(findings: list[linter.LintFinding]) -> str:
     metavar="N",
     help="Exit non-zero if more than N lint findings (implies --check).",
 )
+@click.option(
+    "--extract-text",
+    "extract_text",
+    is_flag=True,
+    default=False,
+    help="Also write the PDF's extracted text layer — what an ATS actually reads.",
+)
+@click.option(
+    "--all",
+    "build_all",
+    is_flag=True,
+    default=False,
+    help="Build every profile in profiles/ instead of one.",
+)
 def build(
     profile: str,
     template: str | None,
@@ -129,9 +209,49 @@ def build(
     skip_pdf: bool,
     run_check: bool,
     strict: int | None,
+    extract_text: bool,
+    build_all: bool,
 ) -> None:
     """Build CV outputs for a given profile."""
     root = _root()
+    if build_all:
+        _build_every_profile(
+            root,
+            output_dir=output_dir,
+            template=template,
+            public=public,
+            skip_pdf=skip_pdf,
+            run_check=run_check,
+            strict=strict,
+            extract_text=extract_text,
+        )
+        return
+    _build_one(
+        root,
+        profile=profile,
+        output_dir=output_dir,
+        template=template,
+        public=public,
+        skip_pdf=skip_pdf,
+        run_check=run_check,
+        strict=strict,
+        extract_text=extract_text,
+    )
+
+
+def _build_one(
+    root: Path,
+    *,
+    profile: str,
+    output_dir: str,
+    template: str | None,
+    public: bool,
+    skip_pdf: bool,
+    run_check: bool,
+    strict: int | None,
+    extract_text: bool = False,
+) -> int:
+    """Build one profile and report it. Returns the lint finding count."""
     try:
         result = builder.build_project(
             root,
@@ -145,31 +265,80 @@ def build(
         _render_resolve_error(exc)
         raise SystemExit(1) from None
     _emit_warnings(result.resolved.warnings)
-    _console.print(f"[green]✓[/green] HTML  → {result.html_path}")
+    _console.print(f"[green]\u2713[/green] HTML  \u2192 {result.html_path}")
     if result.pdf_path:
-        _console.print(f"[green]✓[/green] PDF   → {result.pdf_path}")
+        _console.print(f"[green]\u2713[/green] PDF   \u2192 {result.pdf_path}")
     summary = _section_summary(result.resolved.data, result.resolved.show_sections)
     # The opening bracket is escaped for Rich, which would otherwise read
-    # "[skills×4 …]" as a markup tag and silently drop the whole summary.
-    stats = f"{result.words} words · ~{result.pages} page(s)"
+    # "[skills\u00d74 \u2026]" as a markup tag and silently drop the whole summary.
+    stats = f"{result.words} words \u00b7 ~{result.pages} page(s)"
     bracketed = "  \\[" + summary + "]" if summary else ""
     _console.print(f"[dim]  {stats}{bracketed}[/dim]")
-    if result.pages > 2 and not result.resolved.template_name.startswith("cv/academic"):
+    if result.pages > _MAX_PAGES and not result.resolved.template_name.startswith("cv/academic"):
         _console.print(
-            "[yellow]Warning:[/yellow] Output exceeds 2 pages. "
+            f"[yellow]Warning:[/yellow] Output exceeds {_MAX_PAGES} pages. "
             "Consider trimming content or using `select` to narrow sections."
         )
+    _warn_template_parse_risk(result.resolved.template_name)
+    if extract_text and result.pdf_path:
+        _write_extracted_text(result.pdf_path)
 
     if run_check or strict is not None:
         findings = linter.lint(result.resolved)
         count = len(findings)
         color = "green" if count == 0 else "yellow" if count <= 5 else "red"
         _console.print(
-            f"[{color}]Writing lint: {count} issue(s)[/{color}] — {_lint_breakdown(findings)}"
+            f"[{color}]Writing lint: {count} issue(s)[/{color}] \u2014 {_lint_breakdown(findings)}"
         )
         if strict is not None and count > strict:
             _console.print(f"[red]{count} findings exceed the --strict budget of {strict}.[/red]")
             raise SystemExit(1)
+        return count
+    return 0
+
+
+def _build_every_profile(
+    root: Path,
+    *,
+    output_dir: str,
+    template: str | None,
+    public: bool,
+    skip_pdf: bool,
+    run_check: bool,
+    strict: int | None,
+    extract_text: bool = False,
+) -> None:
+    """Build every profile in profiles/.
+
+    One failing profile stops the run rather than being skipped: these are release
+    artefacts for a job application, and a batch that reports success while one CV
+    silently did not rebuild is worse than a batch that stops and says which.
+    """
+    try:
+        summaries = projects.list_profiles(root)
+    except FileNotFoundError:
+        _err.print("[yellow]No profiles/ directory found.[/yellow]")
+        raise SystemExit(1) from None
+    if not summaries:
+        _err.print("[yellow]No profiles found in profiles/.[/yellow]")
+        raise SystemExit(1)
+
+    for i, summary in enumerate(summaries):
+        if i:
+            _console.print()
+        _console.print(f"[bold]{summary.name}[/bold] [dim]({summary.template})[/dim]")
+        _build_one(
+            root,
+            profile=summary.name,
+            output_dir=output_dir,
+            template=template,
+            public=public,
+            skip_pdf=skip_pdf,
+            run_check=run_check,
+            strict=strict,
+            extract_text=extract_text,
+        )
+    _console.print(f"\n[green]Built {len(summaries)} profile(s).[/green]")
 
 
 # ---------------------------------------------------------------------------
@@ -194,8 +363,12 @@ def check(profile: str) -> None:
     root = _root()
     resolved = _resolve(root, profile, public=True)
     findings = linter.lint(resolved)
+    # The layout note goes out whether or not the writing is clean: a spotless
+    # `check` on a template that scrambles under extraction is the exact false
+    # reassurance this command should not be handing out.
+    _warn_template_parse_risk(resolved.template_name)
     if not findings:
-        _console.print("[green]✓ No issues found.[/green]")
+        _console.print("[green]✓ No writing issues found.[/green]")
         return
 
     table = Table(
@@ -243,7 +416,7 @@ def check(profile: str) -> None:
 )
 @click.option(
     "--target-pages",
-    default=1,
+    default=3,
     show_default=True,
     help="Target page count.",
 )
@@ -667,6 +840,41 @@ def list_profiles() -> None:
 
     _console.print(table)
     _console.print(f"\n[dim]{len(summaries)} profile(s)  ·  run: cvloom build --profile NAME[/dim]")
+
+
+@cli.command("list-templates")
+def list_templates() -> None:
+    """List built-in templates with their PDF text-extraction rating."""
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
+    table.add_column("Template")
+    table.add_column("Cols", justify="right")
+    table.add_column("Parses")
+    table.add_column("Fonts")
+    table.add_column("Notes")
+
+    for name in renderer.list_templates():
+        meta = templates_meta.info_for(name)
+        if meta is None:
+            table.add_row(name, "—", "[dim]unrated[/dim]", "—", "")
+            continue
+        table.add_row(
+            f"[bold]{name}[/bold]",
+            str(meta.columns),
+            _ATS_LABEL[meta.ats],
+            meta.fonts,
+            meta.summary,
+        )
+
+    _console.print(table)
+    _console.print(
+        "\n[dim]'Parses' is how the rendered PDF survives text extraction — the step "
+        "every ATS runs first. It is a property of the layout, not of your writing, "
+        "so `cvloom check` does not cover it.[/dim]"
+    )
+    for name in renderer.list_templates():
+        meta = templates_meta.info_for(name)
+        if meta is not None and meta.caveat:
+            _console.print(f"\n[dim]{name}:[/dim] {meta.caveat}")
 
 
 # ---------------------------------------------------------------------------

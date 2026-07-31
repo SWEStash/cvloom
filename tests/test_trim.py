@@ -117,3 +117,16 @@ def test_analyze_highlight_word_counts():
     work_sec = next(s for s in report.sections if s.section == "work")
     assert work_sec.entries[0].highlight_count == 2
     assert work_sec.entries[0].longest_highlight_words == 8
+
+
+def test_page_ceiling_is_shared_by_every_caller() -> None:
+    """One CV must not get two different verdicts from `build`, `check`, and `trim`.
+
+    These drifted once — the CLI raised its ceiling and the MCP tool kept the old
+    default — so the constant is asserted to be the same object everywhere.
+    """
+    from cvloom import linter, trim
+    from cvloom.cli import _MAX_PAGES as cli_max
+
+    assert cli_max == trim.MAX_PAGES
+    assert linter._MAX_PAGES == trim.MAX_PAGES

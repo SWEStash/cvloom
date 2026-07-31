@@ -9,6 +9,272 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The last entry on every page had its date emitted after its own bullets, welded to the
+  next entry's title.** Reported from a real CV: `"…and front-end frameworks. 2002-06 -
+  2008-12Customer Facing Engineer"`. Right-aligning a date makes it a text column, and poppler
+  flushes a column when the **page** ends, not when the entry does — so one date per page was
+  corrupted, in the engine most parsing pipelines are built on. Six constructs were measured
+  (float, clearfix, flow-root, absolute, CSS table, flex) and every one of them fails this way;
+  only a date in the same continuous run as the title survives. Leader dots technically qualify
+  and are disqualified anyway, since filling the gap requires near-invisible text — the thing
+  ATS vendors flag as keyword stuffing.
+
+  **Dates are now inline for every template**, next to the title rather than at the right
+  margin. The right-hand scan column is genuinely lost. It was not real: it did not survive
+  being read.
+
+  This reverses a claim made earlier in the same development cycle, on the strength of a
+  synthetic corpus that never put a short entry at the foot of a page.
+
+- **Kerning put spaces inside words.** WeasyPrint emits a kerned pair as two positioned runs
+  and extractors read a large enough jump as a word break, so `PAYPAL` extracted as `P AYP AL`,
+  `AVATAR` as `A V ATAR`, `WAVE` as `WA VE`. The page is perfect and the word a recruiter
+  searches for does not exist in the document. Any employer or skill containing a hard kern
+  pair — PA, AV, AW, Ta, Wa, Vo — was exposed. `font-kerning: none` is now set on `body`.
+
+- **The candidate's name was welded to the headline** with no line break between them —
+  in every template under pypdf, which infers line breaks from the vertical delta between text
+  runs and saw only 2px. The gap under the name is now `0.4em`, expressed relative to the
+  heading so it scales with each template's size rather than clearing the threshold at 18pt
+  and missing it at 24pt.
+
+- **A CSS escape swallowed its own separator.** `content: " \00b7 "` terminates the escape on
+  the following space, so the design templates rendered `Engineer ·2010-01` with the date
+  welded to the middot. Now `" \00b7\0020"`.
+
+### Added
+
+- **`cvloom build --extract-text`** writes the PDF's text layer beside it, once per available
+  engine (`out.poppler.txt`, `out.pypdf.txt`, `out.pdfminer.txt`). This is the only honest way
+  to see what an ATS reads: every defect above was invisible in the rendered page and in the
+  HTML, and showed up only by selecting the text. One file per engine on purpose — a single
+  `.txt` invites the conclusion that there is one right answer, and the engines disagree.
+
+  `poppler` needs the system `pdftotext`; `pypdf` and `pdfminer` come with `uv sync --extra
+  extract`.
+
+- **`tests/test_extraction_fidelity.py`** builds real PDFs and reads them back with every
+  installed engine — 5 templates x 3 engines x 6 invariants. Unit tests over the HTML could
+  not have caught any of this, because the HTML was never wrong.
+
+### Previously in this cycle
+
+- **Every template fused its job title into its date under one of two PDF extractors.**
+  Ratings up to now were measured with `pdftotext` alone, which rebuilds columns from glyph
+  geometry. Checked against `pypdf`, which follows the content stream instead, the standard
+  `overflow: hidden` + `float: right` date construct came back with the title and date run
+  together as one unsplittable token — `TTL00` and `2012-01 – 2013-02` fused. Nothing looked
+  wrong on the page, and nothing was wrong in the extractor we happened to have tried.
+
+  Entry headers are now a table row: two cells state "these are one line" outright, where a
+  float only implies it. The gutter also needed a real character — padding puts nothing in
+  the text stream and a CSS `::before` does not survive — so every right-aligned date is
+  preceded by a literal ASCII space, preserved with `white-space: pre`.
+
+- **A full-width skills label fused with its first value.** Same root cause on the aligned
+  skills column: `CloudOpsAWS`, one token, unmatchable by any keyword search. Every category
+  label now ends in a colon, which guarantees a separator whatever the label's width.
+
+- **`skill_level_bar` rendered its markup as visible text.** It returned `str` rather than
+  `Markup`, so Jinja's autoescape printed `<span class="skill-level ...></span>` on the page.
+  No packaged template called the filter, so the bug sat unnoticed until one did.
+
+- **`cv/sidebar-compact` was over-padded in the HTML build.** The sidebar carried 14mm of
+  left padding — the inset the band needs to clear a *page* edge, not what its text needs.
+  On screen the negative margin already pulls the band flush, so that 14mm landed on the
+  text. The PDF was unaffected, which is why it survived: print overrides that padding.
+
+### Changed
+
+- **`cv/ats-single` is renamed `cv/ats-clean`.** BREAKING for any profile naming it. "Single"
+  meant single-*column* and read as a promise about page count, which the template never made
+  — it paginates to two or three pages like the rest.
+
+- **`cv/modern-single`, `cv/timeline-clean`, and `cv/executive-dark` are now rated `safe`.**
+  Not by relaxing the bar: the two constructs that had them at `caution` were found to be
+  real defects, fixed, and re-measured. Audited over a tagged corpus — 8 work entries with
+  0–4 bullets, 15 skill categories with labels from 3 to 28 characters, titles both short
+  and long enough to fill the row, across page breaks — every token checked for presence,
+  ownership, and order, under both extractors. Five of six templates are now safe; only the
+  two-column `cv/sidebar-compact` is not, and no styling fixes that.
+
+  `ATS_CAUTION` now has no members. It is kept because the distinction is real.
+
+- **Extraction ratings are measured with two extractors, not one.** `pdftotext` and `pypdf`
+  disagree, and the disagreement is where the defects were hiding. Only what survives both
+  is rated safe.
+
+- **`cv/sidebar-compact` renders skill proficiency bars** for `{name, level}` skill items.
+  The bar carries its level in a CSS class and so puts no text in the PDF — which rules it
+  out of the five templates that have to survive extraction, and costs this one nothing,
+  since it is already unsafe for a reason no styling fixes.
+
+### Added
+
+- **`cvloom init` scaffolds `section_titles`** as a commented example on the generated
+  `profiles/general.yaml`, with the full list of valid keys.
+
+- **`cvloom build --all`** builds every profile in `profiles/` in one run. A failing profile
+  stops the batch rather than being skipped: these are artefacts for a live application, and a
+  run that reports success while one CV silently did not rebuild is worse than one that stops
+  and names the profile.
+
+- **`section_titles` in a profile renames any section heading.** Text only — styling stays in
+  the template.
+
+  ```yaml
+  section_titles:
+    work: "Professional Experience"
+    skills: "Technical Toolkit"
+    summary: "Profile"
+    professional_development: "Continuing Education"
+  ```
+
+  A key left out keeps whatever the chosen template supplies, so `cv/executive-dark` still heads
+  skills "Core Competencies" and `cv/academic` still says "Positions Held" — the feature adds an
+  override, it does not flatten six designs into one voice. The schema enumerates the valid keys,
+  so a typo fails validation with the list rather than silently doing nothing. `certifications`
+  renders as two headed groups and takes two keys (`certifications`, `professional_development`);
+  `summary` and `contact` are renameable too.
+
+  Implemented as a Jinja global reading `section_titles` off the render context, so
+  `render_template` callers that never heard of headings — tests, the MCP server — keep working.
+
+- **`cvloom list-templates`** — every packaged template with its column count, PDF
+  text-extraction rating (`safe` / `caution` / `unsafe`), whether it fetches fonts over the
+  network, and the caveat for anything not rated safe. Backed by `cvloom/templates_meta.py`.
+
+- **Build- and check-time layout warnings.** Whether a layout survives extraction is a property
+  of the template, not of anything the user wrote, so `cvloom check` — which grades content —
+  could never surface it. It is now printed by `build` and `check` alike for any template not
+  rated safe. This has to fire on the command the user actually runs: the failure is invisible
+  from the artefact in front of them, because the PDF renders correctly and it is the copy the
+  ATS makes of it that is scrambled.
+
+- **Right-aligned dates now apply to `ats-clean` and `academic` too.** The previous pass gave
+  them up on those two as a precaution and inlined every date. Re-measuring showed the
+  precaution was unnecessary for entries that carry a bullet list: 0 mismatched dates over 12
+  real entries across 2 pages, and over 86 generated entries spanning 0–8 bullets and 1–11 word
+  titles. All six templates now right-align on work, education, and projects, and run the date
+  inline on publications, certifications, and awards. Right-alignment is the more readable form
+  and it is now used everywhere it measured safe.
+
+- **Right-aligned dates are kept, and now land correctly.** The earlier sweep gave them up as
+  unsafe; measuring rather than assuming showed the rule is narrower than that. A right-aligned
+  date is its own geometric column, and an extractor flushes that column when the text beside it
+  ends — so on `work`, `education`, and `projects`, whose entries end in a bullet list, the date
+  lands beside its own entry every time. On `publications`, `certifications`, and `awards` —
+  short entries, some with a trailing summary paragraph — the column stayed open past the entry
+  and the date surfaced late, in the worst case after the last section of the document. Those
+  three now run the date inline on the meta line; the rest keep the right-hand scan column
+  recruiters actually use. Audited across all three design templates: zero orphaned dates,
+  down from three.
+
+- **`cv/sidebar-compact` is styled in the PDF, not only in the preview.** Its `@media print`
+  block repainted the sidebar `#f3f4f6` with black text, so the teal band existed only in the
+  HTML and every PDF — the artefact anyone actually receives — came out grey. The band now
+  survives into print. Pages two and three also get their padding back via
+  `box-decoration-break: clone`; a fragmented box otherwise draws padding only at its very start
+  and very end, leaving continuation pages with text flush against the band.
+
+- **Sidebar skills stack as comma lists instead of one bordered chip per skill.** In a 190px
+  column a chip grid wraps after two or three items, so a fifteen-category list ran for pages,
+  and the borders drew a box around each individual word. The same content is now roughly a
+  third of the height.
+
+### Changed
+
+- **Documentation reconciled against this release.** The template tables in `README.md`,
+  `docs/user/user-guide.md`, and `docs/user/getting-started.md` all described fonts, colours,
+  and layouts that no longer existed — `cv/timeline-clean` was listed as "two-column grid"
+  when it is single-column, `cv/modern-single` as having "skill level bars" it never had.
+  Those tables are now generated from `cvloom/templates_meta.py`, so they carry the same
+  ratings the CLI prints. Also documented: `cert_groups` and the `section_title` global in
+  `docs/dev/custom-templates.md` (neither had any coverage), the measured layout rules a
+  custom template has to respect, and a warning on `skill_level_bar` that it renders no text
+  and so is invisible to any parser.
+
+- **Page ceiling raised from 2 to 3.** `build`'s warning, the `wl-011` lint rule, and
+  `trim --target-pages` all used to push toward one or two pages. ResumeGo's 482-recruiter
+  simulation (7,712 resume choices) found two-page resumes preferred 2.3x over one-page
+  overall and 2.9x at managerial level, so the old ceiling was arguing against the evidence.
+
+- **Fonts.** `modern-single` and `sidebar-compact` now use Lato and `executive-dark` uses
+  Source Sans 3, replacing Inter and Roboto — all three appear on recruiter-facing "best
+  resume font" lists where the originals do not. `ats-clean` and `academic` stay on system
+  fonts and fetch nothing.
+
+- **`executive-dark` repalettes to carbon and steel.** Amber-on-near-black is the single most
+  reproduced "executive template" palette on the resume-builder sites, and at `#b45309` it sat
+  at roughly 4.5:1 on white — fine on screen, muddy off an office laser printer. The template
+  now carries two accents, because one cannot serve both grounds: a steel `#3f5a68` that reads
+  on white at ~6.5:1, and a lighter `#8fb3c7` for the carbon band.
+
+- **`modern-single` drops the tag chips and the violet.** The rounded coloured contact pills
+  were the one element a recruiter recognises on sight as drag-and-drop builder output; the
+  contact line is now plain and pipe-separated. Accent moves from violet `#7c3aed` to indigo
+  `#4338ca` for the same print-contrast reason as above.
+
+- **Default section order leads with work, not skills.** Skills opened every CV, which put a
+  keyword block exactly where the reader's first fixation lands; the Ladders eye-tracking work
+  found recruiters fixate on job titles before anything else in the ~7s initial scan.
+
+- **`modern-single` accent is now slate `#4a5568`** — violet to indigo to slate over two passes.
+  Slate reads as ink with a temperature rather than as a colour, which is the point: hierarchy
+  should come from weight and rules, not from hue competing with the text.
+
+- **Skills render as an aligned label column** in the three design-led templates. Each label
+  used to be its own width, so the values restarted at a different x on every row — and in
+  `timeline-clean`, across two columns at once, which read as scatter rather than as a list.
+  `ats-clean` deliberately does not align: alignment and single-line extraction are mutually
+  exclusive, and that template takes the guarantee. Research on skills formatting is consistent
+  that a labelled comma-separated list parses more reliably than tables, chips, or cards, so
+  the underlying pattern was already right; only the alignment needed fixing.
+
+### Fixed
+
+- **`cv/sidebar-compact` no longer appears to hang on a long CV.** WeasyPrint's CSS Grid
+  fragmentation is superlinear in page count: a 60-entry CV took 69s against ~6s for the
+  single-column templates, and it kept getting worse with length. The same two columns as a
+  CSS table build in 6.8s — a 10x improvement that puts it back in line with the rest.
+  `min-height: 100vh` went with it; it was not what made the sidebar full-height, and vh units
+  in paged media pin a minimum height onto every fragment.
+
+- **Page two now looks deliberate.** `base.html.j2` carries `break-after: avoid` on headings,
+  `break-inside: avoid` on entries and list items, and `orphans`/`widows` of 2. Verified across
+  four templates at 17 pages each: no heading stranded at the foot of a page, no job split from
+  its own bullets.
+
+- **Contact line no longer opens with a dangling `|`.** The separator was emitted as a literal
+  span before each field, which assumes the fields before it rendered — under `--public`, where
+  email, phone, and location are dropped entirely, the line began with a separator and nothing
+  to its left. It now comes from an adjacent-sibling CSS rule, which can only match a span that
+  actually has one before it.
+
+### Fixed
+
+- **Section headings no longer extract as loose letters from the rendered PDF.** WeasyPrint
+  writes CSS `letter-spacing` as real inter-glyph advance, and PDF text extractors reinsert a
+  word break wherever that advance crosses their threshold. Measured against WeasyPrint output
+  at heading sizes, `.08em` still extracts as one word and `.10em` does not. Five of the six CV
+  templates tracked their uppercase section headings above that cliff, so `EDUCATION` came out
+  of `pdftotext` as `E D U C AT I O N` (`timeline-clean`, at `.15em`) and `EXECUTIVE SUMMARY` as
+  `E XEC U TI V E SU M M ARY` (`executive-dark`). Section headings are what an ATS segments a
+  document on, so each mangled heading cost its whole section a label. All heading tracking is
+  now `.06em`, which keeps the tracked-uppercase look with margin under the cliff, and a
+  regression test fails the build above `.08em`.
+
+- **`cv/ats-clean` entries now extract as one contiguous block.** Dates were right-aligned with
+  `float: right`, which puts them in their own geometric column; extractors reconstruct columns
+  independently of the body text, so the date landed wherever that column fell in the reading
+  order — before the project name, spliced between the education bullets, or orphaned at the end
+  of the document. Dates now run inline on a `Company | Location | Dates` meta line under a
+  job title that gets its own bold line. The right-hand date scan column is a real loss for a
+  human skimming, and the five design-led templates keep it; the ATS-first template trades it for
+  an entry that always parses.
+
 ### Removed
 
 - **BREAKING: `include_tags` and `include_entries` are replaced by `select`; entry tags are no longer rendered.**
@@ -66,7 +332,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `cvloom list-profiles` gained a **Narrows** column showing which sections each profile selects.
 
 - **Header links are now real anchors.** Every CV template and the standard cover letter render `basics.links` through a new `link_anchor` filter, which emits `<a href="…">` with the URL as its *visible* text (scheme and `www.` trimmed). ATS parsers split on whether they read visible text or the `href`; anchor text that hides the URL leaves the text-reading half nothing usable, so both halves now get a complete address. WeasyPrint turns each `href` into a real PDF link annotation, so the human reviewer gets a clickable link from the same markup. Previously nothing in the header was a link at all.
-- **`cv/modern-single`, `cv/executive-dark`, `cv/timeline-clean`, and `cv/sidebar-compact` render profile links.** Only `cv/ats-single` and `cv/academic` ever read `public_links`; on the other four, links set in `basics.yaml` were silently dropped. A parametrised render test now asserts every CV template emits each link exactly once.
+- **`cv/modern-single`, `cv/executive-dark`, `cv/timeline-clean`, and `cv/sidebar-compact` render profile links.** Only `cv/ats-clean` and `cv/academic` ever read `public_links`; on the other four, links set in `basics.yaml` were silently dropped. A parametrised render test now asserts every CV template emits each link exactly once.
 - **`public_name` works.** `loader._apply_public_mode` has always implemented it — replacing `name` in `--public` builds only, so you can publish under a pen name — but `contact.json` sets `additionalProperties: false` and never declared the key, so setting it failed validation. It is now in the schema and documented.
 - **Lint rule `wl-022` (duplicate-links, structure):** flags two `links` entries resolving to the same destination, comparing after normalising away scheme, `www.`, host case, and trailing slash.
 - **`wl-021` (unfilled-placeholders) now scans link URLs.** A scaffolded `https://github.com/[handle]` reaching a PDF is exactly what the rule exists to catch, and it was not looking there.
@@ -85,8 +351,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **`cv/ats-single` and `cv/academic` join fields with ASCII separators** — `|` in the contact line, `,` between a role and its organisation (`Senior Engineer, Acme Corp`, which reads as apposition). The four design-led templates keep the middot. This is not an extraction fix: every separator tested — middot, pipe, comma, em dash, en dash, bullet — survives WeasyPrint PDF text extraction intact, and the claim that an ATS "cannot read" a middot is folklore. The reason is narrower: `·` is U+00B7, so it depends on the embedded font subset carrying that glyph, while ASCII has no such failure mode. Worth the trade only on the two templates whose purpose is conservatism. Date ranges follow the same split: `date_range` gained a `sep` argument (default en dash) and the two ASCII-first templates pass `sep="-"`, so their extracted text is pure ASCII apart from the bullet glyph WeasyPrint renders for list markers. Date ranges are one of the few things an ATS genuinely tries to parse. The design-led templates keep the en dash, which is correct typography for a range.
-- **Templates no longer use literal em dashes.** Page titles and the `ats-single` role/company separator used them; both now follow the convention above.
+- **`cv/ats-clean` and `cv/academic` join fields with ASCII separators** — `|` in the contact line, `,` between a role and its organisation (`Senior Engineer, Acme Corp`, which reads as apposition). The four design-led templates keep the middot. This is not an extraction fix: every separator tested — middot, pipe, comma, em dash, en dash, bullet — survives WeasyPrint PDF text extraction intact, and the claim that an ATS "cannot read" a middot is folklore. The reason is narrower: `·` is U+00B7, so it depends on the embedded font subset carrying that glyph, while ASCII has no such failure mode. Worth the trade only on the two templates whose purpose is conservatism. Date ranges follow the same split: `date_range` gained a `sep` argument (default en dash) and the two ASCII-first templates pass `sep="-"`, so their extracted text is pure ASCII apart from the bullet glyph WeasyPrint renders for list markers. Date ranges are one of the few things an ATS genuinely tries to parse. The design-led templates keep the en dash, which is correct typography for a range.
+- **Templates no longer use literal em dashes.** Page titles and the `ats-clean` role/company separator used them; both now follow the convention above.
 - **`loader.load_data` no longer filters.** It is I/O and merge only; selection is a separate pipeline step in `resolve()`, applied before normalisation so overlays only ever see what survives.
 - **`overlays.skills` keeps only `category_overrides`.** Choosing which categories appear is selection, not patching. The `include_categories`/`exclude_categories` mutual-exclusion warning is gone with the keys.
 
@@ -210,7 +476,7 @@ version bumps. Note the **breaking changes** below if migrating from a pre-relea
 - `cvloom export --format docx`: exports CV as a `.docx` file via `python-docx` (optional dependency: `uv pip install python-docx` or `uv sync --extra docx`).
 
 ### Changed
-- **Typography (Phase 4):** Added `{% block fonts %}` to `base.html.j2`; `timeline-clean`, `modern-single`, `executive-dark`, and `sidebar-compact` now load Google Fonts (Inter or Roboto) via HTTPS `<link>` tags. `ats-single` and `academic` remain system-fonts-only by design.
+- **Typography (Phase 4):** Added `{% block fonts %}` to `base.html.j2`; `timeline-clean`, `modern-single`, `executive-dark`, and `sidebar-compact` now load Google Fonts (Inter or Roboto) via HTTPS `<link>` tags. `ats-clean` and `academic` remain system-fonts-only by design.
 - `h2` base font size increased `11pt` → `12pt` for improved section heading legibility.
 - Body `line-height` tightened `1.45` → `1.35` to improve print density while preserving readability.
 - `modern-single`, `executive-dark`, and `sidebar-compact` font stacks updated to lead with their respective web font (Inter / Roboto).
@@ -306,7 +572,7 @@ version bumps. Note the **breaking changes** below if migrating from a pre-relea
   hook, verify `.gitignore` contains `private/`.
 - JSON Schema validation for all data types: basics, contact, work, education,
   skills, project, profile.
-- Two built-in templates: `cv/ats-single` (ATS-optimised single column) and
+- Two built-in templates: `cv/ats-clean` (ATS-optimised single column) and
   `cv/modern-single` (visual hierarchy with skill tags).
 - PII separation: contact data lives in gitignored `private/contact.yaml`;
   `--public` mode substitutes placeholder data.

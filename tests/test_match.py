@@ -144,7 +144,7 @@ def project_root(tmp_path: Path) -> Path:
     )
     profiles = tmp_path / "profiles"
     profiles.mkdir()
-    (profiles / "general.yaml").write_text("template: cv/ats-single\noutput_filename: cv\n")
+    (profiles / "general.yaml").write_text("template: cv/ats-clean\noutput_filename: cv\n")
     return tmp_path
 
 

@@ -21,7 +21,7 @@ def _make_resolved(
     skills: list | None = None,
     basics: dict | None = None,
     contact: dict | None = None,
-    template_name: str = "cv/ats-single",
+    template_name: str = "cv/ats-clean",
 ) -> ResolvedProfile:
     """Create a minimal ResolvedProfile for linter testing."""
     return make_resolved(
@@ -532,7 +532,7 @@ def test_page_count_exceeded():
     resolved = _make_resolved(
         work=[
             {"company": f"Company{i}", "highlights": [long_highlight] * 5}
-            for i in range(6)  # 6 * 5 * 50 = 1500 words
+            for i in range(10)  # 10 * 5 * 50 = 2500 words -> ~5 pages, over the cap of 3
         ]
     )
     findings = lint(resolved, rule_ids=["wl-011"])

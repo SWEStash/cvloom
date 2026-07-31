@@ -12,7 +12,7 @@ def _make_resolved(
     projects: list | None = None,
     skills: list | None = None,
     show: dict | None = None,
-    template: str = "cv/ats-single",
+    template: str = "cv/ats-clean",
 ) -> ResolvedProfile:
     return make_resolved(
         work=work, projects=projects, skills=skills, show=show, template_name=template
@@ -89,10 +89,10 @@ def test_highlight_count_diff():
 
 
 def test_template_difference():
-    a = _make_resolved(template="cv/ats-single")
+    a = _make_resolved(template="cv/ats-clean")
     b = _make_resolved(template="cv/modern-single")
     result = compare(a, b, "a", "b")
-    assert result.template_a == "cv/ats-single"
+    assert result.template_a == "cv/ats-clean"
     assert result.template_b == "cv/modern-single"
 
 

@@ -56,7 +56,7 @@ def resolve(
     if profile_errors:
         raise ResolveError(profile_errors)
 
-    template_name = template_override or profile.get("template", "cv/ats-single")
+    template_name = template_override or profile.get("template", "cv/ats-clean")
 
     if not renderer.template_exists(template_name):
         available = renderer.list_templates()
@@ -107,6 +107,9 @@ def resolve(
     # Section ordering
     section_order = profile.get("section_order", list(sections.DEFAULT_SECTION_ORDER))
 
+    # Heading text overrides. Schema restricts the keys, so anything here is known.
+    section_titles: dict[str, str] = dict(profile.get("section_titles") or {})
+
     # Validate data
     data_errors = schema.validate_all(data, private_path=str(private_dir / "contact.yaml"))
     if data_errors:
@@ -117,6 +120,7 @@ def resolve(
         data=data,
         show_sections=show_sections,
         section_order=section_order,
+        section_titles=section_titles,
         template_name=template_name,
         output_filename=output_filename,
         warnings=select_warnings + overlay_warnings,
@@ -240,6 +244,9 @@ def build(
         "profile": resolved.profile,
         "show": resolved.show_sections,
         "section_order": resolved.section_order,
+        # Read by the `section_title` Jinja global. Templates keep owning the
+        # wording that suits their design; a profile overrides it without forking.
+        "section_titles": resolved.section_titles,
         "job_context": job_context,
         "public": public,
         "today": date.today().strftime("%B %d, %Y"),

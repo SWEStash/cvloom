@@ -10,7 +10,7 @@
   "properties": {
     "template": {
       "type": "string",
-      "description": "Template path relative to templates/, e.g. 'cv/ats-single'"
+      "description": "Template path relative to templates/, e.g. 'cv/ats-clean'"
     },
     "output_filename": {
       "type": "string",
@@ -248,6 +248,29 @@
         "skills": {
           "$ref": "#/$defs/skills_overlay"
         }
+      }
+    },
+    "section_titles": {
+      "type": "object",
+      "description": "Rename section headings. Text only \u2014 styling stays in the template. Keys not listed here keep the heading the chosen template supplies, so 'Core Competencies' in cv/executive-dark stays that unless renamed.",
+      "propertyNames": {
+        "enum": [
+          "work",
+          "skills",
+          "education",
+          "projects",
+          "publications",
+          "certifications",
+          "awards",
+          "languages",
+          "summary",
+          "professional_development",
+          "contact"
+        ]
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
       }
     }
   },

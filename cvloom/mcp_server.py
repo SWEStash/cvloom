@@ -248,7 +248,7 @@ def check_cv(
 @mcp.tool()
 def trim_report(
     profile: str = "general",
-    target_pages: int = 1,
+    target_pages: int = trim_mod.MAX_PAGES,
     project_root: str | None = None,
 ) -> str:
     """Get per-section word count breakdown and trim recommendations."""

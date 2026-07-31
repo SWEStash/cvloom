@@ -57,7 +57,7 @@ def test_list_profiles(project_dir: str) -> None:
     assert "general" in names
     assert "backend" in names
     general = next(p for p in result if p["name"] == "general")
-    assert general["template"] == "cv/ats-single"
+    assert general["template"] == "cv/ats-clean"
 
 
 def test_list_projects_all(project_dir: str) -> None:
@@ -95,7 +95,7 @@ def test_get_section_missing(project_dir: str) -> None:
 
 
 def test_create_profile(project_dir: str) -> None:
-    config = {"template": "cv/ats-single", "output_filename": "test-cv"}
+    config = {"template": "cv/ats-clean", "output_filename": "test-cv"}
     result = json.loads(create_profile("test", config, project_root=project_dir))
     assert "created" in result
     assert Path(result["created"]).exists()

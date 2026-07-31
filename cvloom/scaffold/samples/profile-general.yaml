@@ -1,7 +1,21 @@
-template: cv/ats-single
+template: cv/ats-clean
 output_filename: cv
 sections:
   work: true
   education: true
   skills: true
   projects: true
+
+# Rename section headings. Text only — styling stays in the template, so this is
+# safe to set on any of them. A key you leave out keeps the wording the template
+# supplies: cv/executive-dark heads skills "Core Competencies" and cv/academic
+# says "Positions Held" unless you say otherwise here.
+#
+# Valid keys: work, skills, education, projects, publications, certifications,
+# awards, languages, summary, professional_development, contact.
+# `certifications` renders as two headed groups, which is why it takes two keys.
+#
+# section_titles:
+#   work: "Professional Experience"
+#   skills: "Technical Toolkit"
+#   summary: "Profile"

@@ -41,7 +41,7 @@ def make_resolved(
     languages: list[Any] | None = None,
     show: dict[str, bool] | None = None,
     section_order: list[str] | None = None,
-    template_name: str = "cv/ats-single",
+    template_name: str = "cv/ats-clean",
     output_filename: str = "cv",
     warnings: list[str] | None = None,
     profile_name: str = "general",
@@ -99,7 +99,7 @@ _PROJECT_FILES: dict[str, str] = {
     "private/contact.yaml": (
         'name: Test\nemail: "test@example.com"\nphone: "+1 (555) 000-0000"\nlocation: "Test City"\n'
     ),
-    "profiles/general.yaml": "template: cv/ats-single\noutput_filename: cv\n",
+    "profiles/general.yaml": "template: cv/ats-clean\noutput_filename: cv\n",
 }
 
 # A project where every entry carries *only* its schema-required fields — the
@@ -112,7 +112,7 @@ SPARSE_PROJECT_FILES: dict[str, str] = {
     "data/skills.yaml": "- category: Languages\n  items: [Python]\n",
     "data/projects/alpha.yaml": 'name: alpha\ndescription: "A project."\ntags: [python]\n',
     "private/contact.yaml": "name: Test\n",
-    "profiles/general.yaml": "template: cv/ats-single\noutput_filename: cv\n",
+    "profiles/general.yaml": "template: cv/ats-clean\noutput_filename: cv\n",
 }
 
 

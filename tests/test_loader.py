@@ -95,9 +95,9 @@ def test_load_data_does_not_filter(data_dir: Path) -> None:
 
 def test_load_profile(tmp_path: Path) -> None:
     p = tmp_path / "general.yaml"
-    p.write_text("template: cv/ats-single\noutput_filename: cv\n")
+    p.write_text("template: cv/ats-clean\noutput_filename: cv\n")
     profile = load_profile(p)
-    assert profile["template"] == "cv/ats-single"
+    assert profile["template"] == "cv/ats-clean"
 
 
 def test_load_profile_not_found(tmp_path: Path) -> None:

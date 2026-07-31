@@ -48,11 +48,23 @@ def date_range(start: str, end: str | None, sep: str = "–") -> str:
     return f"{start} {sep} {end_str}"
 
 
-def skill_level_bar(level: str) -> str:
-    """Return an HTML span encoding skill proficiency as a CSS class."""
+def skill_level_bar(level: str) -> Markup:
+    """Return an HTML span encoding skill proficiency as a CSS class.
+
+    Returns :class:`Markup`, like :func:`md_to_html` and :func:`link_anchor`. A plain
+    ``str`` is escaped by Jinja's autoescape and the tag renders as visible source —
+    ``Python<span class="skill-level ...></span>`` on the page. No packaged template
+    called this filter, so the bug sat here unnoticed until one did.
+
+    The bar carries the level entirely in a CSS class, so it puts **no text in the
+    PDF** and no parser can read it. ``aria-label`` covers screen readers; a reader
+    who needs the level in the text layer wants it written out (``Python (expert)``).
+    """
     level_map = {"beginner": 1, "intermediate": 2, "advanced": 3, "expert": 4}
     n = level_map.get(level.lower(), 0) if level else 0
-    return f'<span class="skill-level skill-level-{n}" aria-label="{level}"></span>'
+    return Markup('<span class="skill-level skill-level-{}" aria-label="{}"></span>').format(
+        n, level
+    )
 
 
 def link_anchor(link: dict[str, str]) -> Markup:
@@ -72,10 +84,41 @@ def link_anchor(link: dict[str, str]) -> Markup:
     return Markup('<a href="{}">{}</a>').format(url, display)
 
 
+def cert_groups(entries: list[dict[str, str]]) -> list[tuple[str, str, list[dict[str, str]]]]:
+    """Yield ``(title_key, default_heading, entries)`` per certification group.
+
+    `certifications` renders as two headed groups, so the template needs a stable
+    key per group to look up a profile's `section_titles` override — reverse-mapping
+    the visible heading text would break the moment that text is overridden.
+    """
+    return [
+        (sections.CERT_GROUP_KEYS[heading], heading, group)
+        for heading, group in sections.group_certifications(entries)
+    ]
+
+
+@jinja2.pass_context
+def section_title(ctx: jinja2.runtime.Context, key: str, default: str) -> str:
+    """Resolve a section heading: the profile's override, else the template's own.
+
+    A Jinja global reading `section_titles` off the context rather than a callable
+    injected into it, so a template still renders when the caller never supplies
+    one — `render_template` is public API and is called directly by tests and by
+    the MCP server, and headings are not their concern.
+
+    Templates pass their own wording as *default*, which is what keeps the design
+    intact: `cv/executive-dark` heads skills "Core Competencies" and stays that way
+    unless a profile says otherwise.
+    """
+    overrides = ctx.get("section_titles") or {}
+    return str(overrides.get(key) or default)
+
+
 def register_filters(env: jinja2.Environment) -> None:
-    """Register all custom filters onto *env*."""
+    """Register all custom filters and globals onto *env*."""
+    env.globals["section_title"] = section_title
     env.filters["md"] = md_to_html
     env.filters["date_range"] = date_range
     env.filters["skill_level_bar"] = skill_level_bar
-    env.filters["cert_groups"] = sections.group_certifications
+    env.filters["cert_groups"] = cert_groups
     env.filters["link_anchor"] = link_anchor

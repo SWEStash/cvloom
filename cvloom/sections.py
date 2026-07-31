@@ -130,7 +130,17 @@ ARRAY_SECTIONS: tuple[str, ...] = tuple(s.name for s in SECTIONS)
 
 # Every section a profile can toggle or order, including the ones with bespoke
 # shapes. Order is the default render order.
-DEFAULT_SECTION_ORDER: tuple[str, ...] = ("skills", *ARRAY_SECTIONS)
+#
+# Work leads, skills follow it. Skills used to open the CV, which put a keyword
+# block where the reader's first fixation lands: the Ladders eye-tracking work
+# found recruiters fixate on job titles before anything else during the ~7s
+# initial scan, and a skills wall pushes the first title down the page. Derived
+# rather than written out so a new entry in SECTIONS cannot silently go missing.
+_ORDER_HEAD: tuple[str, ...] = ("work", "skills")
+DEFAULT_SECTION_ORDER: tuple[str, ...] = (
+    *_ORDER_HEAD,
+    *(name for name in ARRAY_SECTIONS if name not in _ORDER_HEAD),
+)
 
 # Which field labels an entry of a given array section.
 SECTION_LABEL_KEY: dict[str, str] = {s.name: s.label_key for s in SECTIONS}
@@ -164,6 +174,23 @@ COURSEWORK_TYPES: frozenset[str] = frozenset({"course", "micro-credential"})
 
 CREDENTIAL_HEADING = "Certifications"
 COURSEWORK_HEADING = "Professional Development"
+
+# `certifications` renders as two headed groups, so one profile key cannot rename
+# both. These are the keys a profile's `section_titles` block uses for them.
+CERT_GROUP_KEYS: dict[str, str] = {
+    CREDENTIAL_HEADING: "certifications",
+    COURSEWORK_HEADING: "professional_development",
+}
+
+# Keys a profile may rename. `summary` is here because every template heads the
+# basics summary differently ("About", "Executive Summary", "Research Interests")
+# and a profile should be able to say which it wants without forking a template.
+TITLE_KEYS: tuple[str, ...] = (
+    *DEFAULT_SECTION_ORDER,
+    "summary",
+    "professional_development",
+    "contact",
+)
 
 # JSON Resume has no type discriminator on `certificates`, so data imported
 # from elsewhere arrives untyped. Treat that as the credential case: it is what

@@ -76,7 +76,7 @@ def _make_resolved(**overrides: object) -> ResolvedProfile:
         data=data,
         show_sections={"work": True, "education": True, "skills": True, "projects": True},
         section_order=["skills", "work", "education", "projects"],
-        template_name="cv/ats-single",
+        template_name="cv/ats-clean",
         output_filename="cv",
     )
 

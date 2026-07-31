@@ -51,7 +51,7 @@ def render_template(
     context: dict[str, Any],
     templates_dir: Path | None = None,
 ) -> str:
-    """Render *template_name* (e.g. ``'cv/ats-single'``) with *context*.
+    """Render *template_name* (e.g. ``'cv/ats-clean'``) with *context*.
 
     The ``.html.j2`` extension is appended automatically if not already present.
     """

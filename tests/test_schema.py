@@ -93,13 +93,13 @@ def test_skills_items_wrong_type():
 
 
 def test_valid_profile_minimal():
-    data = {"template": "cv/ats-single"}
+    data = {"template": "cv/ats-clean"}
     assert validate("profile", data) == []
 
 
 def test_valid_profile_full():
     data = {
-        "template": "cv/ats-single",
+        "template": "cv/ats-clean",
         "output_filename": "my-cv",
         "sections": {"work": True, "education": True, "skills": True, "projects": False},
         "select": {
@@ -114,7 +114,7 @@ def test_valid_profile_full():
 def test_removed_profile_keys_are_rejected():
     """The old global filter is gone; an unmigrated profile must fail loudly."""
     for key, value in (("include_tags", ["python"]), ("include_entries", {"work": []})):
-        errors = validate("profile", {"template": "cv/ats-single", key: value})
+        errors = validate("profile", {"template": "cv/ats-clean", key: value})
         assert any(key in e for e in errors), key
 
 
@@ -124,7 +124,7 @@ def test_profile_missing_template():
 
 
 def test_profile_unknown_field():
-    errors = validate("profile", {"template": "cv/ats-single", "unknown": True})
+    errors = validate("profile", {"template": "cv/ats-clean", "unknown": True})
     assert len(errors) > 0
 
 
