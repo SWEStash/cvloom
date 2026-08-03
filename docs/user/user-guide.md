@@ -382,8 +382,8 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `cv/academic` | single column | ✅ safe | Georgia (system) | Education-first. Orders publications directly after education and labels projects "Research & Projects". No page-count warning. |
 | `cv/modern-single` | single column | ✅ safe | Lato | Slate rule system, aligned skills column. |
 | `cv/timeline-clean` | single column | ✅ safe | Inter | Swiss minimal, timeline rule down the experience section. |
-| `cv/executive-dark` | single column | ✅ safe | Source Sans 3 | Carbon header band, steel accent, company-first entries. |
-| `cv/sidebar-compact` | sidebar + main | ❌ unsafe | Lato | Two-column coloured sidebar. Best-looking of the set for a human; do not upload it to a portal. |
+| `cv/executive-dark` | single column | ✅ safe | Source Sans 3 | Carbon header band, steel accent, title-first entries. |
+| `cv/sidebar-compact` | sidebar + main | ⚠️ caution | Lato | Two-column coloured sidebar. Best-looking of the set for a human; pdftotext interleaves it, the other four engines do not. |
 
 Run `cvloom list-templates` for this table plus the caveat behind each ⚠️ and ❌. `build`
 and `check` print the caveat for whichever template you are actually using.
@@ -392,20 +392,26 @@ and `check` print the caveat for whichever template you are actually using.
 
 These ratings come from rendering each template to PDF and pulling the text layer back
 out — the step every ATS runs before it parses anything. They are not estimates, and
-they are measured with **two** extractors that work differently: pdftotext rebuilds
-columns from glyph geometry, pypdf follows the content stream. They disagree, and only
-what survives both is rated safe.
+they are measured with **five** extractors that work differently, from raw content-stream
+order (what Apache Tika and PDFBox do by default) through geometric reconstruction to the
+PDF structure tree. They disagree, and only what survives all five is rated safe.
 
-- **✅ safe** — every entry extracts as a contiguous block, in order, in both.
-- **⚠️ caution** — order-preserving but adjacency-losing. No template is currently here.
-- **❌ unsafe** — the two columns interleave line by line: contact details and skills land
-  in the middle of the work history. Send it to a person; do not upload it to a portal.
+Ratings are derived, not judged. Each template is built and read back with every
+installed engine, and the rating follows from how many of them find a defect:
 
-Five of the six are now safe. Four constructs were doing the damage and none of them was
+- **✅ safe** — no engine finds one.
+- **⚠️ caution** — some do and some do not. Readable by most of the market, scrambled by
+  part of it. Minor flags such as alignment artefacts land here.
+- **❌ unsafe** — every engine finds one. Nothing reads it correctly.
+
+`tests/test_ats_ratings.py` re-derives every rating on each run and fails if a declared
+rating and the measured one disagree, in either direction.
+
+Five of the six are safe. Four constructs were doing the damage and none of them was
 visible on the page:
 
-- a date pushed to the right margin, which is a separate text column however it is built,
-  and poppler flushes a column when the *page* ends — one corrupted date per page;
+- a right-aligned date, which leaves an empty band down the page that extractors read as a
+  column, so entries had their dates read out of order;
 - kerning, which WeasyPrint emits as two positioned runs, so extractors put a space
   *inside* words (`PAYPAL` → `P AYP AL`);
 - a 2px gap under the name, below the delta at which pypdf infers a line break, welding
@@ -423,12 +429,11 @@ changes it. That is why it is reported by `list-templates` and warned about on `
 What cvloom does **not** do in any template, because these break parsing much harder than
 columns: `<table>` layout for content, text in headers/footers, or text baked into images.
 
-Dates run **inline**, next to the title, in every template. Right-aligning them to the
-margin makes them a separate text column, and poppler flushes a column when the page ends
-— so the last entry on each page had its date emitted after its own bullets and welded to
-the next entry's title. Six different ways of right-aligning were measured and all six
-fail. The right-hand date column is a real loss for skimming; it did not survive being
-read. See [ATS-readiness](../reference/ats-readiness.md).
+Dates run **inline on each entry's meta line** — `company · date · location` — in every
+template but `cv/sidebar-compact`. A date at the right margin leaves an empty band down
+the page, and the two most common extractors read a band like that as a column and lift
+the dates out of their entries. How wide the band gets depends on how long your bullets
+are, so it is not something a template can control. See [ATS-readiness](../reference/ats-readiness.md).
 
 You can check any of this yourself:
 

@@ -18,7 +18,6 @@
 {% endblock %}
 
 {% block css_extra %}
-.entry-header > .entry-date::before { content: " \00b7\0020"; }
 /* Modern single-column with visual hierarchy */
 .header {
   border-bottom: 3px solid var(--accent);
@@ -46,10 +45,8 @@
 /* Certifications are two short lines each, so the 10px built for a job entry with
    five bullets under it reads as a gap rather than as separation. */
 .entry.compact { margin-bottom: 4px; }
-.entry-header { margin-bottom: 2px; }
 .entry-title { font-weight: 700; font-size: 10.5pt; }
 .entry-org { color: var(--accent); font-weight: 700; }
-.entry-date { color: var(--muted); font-size: 9pt; }
 .entry-meta { color: var(--muted); font-size: 9pt; margin-bottom: 3px; }
 
 /* One grid for every category, so the labels share a column edge instead of each
@@ -93,7 +90,7 @@
 
 {% macro section_skills() %}
 {% if show.skills and skills %}
-<div class="section-title">{{ section_title("skills", "Skills") }}</div>
+<h2 class="section-title">{{ section_title("skills", "Skills") }}</h2>
 <div class="skills-list">
   {% for group in skills %}
   <div class="skill-row"><span class="skill-category">{{ group.category }}:</span><span class="skill-items">
@@ -109,17 +106,11 @@
 
 {% macro section_work() %}
 {% if show.work and work %}
-<div class="section-title">{{ section_title("work", "Experience") }}</div>
+<h2 class="section-title">{{ section_title("work", "Experience") }}</h2>
 {% for job in work %}
 <div class="entry">
-  <div class="entry-header clearfix">
-    <span class="entry-title">{{ job.title }}</span>
-    <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
-  </div>
-  <div class="entry-meta">
-    <span class="entry-org">{{ job.company }}</span>
-    {% if job.location %} · {{ job.location }}{% endif %}
-  </div>
+  <h3 class="entry-title">{{ job.title }}</h3>
+  <div class="entry-meta"><span class="entry-org">{{ job.company }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>{% if job.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ job.location }}</span>{% endif %}</div>
   {% if job.highlights %}
   <ul>
     {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -132,17 +123,11 @@
 
 {% macro section_education() %}
 {% if show.education and education %}
-<div class="section-title">{{ section_title("education", "Education") }}</div>
+<h2 class="section-title">{{ section_title("education", "Education") }}</h2>
 {% for edu in education %}
 <div class="entry">
-  <div class="entry-header clearfix">
-    <span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span>
-    <span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>
-  </div>
-  <div class="entry-meta">
-    <span class="entry-org">{{ edu.institution }}</span>
-    {% if edu.location %} · {{ edu.location }}{% endif %}
-  </div>
+  <h3 class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</h3>
+  <div class="entry-meta"><span class="entry-org">{{ edu.institution }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>{% if edu.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ edu.location }}</span>{% endif %}</div>
   {% if edu.highlights %}
   <ul>
     {% for h in edu.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -155,17 +140,11 @@
 
 {% macro section_projects() %}
 {% if show.projects and projects %}
-<div class="section-title">{{ section_title("projects", "Projects") }}</div>
+<h2 class="section-title">{{ section_title("projects", "Projects") }}</h2>
 {% for proj in projects %}
 <div class="entry">
-  <div class="entry-header clearfix">
-    <span class="entry-title">
-      {% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
-    </span>
-    {% if proj.start_date %}
-    <span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none)) }}</span>
-    {% endif %}
-  </div>
+  <h3 class="entry-title">{% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</h3>
+  {% if proj.start_date %}<div class="entry-meta"><span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none)) }}</span></div>{% endif %}
   {% if proj.description %}<p>{{ proj.description | md }}</p>{% endif %}
   {% if proj.highlights %}
   <ul>
@@ -179,15 +158,11 @@
 
 {% macro section_publications() %}
 {% if show.publications and publications %}
-<div class="section-title">{{ section_title("publications", "Publications") }}</div>
+<h2 class="section-title">{{ section_title("publications", "Publications") }}</h2>
 {% for pub in publications %}
 <div class="entry">
-{# Date runs inline on the meta line, unlike work/education above. A right-aligned
-   date is its own geometric column, and an extractor flushes that column when the
-   left-hand run beside it ends — which for an entry carrying a trailing summary
-   paragraph is well past the entry, in the measured case at the very end of the
-   document. Work and education have no trailing paragraph and keep the right-hand
-   date a recruiter scans for. #}
+{# Date runs inline on the meta line, unlike work/education above: these entries are
+   two short lines each. #}
   <div class="entry-title">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</div>
   {% if pub.publisher or pub.identifier or pub.release_date %}
   <div class="entry-meta"><span class="entry-org">{{ pub.publisher }}</span>{% if pub.publisher and pub.identifier %} · {% endif %}{{ pub.identifier }}{% if pub.release_date %} · {{ pub.release_date }}{% endif %}</div>
@@ -201,12 +176,12 @@
 {% macro section_certifications() %}
 {% if show.certifications and certifications %}
 {% for title_key, heading, group in certifications | cert_groups %}
-<div class="section-title">{{ section_title(title_key, heading) }}</div>
+<h2 class="section-title">{{ section_title(title_key, heading) }}</h2>
 {% for cert in group %}
 <div class="entry compact">
   <div class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</div>
   {% if cert.issuer or cert.identifier or cert.date %}
-  <div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}{% if cert.date %} · {{ cert.date }}{% if cert.expiry_date %} – {{ cert.expiry_date }}{% endif %}{% endif %}</div>
+  <div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}{% if cert.date %} · {{ cert.date }}{% if cert.expiry_date %} - {{ cert.expiry_date }}{% endif %}{% endif %}</div>
   {% endif %}
 </div>
 {% endfor %}
@@ -216,7 +191,7 @@
 
 {% macro section_awards() %}
 {% if show.awards and awards %}
-<div class="section-title">{{ section_title("awards", "Awards") }}</div>
+<h2 class="section-title">{{ section_title("awards", "Awards") }}</h2>
 {% for award in awards %}
 <div class="entry">
   <div class="entry-title">{{ award.title }}</div>
@@ -231,7 +206,7 @@
 
 {% macro section_languages() %}
 {% if show.languages and languages %}
-<div class="section-title">{{ section_title("languages", "Languages") }}</div>
+<h2 class="section-title">{{ section_title("languages", "Languages") }}</h2>
 <div class="languages">
   {%- for lang in languages -%}
   {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}
@@ -269,7 +244,7 @@
 
 <!-- SUMMARY -->
 {% if basics.summary %}
-<div class="section-title">{{ section_title("summary", "About") }}</div>
+<h2 class="section-title">{{ section_title("summary", "About") }}</h2>
 <p>{{ basics.summary | md }}</p>
 {% endif %}
 

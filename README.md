@@ -184,9 +184,9 @@ See [docs/user/ai-features.md](docs/user/ai-features.md) for backend quickstarts
 ## Templates
 
 `Parses` is how the rendered PDF survives text extraction — the step every ATS runs
-first. Ratings are measured with two independent extractors (pdftotext, which rebuilds
-columns from glyph geometry, and pypdf, which follows the content stream); only what
-survives both is rated safe. It is a property of the layout, not of your writing, so `cvloom check` does not
+first. Ratings are measured with five independent extractors, from raw content-stream
+order through geometric reconstruction to the PDF structure tree; only what
+survives all five is rated safe. It is a property of the layout, not of your writing, so `cvloom check` does not
 cover it; `cvloom list-templates` prints this table, and `build` warns on anything not
 rated safe. See [ATS-readiness](docs/reference/ats-readiness.md) for the measurements.
 
@@ -196,8 +196,8 @@ rated safe. See [ATS-readiness](docs/reference/ats-readiness.md) for the measure
 | `cv/academic` | 1 | ✅ safe | Georgia (system) | Education-first serif CV. Runs long by convention; no page-count warning. |
 | `cv/modern-single` | 1 | ✅ safe | Lato | Single column, slate rule system, aligned skills column. |
 | `cv/timeline-clean` | 1 | ✅ safe | Inter | Swiss minimal, timeline rule down the experience section. |
-| `cv/executive-dark` | 1 | ✅ safe | Source Sans 3 | Carbon header band, steel accent, company-first entries. |
-| `cv/sidebar-compact` | 2 | ❌ unsafe | Lato | Two-column coloured sidebar. Best-looking for a human; do not upload it to a portal. |
+| `cv/executive-dark` | 1 | ✅ safe | Source Sans 3 | Carbon header band, steel accent, title-first entries. |
+| `cv/sidebar-compact` | 2 | ⚠️ caution | Lato | Two-column coloured sidebar. Best-looking for a human; pdftotext interleaves it, the other four engines do not. |
 
 The non-CV templates are unrated — they are not documents an ATS parses:
 

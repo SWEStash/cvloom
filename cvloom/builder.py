@@ -284,4 +284,7 @@ def _render_pdf(html: str, output_path: Path) -> None:
         from weasyprint import HTML  # type: ignore[import-untyped]
     except ImportError:
         raise SystemExit("WeasyPrint is not installed. Install it with: uv pip install weasyprint")
-    HTML(string=html).write_pdf(str(output_path))
+    # Tagged output carries the logical reading order in a structure tree, which is
+    # what makes a right-aligned date extract with its own entry rather than with
+    # whatever the page happened to paint next. See docs/dev/architecture.md.
+    HTML(string=html).write_pdf(str(output_path), pdf_tags=True)

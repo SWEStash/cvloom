@@ -239,10 +239,10 @@ def _language_label(entry: dict[str, Any]) -> str:
 
 
 def _certification_dates(entry: dict[str, Any]) -> str:
-    """`2023-04` or `2023-04 – 2026-04` when the credential expires."""
+    """`2023-04` or `2023-04 - 2026-04` when the credential expires."""
     date = entry.get("date", "")
     expiry = entry.get("expiry_date")
-    return f"{date} – {expiry}" if date and expiry else str(date)
+    return f"{date} - {expiry}" if date and expiry else str(date)
 
 
 def _certification_meta(entry: dict[str, Any]) -> str:
@@ -252,7 +252,7 @@ def _certification_meta(entry: dict[str, Any]) -> str:
 def _certification_line(entry: dict[str, Any]) -> str:
     """One-line rendering of a certification: name, issuer, dates, ID."""
     meta = _certification_meta(entry)
-    return f"**{entry.get('name', '')}**{f' — {meta}' if meta else ''}"
+    return f"**{entry.get('name', '')}**{f' | {meta}' if meta else ''}"
 
 
 def to_json_resume(resolved: ResolvedProfile) -> dict[str, Any]:
@@ -372,7 +372,7 @@ def to_markdown(resolved: ResolvedProfile) -> str:
                 start = entry.get("start_date", "")
                 end = entry.get("end_date", "")
                 location = entry.get("location", "")
-                date_str = f"{start} – {end}" if end else start
+                date_str = f"{start} - {end}" if end else start
                 meta = f"{date_str} | {location}" if location else date_str
                 lines.append(f"### {entry.get('title', '')} at {entry.get('company', '')}")
                 lines += [f"*{meta}*", ""]
@@ -389,9 +389,9 @@ def to_markdown(resolved: ResolvedProfile) -> str:
                 end = entry.get("end_date", "")
                 location = entry.get("location", "")
                 degree_str = f"{degree} in {field}" if field else degree
-                date_str = f"{start} – {end}" if end else start
+                date_str = f"{start} - {end}" if end else start
                 meta = f"{date_str} | {location}" if location else date_str
-                lines.append(f"### {degree_str} — {institution}")
+                lines.append(f"### {degree_str} | {institution}")
                 lines += [f"*{meta}*", ""]
                 for h in entry.get("highlights", []):
                     lines.append(f"- {_hl(h)}")
@@ -405,7 +405,7 @@ def to_markdown(resolved: ResolvedProfile) -> str:
                 description = entry.get("description", "")
                 lines.append(f"### {name}")
                 if start:
-                    date_str = f"{start} – {end}" if end else start
+                    date_str = f"{start} - {end}" if end else start
                     lines += [f"*{date_str}*", ""]
                 else:
                     lines.append("")
@@ -480,7 +480,7 @@ def to_linkedin(resolved: ResolvedProfile) -> str:
                 start = entry.get("start_date", "")
                 end = entry.get("end_date", "")
                 location = entry.get("location", "")
-                date_str = f"{start} – {end}" if end else start
+                date_str = f"{start} - {end}" if end else start
                 block.append(f"{entry.get('title', '')} at {entry.get('company', '')}")
                 block.append(f"{date_str} | {location}" if location else date_str)
                 block.append("")
@@ -503,7 +503,7 @@ def to_linkedin(resolved: ResolvedProfile) -> str:
                 degree_str = f"{degree} in {field}" if field else degree
                 block.append(f"{degree_str}, {institution}")
                 if start:
-                    block.append(f"{start} – {end}" if end else start)
+                    block.append(f"{start} - {end}" if end else start)
                 block.append("")
             sections.append("\n".join(block).rstrip())
 
@@ -537,6 +537,47 @@ def export_linkedin(resolved: ResolvedProfile, output_path: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+# One typeface across the whole document. python-docx's default template inherits
+# from the Office theme, whose majorFont is Calibri and minorFont is Cambria — so
+# an untouched export renders headings in a sans and body text in a serif, which
+# nobody chose. Arial matches `cv/ats-clean` and is present on every platform.
+_DOCX_FONT = "Arial"
+
+
+def _pin_docx_font(doc: object) -> None:
+    """Force every style used by the export onto one typeface.
+
+    Setting `style.font.name` alone only writes `w:ascii`; Word still resolves the
+    other scripts through the theme, so the heading styles come back serif. The
+    remaining `rFonts` attributes have to be set on the element directly, and the
+    theme-linked ones cleared, or they win.
+    """
+    from docx.oxml.ns import qn
+
+    for name in (
+        "Normal",
+        "Title",
+        "Subtitle",
+        "Heading 1",
+        "Heading 2",
+        "Heading 3",
+        "Body Text",
+        "List Bullet",
+    ):
+        try:
+            style = doc.styles[name]  # type: ignore[attr-defined]
+        except KeyError:
+            continue
+        style.font.name = _DOCX_FONT
+        rpr = style.element.get_or_add_rPr()
+        rfonts = rpr.get_or_add_rFonts()
+        for attr in ("ascii", "hAnsi", "cs", "eastAsia"):
+            rfonts.set(qn(f"w:{attr}"), _DOCX_FONT)
+        for themed in ("asciiTheme", "hAnsiTheme", "cstheme", "eastAsiaTheme"):
+            if rfonts.get(qn(f"w:{themed}")) is not None:
+                del rfonts.attrib[qn(f"w:{themed}")]
+
+
 def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
     """Write a .docx file using python-docx (optional dependency)."""
     try:
@@ -551,6 +592,7 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
     basics = data.get("basics", {})
 
     doc = docx.Document()
+    _pin_docx_font(doc)
     doc.add_paragraph(contact.get("name", ""), style="Title")
 
     parts: list[str] = []
@@ -581,7 +623,7 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
                 start = entry.get("start_date", "")
                 end = entry.get("end_date", "")
                 location = entry.get("location", "")
-                date_str = f"{start} – {end}" if end else start
+                date_str = f"{start} - {end}" if end else start
                 meta = f"{date_str} | {location}" if location else date_str
                 doc.add_heading(f"{entry.get('title', '')} at {entry.get('company', '')}", level=2)
                 if meta:
@@ -598,9 +640,9 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
                 start = entry.get("start_date", "")
                 end = entry.get("end_date", "")
                 degree_str = f"{degree} in {field}" if field else degree
-                doc.add_heading(f"{degree_str} — {institution}", level=2)
+                doc.add_heading(f"{degree_str} | {institution}", level=2)
                 if start:
-                    p = doc.add_paragraph(f"{start} – {end}" if end else start, style="Body Text")
+                    p = doc.add_paragraph(f"{start} - {end}" if end else start, style="Body Text")
                     p.runs[0].italic = True
                 for h in entry.get("highlights", []):
                     doc.add_paragraph(_hl(h), style="List Bullet")
@@ -619,7 +661,7 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
                 description = entry.get("description", "")
                 doc.add_heading(name, level=2)
                 if start:
-                    p = doc.add_paragraph(f"{start} – {end}" if end else start, style="Body Text")
+                    p = doc.add_paragraph(f"{start} - {end}" if end else start, style="Body Text")
                     p.runs[0].italic = True
                 if description:
                     doc.add_paragraph(description, style="Body Text")
@@ -642,7 +684,7 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
             for entry in data.get("certifications", []):
                 meta = _certification_meta(entry)
                 text = entry.get("name", "")
-                doc.add_paragraph(f"{text} — {meta}" if meta else text, style="List Bullet")
+                doc.add_paragraph(f"{text} | {meta}" if meta else text, style="List Bullet")
 
         elif section == "awards":
             for entry in data.get("awards", []):

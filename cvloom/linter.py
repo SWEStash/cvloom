@@ -1210,6 +1210,44 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
 
 # ── Rule registry ───────────────────────────────────────────────────
 
+_NON_ASCII_DASHES = {"\u2013": "en dash", "\u2014": "em dash", "\u2212": "minus sign"}
+
+
+def _check_non_ascii_dashes(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-023: Flag en/em dashes in content.
+
+    cvloom renders every date range and separator it controls as an ASCII hyphen,
+    so a document that still mixes dash characters is mixing them because the
+    content does. A parser splitting "IEEE - CACIDI" on the separator has one
+    character to handle; three is three chances to get it wrong, and U+2013 also
+    depends on the embedded font subset carrying the glyph.
+    """
+    findings: list[LintFinding] = []
+    for section in (sec.name for sec in sections.SECTIONS):
+        if not resolved.show_sections.get(section):
+            continue
+        for entry in resolved.data.get(section, []) or []:
+            for text in sections.iter_entry_text(entry):
+                found = sorted({d for d in _NON_ASCII_DASHES if d in text})
+                if not found:
+                    continue
+                names = ", ".join(_NON_ASCII_DASHES[d] for d in found)
+                findings.append(
+                    LintFinding(
+                        rule_id="wl-023",
+                        severity="info",
+                        section=section,
+                        entry=sections.entry_label(section, entry),
+                        bullet_index=None,
+                        bullet_text=text,
+                        message=f"Contains {names} rather than an ASCII hyphen.",
+                        fix_hint="Replace with '-' so every dash in the document matches.",
+                    )
+                )
+                break
+    return findings
+
+
 RULES: list[LintRule] = [
     LintRule(
         "wl-001",
@@ -1364,6 +1402,13 @@ RULES: list[LintRule] = [
         "Flag two `links` entries pointing at the same place",
         CATEGORY_STRUCTURE,
         _check_duplicate_links,
+    ),
+    LintRule(
+        "wl-023",
+        "non-ascii-dashes",
+        "Flag en/em dashes in content, which cvloom renders as ASCII elsewhere",
+        CATEGORY_ATS_PARSE,
+        _check_non_ascii_dashes,
     ),
 ]
 

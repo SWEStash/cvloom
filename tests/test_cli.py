@@ -401,4 +401,30 @@ def test_list_templates_reports_extraction_ratings(monkeypatch: pytest.MonkeyPat
     assert result.exit_code == 0
     assert "cv/ats-clean" in result.output
     assert "safe" in result.output
-    assert "unsafe" in result.output
+    # Every rating in use must reach the table, whatever the current mix is.
+    from cvloom import templates_meta
+
+    for rating in {info.ats for info in templates_meta.TEMPLATES.values()}:
+        assert rating in result.output, f"list-templates omits the {rating!r} rating"
+
+
+def test_risky_template_recommends_the_docx_export(capsys: pytest.CaptureFixture[str]) -> None:
+    """A PDF only implies its reading order; a .docx states it.
+
+    So when the layout is one we know extracts badly, the build should name the
+    artifact that does not have the problem rather than only warning about the one
+    that does.
+    """
+    from cvloom.cli import _warn_template_parse_risk
+
+    _warn_template_parse_risk("cv/sidebar-compact")
+    out = capsys.readouterr().out
+    assert "parses with caveats" in out
+    assert "docx" in out.lower()
+
+
+def test_safe_template_says_nothing(capsys: pytest.CaptureFixture[str]) -> None:
+    from cvloom.cli import _warn_template_parse_risk
+
+    _warn_template_parse_risk("cv/ats-clean")
+    assert capsys.readouterr().out == ""

@@ -104,14 +104,18 @@ Warning: Output exceeds 3 pages. Consider trimming content or using `select` to 
 `--extract-text` writes one file per engine beside the PDF:
 
 ```
-✓ TEXT  → dist/Your_Name_Resume_general.poppler.txt   (poppler)
-✓ TEXT  → dist/Your_Name_Resume_general.pypdf.txt     (pypdf)
-✓ TEXT  → dist/Your_Name_Resume_general.pdfminer.txt  (pdfminer)
+✓ TEXT  → dist/Your_Name_Resume_general.construction.txt (construction)
+✓ TEXT  → dist/Your_Name_Resume_general.poppler.txt      (poppler)
+✓ TEXT  → dist/Your_Name_Resume_general.pypdf.txt        (pypdf)
+✓ TEXT  → dist/Your_Name_Resume_general.pdfminer.txt     (pdfminer)
+✓ TEXT  → dist/Your_Name_Resume_general.structure.txt    (structure)
 ```
 
 One file per engine, not one merged file: they read the document by different means and
-they disagree, and the disagreements are where layout defects hide. `poppler` needs the
-system `pdftotext` binary; the other two come with `uv sync --extra extract`.
+they disagree, and the disagreements are where layout defects hide. `construction` is raw
+content-stream order (what Apache Tika and PDFBox do by default) and `structure` follows the
+PDF tag tree; between them they bracket what any reader can conclude. `poppler` needs the
+system `pdftotext` binary; the rest come with `uv sync --extra extract`.
 
 If the profile's template is not rated safe for PDF text extraction, a note is printed
 with the specific caveat — see [list-templates](#list-templates):
@@ -608,7 +612,7 @@ project directory.
  cv/ats-clean              1  safe     system   Single column, system fonts, no
                                                 network. The one to upload.
  cv/executive-dark         1  safe     network  Carbon header band, steel
-                                                accent, company-first entries.
+                                                accent, title-first entries.
  cv/modern-single          1  safe     network  Single column, slate rule
                                                 system, aligned skills column.
  cv/sidebar-compact        2  unsafe   network  Two-column, coloured sidebar.
@@ -620,9 +624,9 @@ project directory.
 ```
 
 The caveat behind each `caution` and `unsafe` rating is printed underneath the table.
-Ratings are measured with two extractors that work differently — pdftotext rebuilds
-columns from glyph geometry, pypdf follows the content stream — and only what survives
-both is rated safe.
+Ratings are measured with five extractors that work differently, from raw content-stream
+order through geometric reconstruction to the PDF structure tree, and only what survives
+all five is rated safe.
 
 | Column | Meaning |
 |---|---|

@@ -38,10 +38,15 @@ def test_conservative_templates_are_safe_and_offline(name: str) -> None:
 
 
 def test_multi_column_templates_are_never_rated_safe() -> None:
-    """Two columns interleave under extraction; no styling makes that safe."""
+    """Two columns interleave under at least one extractor; styling cannot fix that.
+
+    Whether *every* extractor is fooled decides `caution` versus `unsafe`, and that
+    is measured in `tests/test_ats_ratings.py`. What is asserted here is only that a
+    multi-column layout never claims to be safe.
+    """
     for name, meta in templates_meta.TEMPLATES.items():
         if meta.columns > 1:
-            assert meta.ats == templates_meta.ATS_UNSAFE, name
+            assert meta.ats != templates_meta.ATS_SAFE, name
 
 
 def test_non_safe_templates_explain_themselves() -> None:

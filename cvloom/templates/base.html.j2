@@ -79,31 +79,21 @@
     /* An entry longer than a page must still break, or it is dropped entirely. */
     .entry, .timeline-entry { orphans: 2; widows: 2; }
 
-    /* ---- Entry header: title then date, inline ----
-       The date is NOT right-aligned. That was tried, measured, and abandoned.
-
-       Any construct that puts the date in its own column on the right — float,
-       table cell, absolute, flex — reads as a separate text column to poppler, and
-       poppler flushes a column when the *page* ends, not when the entry does. The
-       last entry on every page therefore had its date emitted after that entry's
-       bullets, fused to whatever came next: "…front-end frameworks. 2002-06 -
-       2008-12Customer Facing Engineer". One corrupted date per page, in the engine
-       most real parsing pipelines are built on. It is invisible in the rendered PDF
-       and only shows up if you select the text and look.
-
-       The only constructs that survive are the ones where the date is part of the
-       same continuous run as the title. Leader dots technically qualify and are
-       disqualified anyway: filling the gap needs hidden or near-invisible text,
-       which is what ATS vendors flag as keyword stuffing.
-
-       So the right-hand scan column is genuinely gone, and the date sits next to
-       the title instead — which is at least where the eye already is. */
-    .entry-header > .entry-date::before { content: " | "; }
+    /* ---- Entry heading and meta line ----
+       The date runs inline on the meta line rather than in a right-hand column.
+       A right-aligned date leaves an empty band down the page that geometric
+       extractors read as a column and lift the dates out of.
+       See docs/dev/architecture.md. */
+    h3.entry-title { font-size: inherit; font-weight: 700; }
+    /* One size and one family across the meta line: the company, the date and the
+       location are peers on the same row, so only weight and colour distinguish
+       them. Templates override `.entry-meta`, never the individual fields. */
+    .entry-meta { color: var(--muted); }
+    .entry-meta .entry-date, .entry-meta .entry-location { font-size: inherit; font-family: inherit; }
+    .entry-sep { color: var(--muted); }
 
     /* ---- Utilities ---- */
     .muted { color: var(--muted); }
-    .right { float: right; }
-    .clearfix::after { content: ""; display: table; clear: both; }
     .skill-tag { display: inline-block; background: #f3f4f6; border-radius: 3px; padding: 1px 6px; font-size: 8.5pt; margin: 2px 2px 2px 0; }
 
     /* ---- Skill level bars (skill_level_bar filter) ---- */

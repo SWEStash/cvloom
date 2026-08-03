@@ -371,12 +371,25 @@ def test_ats_first_templates_use_hyphen_date_ranges(template: str) -> None:
 
 @pytest.mark.parametrize(
     "template",
-    ["cv/modern-single", "cv/executive-dark", "cv/timeline-clean", "cv/sidebar-compact"],
+    [
+        "cv/ats-clean",
+        "cv/academic",
+        "cv/modern-single",
+        "cv/executive-dark",
+        "cv/timeline-clean",
+        "cv/sidebar-compact",
+    ],
 )
-def test_design_templates_keep_en_dash_date_ranges(template: str) -> None:
-    """The design-led templates keep correct range typography."""
+def test_date_ranges_are_ascii_in_every_template(template: str) -> None:
+    """One range character across every template and every export format.
+
+    An en dash is better typography, but a CV is meant to be machine-read and a
+    document that mixes `-`, `–` and `—` gives a parser three things to handle.
+    """
     html = render_template(template, _FULL_CONTEXT)
-    assert "2020-01 – Present" in html
+    assert "2020-01 - Present" in html
+    body = _body_of(html)
+    assert "–" not in body and "—" not in body, f"{template} renders a non-ASCII dash"
 
 
 # ── Heading tracking ceiling ─────────────────────────────────────────
@@ -469,17 +482,17 @@ def test_compact_certifications_run_dates_inline(template: str) -> None:
 
 @pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
 @pytest.mark.parametrize("section", ["work", "education"])
-def test_bullet_sections_keep_their_right_aligned_date(template: str, section: str) -> None:
-    """The scan column recruiters use is kept everywhere it measured safe.
+def test_bullet_sections_carry_their_date_on_the_meta_line(template: str, section: str) -> None:
+    """Every dated entry states its date inline, next to company and location.
 
-    Including on `ats-clean` and `academic`: the first sweep gave it up on those
-    two as a precaution, and re-measuring showed the precaution was unnecessary
-    for entries that carry a bullet list.
+    The right-hand scan column is gone: it leaves an empty band down the page that
+    geometric extractors read as a column and lift the dates out of.
     """
     ctx = _context_only(section, _FULL_CONTEXT[section])
     html = _body_of(render_template(template, ctx))
-    assert 'class="entry-header' in html
+    assert 'class="entry-meta"' in html
     assert "entry-date" in html
+    assert "entry-header" not in html
 
 
 # ── Constructs that decide extraction fidelity ───────────────────────
@@ -522,28 +535,15 @@ def test_entry_headers_are_not_a_block_formatting_context(template: str) -> None
     assert not bfc, f"{template}: {bfc}"
 
 
-@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES + ["cv/sidebar-compact"])
-def test_header_dates_carry_a_separator_glyph(template: str) -> None:
-    """A visible separator, because padding puts no character in the text stream.
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES)
+def test_entry_dates_are_not_a_right_hand_column(template: str) -> None:
+    """Only `cv/sidebar-compact` still right-aligns a date, and it is rated unsafe.
 
-    Without one, a title that reaches the date fuses with it into a single token and
-    the date — one of the few fields an ATS genuinely parses — stops being findable.
+    A right-aligned date leaves an empty band down the page that geometric
+    extractors read as a column. The date now runs inline on the meta line;
+    whether that survives extraction is settled in test_extraction_fidelity.py.
     """
-    css = render_template(template, _FULL_CONTEXT).split("<body>", 1)[0]
-    assert ".entry-header > .entry-date::before" in css, f"{template} has no date separator"
-
-
-@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES + ["cv/sidebar-compact"])
-def test_header_dates_are_not_a_right_hand_column(template: str) -> None:
-    """Right-aligning a date is a column, and poppler flushes a column per *page*.
-
-    Every construct that does it — float, table cell, absolute, flex — emitted the
-    last entry's date on each page after that entry's bullets, fused to the next
-    entry's title. Measured on a real 2-page CV. The date is inline now, and this
-    test exists so nobody re-adds the scan column without re-measuring.
-    """
-    css = render_template(template, _FULL_CONTEXT).split("<body>", 1)[0]
-    header_css = [ln.strip() for ln in css.splitlines() if ".entry-header" in ln]
-    banned = ("float:", "display: table-cell", "position: absolute", "text-align: right")
-    offenders = [ln for ln in header_css for b in banned if b in ln]
-    assert not offenders, f"{template} re-introduces a date column: {offenders}"
+    html = render_template(template, _FULL_CONTEXT)
+    css = html.split("<body>", 1)[0]
+    assert "entry-header" not in css, f"{template} still styles a right-hand date column"
+    assert '<div class="entry-meta"' in html, f"{template} has no entry meta line"

@@ -38,7 +38,7 @@ h2 { display: none; }
 
   {% if project.start_date is defined and project.start_date %}
   <div class="card-dates">
-    {{ project.start_date }}{% if project.end_date is defined and project.end_date %} – {{ project.end_date }}{% endif %}
+    {{ project.start_date }}{% if project.end_date is defined and project.end_date %} - {{ project.end_date }}{% endif %}
   </div>
   {% endif %}
 

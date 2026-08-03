@@ -39,6 +39,9 @@ _TEMPLATES = [
 _NAME = "Testname Uniquesurname"
 _HEADLINE = "Headline Engineer"
 
+# Work entries in the fixture; enough that every template runs to several pages.
+_ENTRIES = 16
+
 
 def _write_project(root: Path) -> None:
     (root / "data").mkdir()
@@ -52,12 +55,14 @@ def _write_project(root: Path) -> None:
         'summary: "A summary sentence of adequate length here."\nlinks: []\n'
     )
     # Enough entries, with enough bullets, to run past a page break — the last
-    # entry on a page is the one a right-aligned date used to corrupt.
+    # entry on a page is the one a right-aligned date can corrupt. The page count
+    # is asserted in `test_the_fixture_spans_several_pages`, because an earlier
+    # version of this fixture fitted on one page and silently tested nothing.
     work = []
-    for i in range(9):
+    for i in range(_ENTRIES):
         bullets = "\n".join(
             f'    - "BULLET{i:02d}X{j} a line of text long enough to occupy most of a row."'
-            for j in range((i % 4) + 1)
+            for j in range((i % 4) + 2)
         )
         work.append(
             f'- company: "COMPANY{i:02d}"\n'
@@ -108,6 +113,62 @@ def project(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return root
 
 
+@pytest.mark.parametrize("template", _TEMPLATES)
+def test_the_fixture_spans_several_pages(project: Path, template: str) -> None:
+    """The page break is the interesting case, so the fixture has to reach one.
+
+    Counted off the built PDF, not `BuildResult.pages` — that one is a word-count
+    estimate and would let a single-page fixture pass.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    pages = len(pypdf.PdfReader(str(_build(project, template))).pages)
+    assert pages >= 2, f"{template} fits on {pages} page(s); fixture too small"
+
+
+@pytest.mark.parametrize("template", _TEMPLATES + ["cv/sidebar-compact"])
+def test_headings_reach_the_structure_tree(template: str, project: Path) -> None:
+    """Section titles and entry titles must be real headings, not styled divs.
+
+    Headings are the anchors a parser segments a CV on. A `div.section-title`
+    looks identical on the page and arrives in the structure tree as an anonymous
+    `/Div`, which is worth nothing to anything reading the document semantically.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
+
+    reader = pypdf.PdfReader(str(_build(project, template)))
+    kinds: set[str] = set()
+    seen: set[int] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, IndirectObject):
+            if node.idnum in seen:
+                return
+            seen.add(node.idnum)
+            node = node.get_object()
+        if isinstance(node, (ArrayObject, list)):
+            for kid in node:
+                walk(kid)
+        elif isinstance(node, DictionaryObject):
+            if node.get("/S"):
+                kinds.add(str(node["/S"]))
+            if node.get("/K") is not None:
+                walk(node["/K"])
+
+    walk(reader.trailer["/Root"]["/StructTreeRoot"])
+    for want in ("/H1", "/H2", "/H3"):
+        assert want in kinds, f"{template} emits no {want}; found {sorted(kinds)}"
+
+
+@pytest.mark.parametrize("template", _TEMPLATES)
+def test_built_pdfs_carry_a_structure_tree(project: Path, template: str) -> None:
+    """Tagged output is what makes the right-aligned date's reading order explicit."""
+    pypdf = pytest.importorskip("pypdf")
+    root = pypdf.PdfReader(str(_build(project, template))).trailer["/Root"]
+    assert "/StructTreeRoot" in root, f"{template} built an untagged PDF"
+    assert bool(root.get("/MarkInfo", {}).get("/Marked")), f"{template} is not marked"
+
+
 @pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
 @pytest.mark.parametrize("template", _TEMPLATES)
 @pytest.mark.parametrize("engine", _ENGINES)
@@ -129,29 +190,31 @@ def test_name_is_not_welded_to_the_headline(project: Path, template: str, engine
 def test_every_date_stays_with_its_own_entry(project: Path, template: str, engine: str) -> None:
     """No date may be emitted after its entry's bullets, or welded to anything.
 
-    Right-aligning the date made it a text column, and poppler flushes a column
-    when the *page* ends: the last entry on each page had its date land after its
-    own bullets, fused to the next entry's title.
+    The date runs inline on the entry's meta line. This is the test that says it
+    reads back inside its own entry in every reading order, including across page
+    breaks, whatever the user's bullets look like. See docs/dev/architecture.md.
     """
     text = _text(project, template, engine)
-    tokens = re.findall(
-        r"TITLE\d\d|COMPANY\d\d|BULLET\d\dX\d|20\d\d-\d\d [-\u2013] 20\d\d-\d\d", text
-    )
-    for i in range(9):
-        # Templates order the header differently — `cv/executive-dark` leads with the
-        # company, the rest with the title — so the assertion is that the entry's
-        # three identifying fields form one contiguous run, in whatever order, with
-        # no bullet in between. That is what "the date stayed with its entry" means
-        # independently of the design.
-        want = {f"TITLE{i:02d}", f"COMPANY{i:02d}"}
-        positions = [k for k, t in enumerate(tokens) if t in want]
-        assert len(positions) == 2, f"entry {i:02d} incomplete under {engine}: {positions}"
-        lo, hi = min(positions), max(positions)
-        window = tokens[lo : hi + 1]
-        dates = [t for t in window if re.fullmatch(r"20\d\d-\d\d [-\u2013] 20\d\d-\d\d", t)]
-        bullets = [t for t in window if t.startswith("BULLET")]
-        assert dates, f"entry {i:02d}: no date beside it under {engine}; window={window}"
-        assert not bullets, f"entry {i:02d}: bullet inside its header run under {engine}"
+    tokens = re.findall(r"TITLE\d\d|COMPANY\d\d|BULLET\d\dX\d|20\d\d-\d\d [-–] 20\d\d-\d\d", text)
+    for i in range(_ENTRIES):
+        # An entry's header region runs from its first identifying token to its own
+        # first bullet. Requiring the date to fall *between* the title and the
+        # company would assert a house style instead: engines legitimately order
+        # those three differently, and `cv/executive-dark` leads with the company.
+        # The defect being guarded is the date escaping the header region — emitted
+        # after its own bullets, welded to whatever entry came next.
+        anchors = [k for k, t in enumerate(tokens) if t in {f"TITLE{i:02d}", f"COMPANY{i:02d}"}]
+        assert len(anchors) == 2, f"entry {i:02d} incomplete under {engine}: {anchors}"
+        start = min(anchors)
+        bullets = [k for k, t in enumerate(tokens) if t.startswith(f"BULLET{i:02d}")]
+        end = min((k for k in bullets if k > start), default=len(tokens))
+        header = tokens[start:end]
+        # Templates differ on the range separator, hyphen or en dash.
+        want = re.compile(rf"20{10 + i}-01 [-\u2013] 20{11 + i}-02")
+        assert any(want.fullmatch(t) for t in header), (
+            f"entry {i:02d}: date left its header under {engine}; header={header}"
+        )
+        assert max(anchors) < end, f"entry {i:02d}: a bullet splits its header under {engine}"
 
 
 @pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
@@ -182,10 +245,10 @@ def test_skill_categories_do_not_weld_to_their_values(
 @pytest.mark.parametrize("engine", _ENGINES)
 def test_no_content_is_lost(project: Path, template: str, engine: str) -> None:
     text = _text(project, template, engine)
-    missing = [f"COMPANY{i:02d}" for i in range(9) if f"COMPANY{i:02d}" not in text]
+    missing = [f"COMPANY{i:02d}" for i in range(_ENTRIES) if f"COMPANY{i:02d}" not in text]
     missing += [
         f"BULLET{i:02d}X{j}"
-        for i in range(9)
+        for i in range(_ENTRIES)
         for j in range((i % 4) + 1)
         if f"BULLET{i:02d}X{j}" not in text
     ]

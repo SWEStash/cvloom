@@ -68,6 +68,7 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | `wl-020` | date-sanity             | ats-parse  | warning    | all dated sections         | End before start, dates in the future, expired credentials |
 | `wl-021` | unfilled-placeholders   | structure  | warning    | basics, all entry sections | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
 | `wl-022` | duplicate-links         | structure  | warning    | basics                     | Two `links` entries pointing at the same place |
+| `wl-023` | non-ascii-dashes        | ats-parse  | info       | all entry sections         | En/em dashes in content, where cvloom emits ASCII |
 
 ---
 
@@ -458,3 +459,24 @@ the duplicate costs header space that a second real link could use.
 **Good:** one entry per destination.
 
 **Fix hint:** Remove one of the two entries from `links` in `data/basics.yaml`.
+
+---
+
+### wl-023: non-ascii-dashes
+
+**Category:** ats-parse | **Sections checked:** all entry sections | **Severity:** info
+
+Fires when an entry's text contains an en dash (U+2013), em dash (U+2014) or minus sign
+(U+2212).
+
+**Basis (ats-parse):** cvloom renders every date range and separator it controls as an ASCII
+hyphen, in every output format — HTML, PDF, DOCX, Markdown. A document that still mixes dash
+characters is mixing them because the *content* does. A parser splitting `IEEE - CACIDI` on
+the separator has one character to handle; three is three chances to get it wrong. U+2013 also
+depends on the embedded font subset carrying the glyph.
+
+**Bad:** `publisher: IEEE – CACIDI`
+
+**Good:** `publisher: IEEE - CACIDI`
+
+**Fix hint:** Replace with `-` so every dash in the document matches.

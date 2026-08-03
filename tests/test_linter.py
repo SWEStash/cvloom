@@ -1136,3 +1136,20 @@ def test_wl007_still_flags_real_first_person() -> None:
         ]
     )
     assert len(lint(resolved, rule_ids=["wl-007"])) == 2
+
+
+def test_non_ascii_dashes_are_flagged() -> None:
+    """wl-023: cvloom emits ASCII dashes, so content should match."""
+    resolved = make_resolved(
+        work=[{"company": "IEEE \u2013 CACIDI", "title": "Engineer", "highlights": []}]
+    )
+    findings = lint(resolved, rule_ids=["wl-023"])
+    assert len(findings) == 1
+    assert "en dash" in findings[0].message
+
+
+def test_ascii_dashes_are_not_flagged() -> None:
+    resolved = make_resolved(
+        work=[{"company": "IEEE - CACIDI", "title": "Engineer", "highlights": []}]
+    )
+    assert lint(resolved, rule_ids=["wl-023"]) == []

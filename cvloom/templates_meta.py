@@ -8,14 +8,26 @@ they picked interleaves its columns — the CV reads perfectly on screen, and th
 failure only appears inside an ATS they cannot see.
 
 Ratings come from rendering each template to PDF and extracting the text layer back
-out with two independent extractors — pdftotext, which rebuilds columns from glyph
-geometry, and pypdf, which follows the content stream. They disagree, and only what
-survives both is rated safe: the constructs that broke were invisible in whichever
-one we happened to try first. See ``docs/reference/ats-readiness.md``.
+out with five independent extractors, spanning raw content-stream order through
+geometric reconstruction to the PDF structure tree. They disagree, and only what
+survives all five is rated safe: the constructs that broke were invisible in whichever
+one we happened to try first. Measured against worst-case content — short titles and
+short bullets, which leave the widest empty bands for a column detector to find. See
+``docs/reference/ats-readiness.md``.
 
-``ATS_CAUTION`` currently has no members. It is kept because the distinction is real
-— a layout can be order-preserving but adjacency-losing — and a future template may
-land there rather than at one of the extremes.
+The rating is a function of how many engines flag a defect, not a judgement call:
+
+===============  ============================================================
+``ATS_SAFE``     No engine finds a defect.
+``ATS_CAUTION``  Some engines find a defect, others do not. The layout is
+                 readable by most of the market and scrambled by part of it —
+                 including minor flags such as alignment artefacts.
+``ATS_UNSAFE``   Every engine finds a defect. Nothing reads it correctly.
+===============  ============================================================
+
+Ratings are checked against that rule by ``tests/test_ats_ratings.py``, which builds
+each template, runs the defect suite per engine, and fails if the declared rating and
+the measured one disagree. A rating cannot drift from reality unnoticed.
 """
 
 from __future__ import annotations
@@ -74,18 +86,20 @@ _INFO = (
         columns=1,
         ats=ATS_SAFE,
         fonts="network",
-        summary="Carbon header band, steel accent, company-first entries.",
+        summary="Carbon header band, steel accent, title-first entries.",
     ),
     TemplateInfo(
         name="cv/sidebar-compact",
         columns=2,
-        ats=ATS_UNSAFE,
+        ats=ATS_CAUTION,
         fonts="network",
         summary="Two-column, coloured sidebar. Best-looking of the set for a human.",
         caveat=(
-            "The two columns interleave line by line when the text layer is extracted: "
-            "contact details and skills land in the middle of the work history. Send it "
-            "to a person or link it from a portfolio; do not upload it to an ATS portal."
+            "Under pdftotext the two columns interleave: contact details and skills land "
+            "in the middle of the work history, and dates read outside their entry. The "
+            "other four engines read it correctly, so this is a real risk rather than a "
+            "certainty — but pdftotext is the most widely deployed of them. Send it to a "
+            "person or link it from a portfolio; for a portal, upload the DOCX."
         ),
     ),
 )

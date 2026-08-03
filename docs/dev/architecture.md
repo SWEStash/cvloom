@@ -16,7 +16,8 @@ This document describes how cvloom is structured internally — the build pipeli
 6. [Linter Architecture](#linter-architecture)
 7. [AI Subsystem](#ai-subsystem)
 8. [MCP Server](#mcp-server)
-9. [Test Patterns](#test-patterns)
+9. [PDF Reading Order and Where the Date Goes](#pdf-reading-order-and-where-the-date-goes)
+10. [Test Patterns](#test-patterns)
 
 ---
 
@@ -395,6 +396,97 @@ AI tools add an extra guard:
 if not is_configured():
     return json.dumps({"error": "CVLOOM_AI_BASE_URL is not set"})
 ```
+
+---
+
+## PDF Reading Order and Where the Date Goes
+
+This section records a decision that was made, reversed, and re-made on evidence.
+It is here rather than in code comments because it is about the format, not about
+any one function.
+
+### A PDF has more than one reading order
+
+A PDF says where each glyph is painted; it does not, on its own, say what order a
+human reads them in. Three orders matter:
+
+| Order | What it is | Who reads it that way |
+|---|---|---|
+| **Construction** | The sequence of text operators in the page content stream | Apache Tika and PDFBox *by default* (`sortByPosition=false`) — the naive end of the market |
+| **Geometric** | Re-derived from glyph coordinates by clustering into lines and columns | poppler's `pdftotext`, pdfminer.six, most commercial parsers |
+| **Structure** | The `/StructTreeRoot` tag tree — the order the standard actually defines | PDF/UA consumers, screen readers, accessibility tooling |
+
+Construction order has no guaranteed relationship to reading order. A generator may
+group text by font, paint templates last, or emit a right-hand column separately.
+That is legal, and it is what every generator does with right-aligned content.
+
+### What was measured
+
+Rendering the same multi-page CV with right-aligned dates and dumping construction
+order shows the date deferred to the end of the page — in WeasyPrint, in headless
+Chrome, **and in a real `.docx` right tab stop exported by LibreOffice**. Word does
+not solve this problem; Word users mostly sidestep it by submitting `.docx`, where a
+tab is a literal character in a linear paragraph stream.
+
+The difference that matters is elsewhere: Word and Chrome emit **tagged** PDFs and
+cvloom, until this change, did not. In the structure tree, every date sits
+immediately after its own title, on its own baseline, in the correct entry —
+including for the last entry on a page.
+
+### The decisions
+
+1. **`builder._render_pdf` passes `pdf_tags=True`.** WeasyPrint defaults it off. A
+   tagged PDF carries logical reading order explicitly and is also the accessible
+   form of the document. There is no reason to ship the untagged one.
+2. **The date is inline on the meta line, not right-aligned.** See below: a
+   right-hand date column leaves an empty band that geometric extractors read as a
+   column, and how wide that band is depends on the user's content.
+3. **`extract.py` ships five engines, not three.** `construction` and `structure`
+   were added so both ends of the spectrum are measured rather than assumed. The
+   spread between engines *is* the measurement; agreement is evidence, not a
+   certificate.
+
+### Where it landed
+
+Right-aligned dates were removed. The date runs inline on the entry's meta line —
+`company · date · location` — in every template except `cv/sidebar-compact`, which
+is rated unsafe for a separate reason.
+
+The decisive measurement was not about alignment. What geometric extractors detect
+is an **empty vertical band down the right of the page**, and whether one exists is
+governed by the user's bullet length, not by the template:
+
+| Bullet length | construction | poppler | pypdf | pdfminer | structure |
+|---|---|---|---|---|---|
+| ~30 chars | 0 | 1 | 0 | 14 | 0 |
+| ~95 chars | 0 | 0 | 0 | 0 | 0 |
+
+That makes it uncontrollable from the template, which is why it was removed rather
+than tuned. Capping the header width does not help — the gap grows back whenever a
+title is short.
+
+Ruled out by measurement, so nobody re-tests them:
+
+- **The producer.** WeasyPrint, headless Chrome and a hand-written PDF are identical.
+- **Text-run structure.** One `TJ` run with an internal offset (the Word tab-stop
+  shape) extracts exactly like two separate text objects at the same positions.
+- **Tagging, for these engines.** poppler and pdfminer never read the structure tree.
+
+The one construct that works is filling the band with glyphs — a dot leader scores 0
+everywhere in a hand-built PDF. No CSS implementation reproduces it: floating or
+flexing the date to the margin moves it to a separate paint pass, fixing poppler and
+pdfminer while breaking construction order and pypdf. Emitting that construct would
+need direct PDF generation, which means owning layout — line breaking, pagination,
+keep-together — that WeasyPrint currently provides.
+
+### What is not claimed
+
+Turning tags on does not change what poppler, pypdf, or pdfminer return — they
+ignore the structure tree. Whether a given ATS honours tags is unverified, and
+vendor marketing on this subject is not a source. What is verifiable is that a
+tagged PDF is standards-correct where an untagged one is ambiguous, and that with the
+date inline every engine reads every date inside its own entry — measured on
+multi-page documents with short bullets, the worst case.
 
 ---
 

@@ -11,22 +11,86 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **The last entry on every page had its date emitted after its own bullets, welded to the
-  next entry's title.** Reported from a real CV: `"…and front-end frameworks. 2002-06 -
-  2008-12Customer Facing Engineer"`. Right-aligning a date makes it a text column, and poppler
-  flushes a column when the **page** ends, not when the entry does — so one date per page was
-  corrupted, in the engine most parsing pipelines are built on. Six constructs were measured
-  (float, clearfix, flow-root, absolute, CSS table, flex) and every one of them fails this way;
-  only a date in the same continuous run as the title survives. Leader dots technically qualify
-  and are disqualified anyway, since filling the gap requires near-invisible text — the thing
-  ATS vendors flag as keyword stuffing.
+- **Dates no longer sit in a right-hand column.** Every template except
+  `cv/sidebar-compact` now runs the date inline on the entry's meta line —
+  `company · date · location`.
 
-  **Dates are now inline for every template**, next to the title rather than at the right
-  margin. The right-hand scan column is genuinely lost. It was not real: it did not survive
-  being read.
+  Reported from a real CV: `"…and front-end frameworks. 2002-06 - 2008-12Customer Facing
+  Engineer"`. The cause was not the alignment but the **empty vertical band** a right-hand
+  column leaves down the page, which poppler and pdfminer read as a column boundary. How wide
+  that band gets is governed by the user's bullet length — at ~95-character bullets every
+  engine is clean, at ~30 characters pdfminer misplaces every date — so it is not something a
+  template can control. Measured and ruled out: the PDF producer (WeasyPrint, Chrome and a
+  hand-written PDF are identical), text-run structure (a Word-style tab stop extracts the same
+  as two text objects), and capping the column width (the gap grows back on short titles).
 
-  This reverses a claim made earlier in the same development cycle, on the strength of a
-  synthetic corpus that never put a short entry at the foot of a page.
+  Supersedes two earlier entries in this same unreleased cycle, which moved the dates inline,
+  then restored them to the margin on the strength of measurements taken against a layout bug.
+
+- **Section titles and entry titles are real headings.** `div.section-title` became `<h2>` and
+  entry titles became `<h3>` across every template. They looked identical on the page and
+  reached the PDF structure tree as anonymous `/Div` elements — worth nothing to anything
+  reading the document semantically. Built PDFs now carry `/H1`, `/H2` and `/H3`.
+
+- **One dash character across every output.** Date ranges used an en dash in the design
+  templates and a hyphen in the ATS-first ones, and the DOCX export mixed hyphen, en dash and
+  em dash in a single document. Everything cvloom emits — HTML, PDF, DOCX, Markdown, LinkedIn,
+  JSON Resume — now uses an ASCII hyphen for ranges and `|` where an em dash was acting as a
+  field separator.
+
+- **The DOCX export used two typefaces.** python-docx inherits the Office theme, whose
+  `majorFont` is Calibri and `minorFont` is Cambria, so an untouched export rendered headings
+  in a sans and body text in a serif that nobody chose. Every style is now pinned to Arial.
+
+- **Meta-line typography is consistent.** `cv/academic` set the date in Arial while the rest of
+  its meta line was Georgia; `cv/timeline-clean` set the date two points smaller than its
+  neighbours. The company, date and location are peers on one row and now share a size and a
+  family, with only weight and colour distinguishing the organisation.
+
+- **`cv/timeline-clean` extracted its skills and education from the middle of the work
+  history.** `position: relative` on `.timeline-entry` — there only to anchor the timeline
+  dot — made every entry a positioned box, and positioned boxes paint in a later pass than
+  in-flow content. So the whole timeline was emitted after the sections that follow it, and
+  `SKILLS` and `EDUCATION` landed between two jobs under construction order and pypdf.
+  Invisible on the page. The dot is now drawn as a background gradient, which needs no
+  positioning. Pre-existing, not introduced by this cycle: reproduced identically at the
+  previous release.
+
+- **The extraction fidelity fixture fitted on one page.** Its own comment claimed it ran past
+  a page break, so the page-boundary case — the entire reported defect — was never covered.
+  The fixture now builds multi-page documents and asserts the page count off the built PDF.
+
+### Changed
+
+- **ATS ratings are derived from measurement, not asserted.** A template is `safe` when no
+  engine finds a defect, `caution` when some do and some do not, and `unsafe` when all of them
+  do. `tests/test_ats_ratings.py` re-derives every rating on each run and fails if it disagrees
+  with the declared one, in either direction — a template that quietly improves is as much a
+  documentation bug as one that regresses.
+
+- **`cv/sidebar-compact` is now rated `caution`, not `unsafe`.** Under the rule above it fails
+  one engine of five: pdftotext interleaves its columns and reads its dates outside their
+  entries, while construction order, pypdf, pdfminer and the structure tree all read it
+  correctly. `build` still warns and still points at the DOCX export; the caveat now says which
+  engine is at risk rather than implying all of them are.
+
+### Added
+
+- **`build` recommends the DOCX export when the template is not ATS-safe.** A PDF states its
+  reading order only implicitly, through glyph positions; a `.docx` states it as document
+  order, so a parser cannot get it wrong.
+
+- **`wl-023` (non-ascii-dashes).** Flags en/em dashes in your content, now that everything
+  cvloom generates is ASCII.
+
+- **Two more extraction engines: `construction` and `structure`.** `construction` reads raw
+  content-stream order with no layout analysis, which is what Apache Tika and PDFBox do by
+  default (`sortByPosition=false`) and the harshest reader in the set; `structure` follows the
+  `/StructTreeRoot` tag tree, the reading order the PDF standard defines. With poppler, pypdf
+  and pdfminer between them, `build --extract-text` and the fidelity tests now bracket what any
+  reader can conclude rather than sampling the middle. See `docs/dev/architecture.md`.
+
+### Fixed
 
 - **Kerning put spaces inside words.** WeasyPrint emits a kerned pair as two positioned runs
   and extractors read a large enough jump as a word break, so `PAYPAL` extracted as `P AYP AL`,

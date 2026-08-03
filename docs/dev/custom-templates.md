@@ -265,13 +265,18 @@ templates may use a middot (`·`); the built-in `cv/ats-clean` and `cv/academic`
 because U+00B7 depends on the embedded font subset carrying the glyph while ASCII does not.
 Extraction is not the issue — every separator extracts cleanly from a WeasyPrint PDF.
 
-Date ranges follow the same split. `date_range` takes a `sep` argument defaulting to an
-en dash; the ASCII-first templates pass `sep="-"`:
+Date ranges are ASCII everywhere. `date_range` defaults `sep` to a hyphen, and every
+built-in template and every export format uses it, so one dash character appears across
+the whole document set:
 
 ```jinja2
-{{ job.start_date | date_range(job.end_date | default(none), sep="-") }}
-{# ASCII-first: "2021-03 - Present"   design-led: "2021-03 – Present" #}
+{{ job.start_date | date_range(job.end_date | default(none)) }}
+{# "2021-03 - Present" #}
 ```
+
+An en dash is better typography for a range, but a CV is meant to be machine-read: a
+document mixing `-`, `–` and `—` gives a parser three things to handle instead of one.
+`wl-023` flags non-ASCII dashes left in your own content.
 
 `tests/test_renderer.py` asserts the two ASCII-first templates emit no middot and no en
 dash, and that the four design-led ones still do, so drifting either way fails the suite.
@@ -358,7 +363,7 @@ A complete minimal CV template:
 {# Extra CSS for this template #}
 {% block css_extra %}
 .resume { max-width: 800px; margin: 0 auto; padding: 2rem; }
-.entry-header { display: flex; justify-content: space-between; }
+.entry-meta { color: var(--muted); font-size: 9.5pt; }
 {% endblock %}
 
 {# Main content #}
@@ -384,13 +389,16 @@ A complete minimal CV template:
       <h2>Experience</h2>
       {% for entry in work %}
       <div class="entry">
-        <div class="entry-header">
-          <strong>{{ entry.title }}</strong> — {{ entry.company }}
-          <span class="muted">{{ entry.start_date | date_range(entry.end_date) }}</span>
+        <h3 class="entry-title">{{ entry.title }}</h3>
+        <div class="entry-meta">
+          <span class="entry-org">{{ entry.company }}</span>
+          <span class="entry-sep"> | </span>
+          <span class="entry-date">{{ entry.start_date | date_range(entry.end_date) }}</span>
+          {% if entry.location is defined %}
+          <span class="entry-sep"> | </span>
+          <span class="entry-location">{{ entry.location }}</span>
+          {% endif %}
         </div>
-        {% if entry.location is defined %}
-        <span class="muted">{{ entry.location }}</span>
-        {% endif %}
         <ul>
           {% for h in entry.highlights %}
           <li>{{ h | md }}</li>
@@ -436,12 +444,16 @@ back as `E D U C AT I O N`. Section headings are what a parser segments on, so a
 heading costs its whole section a label. The built-in templates use `.06em`, and
 `tests/test_renderer.py` fails the build above `.08em`.
 
-**Right-align a date only on entries that carry a bullet list.** A floated date is its own
-geometric column, and an extractor flushes that column when the text beside it ends. On
-work, education, and projects the bullets keep it open and the date lands correctly. On
-publications, certifications, and awards it closes early and the date surfaces late — in
-the worst measured case after the document's final section. Put those inline on the meta
-line instead.
+**Do not right-align the date.** It leaves an empty vertical band down the page, which
+poppler and pdfminer read as a column and use to lift dates out of their entries. How wide
+that band gets depends on the user's bullet length, so no styling makes it safe. Put the date
+on the entry's meta line — `company · date · location` — as the packaged templates do.
+`tests/test_renderer.py` fails any packaged template that styles an `.entry-header`.
+
+**Use real heading elements.** Section titles and entry titles must be `<h2>` and `<h3>`, not
+styled `div`s: headings are what a parser segments a CV on, and a `div.section-title` reaches
+the PDF structure tree as an anonymous `/Div`. `tests/test_extraction_fidelity.py` asserts
+`/H1`, `/H2` and `/H3` are all present in the built PDF.
 
 **Two columns interleave.** There is no styling that fixes it; `cv/sidebar-compact` is
 kept and labelled rather than fixed. Use one column unless a human is the only reader.

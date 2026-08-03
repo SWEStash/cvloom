@@ -31,16 +31,17 @@ def md_to_html(text: str) -> Markup:
     return Markup(rendered)
 
 
-def date_range(start: str, end: str | None, sep: str = "–") -> str:
+def date_range(start: str, end: str | None, sep: str = "-") -> str:
     """Format a date range, substituting 'Present' for a missing end date.
 
     Identical endpoints collapse to a single date: a qualification recorded
-    only by the year it was awarded should read "2017", not "2017 – 2017".
+    only by the year it was awarded should read "2017", not "2017 - 2017".
 
-    *sep* defaults to an en dash, which is correct typography for a range. The
-    ASCII-first templates pass ``"-"``: date ranges are one of the few things an
-    ATS genuinely tries to parse, and a hyphen keeps the whole line ASCII rather
-    than depending on the embedded font subset carrying U+2013.
+    *sep* is an ASCII hyphen. An en dash is better typography for a range, but a
+    CV is a document meant to be machine-read: date ranges are one of the few
+    things an ATS genuinely tries to parse, and a hyphen keeps the line ASCII
+    rather than depending on the embedded font subset carrying U+2013. Every
+    output — HTML, PDF, DOCX, Markdown — uses the same character.
     """
     end_str = end if end else "Present"
     if end_str == start:

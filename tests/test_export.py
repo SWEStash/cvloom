@@ -390,7 +390,7 @@ def test_certificates_omitted_when_empty():
 def test_markdown_keeps_certification_extensions():
     md = to_markdown(_resolved_with_certifications())
     assert "## Certifications" in md
-    assert "2023-04 – 2026-04" in md
+    assert "2023-04 - 2026-04" in md
     assert "AWS-PSA-12345" in md
 
 
@@ -446,3 +446,19 @@ def test_certification_type_survives_export():
     doc = to_json_resume(resolved)
     assert doc["certificates"][0]["x-cvloom-type"] == "certification"
     assert doc["certificates"][1]["x-cvloom-type"] == "course"
+
+
+def test_docx_uses_one_typeface(tmp_path: Path) -> None:
+    """python-docx's default theme is Calibri headings over Cambria body.
+
+    An untouched export therefore mixes a sans and a serif that nobody chose. A CV
+    should be one family, and the ATS artifact especially so.
+    """
+    pytest.importorskip("docx")
+    import docx
+
+    out = tmp_path / "cv.docx"
+    export_docx(_make_resolved(), out)
+    doc = docx.Document(str(out))
+    used = {p.style.font.name for p in doc.paragraphs if p.text.strip()}
+    assert used == {"Arial"}, f"DOCX mixes typefaces: {used}"

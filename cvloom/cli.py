@@ -111,15 +111,23 @@ def _warn_template_parse_risk(template_name: str) -> None:
     )
     colour = "red" if meta.ats == templates_meta.ATS_UNSAFE else "yellow"
     _console.print(f"[{colour}]Note:[/{colour}] {template_name} {label}. {meta.caveat}")
+    # A PDF states reading order only implicitly, through glyph positions; a .docx
+    # states it as document order, so a parser cannot get it wrong. When the chosen
+    # layout is one we know extracts badly, that is the artifact to upload.
+    _console.print(
+        "[dim]      For an ATS portal, upload the DOCX instead — "
+        "`cvloom export --format docx`. Reading order is guaranteed by that format, "
+        "not inferred from the page.[/dim]"
+    )
 
 
 def _write_extracted_text(pdf_path: Path) -> None:
     """Write the PDF's text layer beside it, once per available engine.
 
-    One engine is not enough to trust: poppler rebuilds columns from geometry and
-    pypdf follows the content stream, and a layout can read correctly in one and
-    scramble in the other. Naming the engine in the filename is the point — a
-    single `.txt` invites the conclusion that there is one right answer.
+    One engine is not enough to trust: they disagree about reading order, and a
+    layout can read correctly in one and scramble in another. Naming the engine in
+    the filename is the point — a single `.txt` invites the conclusion that there is
+    one right answer. See docs/dev/architecture.md.
     """
     engines = extract_mod.available_engines()
     if not engines:

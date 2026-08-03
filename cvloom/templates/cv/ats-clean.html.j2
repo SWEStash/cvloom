@@ -17,26 +17,10 @@
 .contact-line { font-size: 9pt; color: var(--muted); }
 .contact-line span + span::before { content: " | "; }
 .entry { margin-bottom: 10px; }
-/* Where the date goes is decided per section, not per template.
-
-   A right-aligned date is its own geometric column, and an extractor flushes that
-   column when the text beside it ends. Measured against WeasyPrint output: on
-   entries that carry a bullet list — work, education, projects — the bullets keep
-   the column open and the date lands beside its own entry every time (0 mismatches
-   over 12 real entries across 2 pages, and over 86 generated entries spanning 0-8
-   bullets and 1-11 word titles). On the compact sections — publications,
-   certifications, awards — the column closes early and the date surfaces late, in
-   the worst measured case after the document's final section.
-
-   So the scan column recruiters actually use is kept where it is safe, and given
-   up only where it is not. */
 .entry-title { font-weight: 700; font-size: 10.5pt; }
 .entry-meta { font-size: 9.5pt; margin-bottom: 2px; }
 .entry-org { font-weight: 600; }
 .entry-date { color: var(--muted); }
-/* Bullet-bearing sections only — see above. */
-.entry-header .entry-date { font-size: 9pt; }
-.entry-sep { color: var(--muted); }
 .skills-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .skill-row { display: flex; gap: 6px; }
 .skill-category { font-weight: 600; font-size: 9.5pt; }
@@ -69,8 +53,8 @@
 <h2>{{ section_title("work", "Experience") }}</h2>
 {% for job in work %}
 <div class="entry">
-  <div class="entry-header clearfix"><span class="entry-title">{{ job.title }}</span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none), sep="-") }}</span></div>
-  <div class="entry-meta"><span class="entry-org">{{ job.company }}</span>{% if job.location %}<span class="entry-sep"> | </span>{{ job.location }}{% endif %}</div>
+  <h3 class="entry-title">{{ job.title }}</h3>
+  <div class="entry-meta"><span class="entry-org">{{ job.company }}</span><span class="entry-sep"> | </span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>{% if job.location %}<span class="entry-sep"> | </span><span class="entry-location">{{ job.location }}</span>{% endif %}</div>
   {% if job.highlights %}
   <ul>
     {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -86,8 +70,8 @@
 <h2>{{ section_title("education", "Education") }}</h2>
 {% for edu in education %}
 <div class="entry">
-  <div class="entry-header clearfix"><span class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</span><span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none), sep="-") }}</span></div>
-  <div class="entry-meta"><span class="entry-org">{{ edu.institution }}</span>{% if edu.location %}<span class="entry-sep"> | </span>{{ edu.location }}{% endif %}</div>
+  <h3 class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</h3>
+  <div class="entry-meta"><span class="entry-org">{{ edu.institution }}</span><span class="entry-sep"> | </span><span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>{% if edu.location %}<span class="entry-sep"> | </span><span class="entry-location">{{ edu.location }}</span>{% endif %}</div>
   {% if edu.highlights %}
   <ul>
     {% for h in edu.highlights %}<li>{{ h | md }}</li>{% endfor %}
@@ -103,7 +87,8 @@
 <h2>{{ section_title("projects", "Projects") }}</h2>
 {% for proj in projects %}
 <div class="entry">
-  <div class="entry-header clearfix"><span class="entry-title">{% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</span>{% if proj.start_date %}<span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none), sep="-") }}</span>{% endif %}</div>
+  <h3 class="entry-title">{% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</h3>
+  {% if proj.start_date %}<div class="entry-meta"><span class="entry-date">{{ proj.start_date | date_range(proj.end_date | default(none)) }}</span></div>{% endif %}
   {% if proj.description %}<p>{{ proj.description | md }}</p>{% endif %}
   {% if proj.highlights %}
   <ul>

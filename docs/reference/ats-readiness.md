@@ -60,27 +60,31 @@ until then, this axis is reported honestly rather than overstated.
 ## What the templates actually do (measured)
 
 The claims above are checkable, so they are checked. Each template is rendered to PDF and the
-text layer pulled back out — the step every ATS runs first — with **two** extractors that work
+text layer pulled back out — the step every ATS runs first — with **five** extractors that work
 differently:
 
+- **construction** reads the page content stream in paint order, applying no layout analysis at
+  all. This is what Apache Tika and PDFBox do by default (`sortByPosition=false`), and it is the
+  harshest reader in the set.
 - **poppler** (`pdftotext`) rebuilds columns from glyph geometry. It is what most Linux PDF
-  viewers use for copy/paste and what a great many ingestion pipelines shell out to, and it is
-  the strictest of the three about column layout.
-- **pypdf** follows the PDF content stream in paint order. Pure Python, common in Python
-  document pipelines.
+  viewers use for copy/paste and what a great many ingestion pipelines shell out to.
+- **pypdf** walks the content stream and re-joins runs by position. Pure Python, common in
+  Python document pipelines.
 - **pdfminer.six** re-lays out characters itself. Pure Python, and the engine behind a lot of
   Python resume tooling.
+- **structure** follows the `/StructTreeRoot` tag tree — the reading order the PDF standard
+  actually defines, and the one accessibility tooling uses.
 
 None of them *is* an ATS. Agreement between engines that read the document by different means
 is evidence the text layer is unambiguous; it is not a certificate. You can produce these files
 for your own CV with `cvloom build --extract-text`, which writes one per engine.
 
-Using one is not enough, and that is the most useful thing this exercise produced. The two
+Using one is not enough, and that is the most useful thing this exercise produced. They
 disagree, and they disagree destructively: a `float: right` date inside an `overflow: hidden`
 header reads perfectly under pdftotext and comes back under pypdf with the title fused to the
 date as one unsplittable token. Every template shipped that construct, and the templates rated
-safe on pdftotext evidence alone were the ones carrying it. **Only what survives both is rated
-safe.**
+safe on pdftotext evidence alone were the ones carrying it. **Only what survives all five is
+rated safe.**
 
 Three things showed up that no amount of clean HTML prevents.
 
@@ -103,37 +107,85 @@ parser segments the document on, so a tracked heading costs its section its labe
 template now caps heading tracking at `.06em`, and `tests/test_renderer.py` fails the build
 above `.08em`.
 
-**Right-aligned dates cannot be made safe. No template uses them.**
+**Right-aligned dates were removed. The date runs inline on the entry's meta line.**
 
-A date pushed to the right margin is a separate text column however it is built, and poppler
-flushes a column when the **page** ends rather than when the entry does. The last entry on
-every page therefore had its date emitted after its own bullets and welded to whatever came
-next:
+An entry now reads:
 
 ```
-• Worked across PHP, Python, Java, JavaScript, and front-end frameworks.
-2002-06 - 2008-12Customer Facing Engineer
+Senior Platform Engineer
+Acme Corp · 2019-04 - 2023-08 · Berlin, Germany
+• Led [N] cloud migrations as a certified AWS and Azure specialist.
 ```
 
-Six constructs were measured — `float`, clearfix, `flow-root`, absolute positioning, CSS table
-cells, flexbox — and all six fail the same way. Leader dots are the only construct that works,
-because they make the line one continuous run, and they are disqualified on other grounds:
-filling that gap needs hidden or near-invisible text, which is what ATS vendors flag as keyword
-stuffing.
+The reason is not the alignment itself but what it leaves behind. A date at the right margin
+puts an **empty vertical band down the page**, and poppler and pdfminer read a band like that
+as a column boundary and lift the dates out of their entries. Whether the band exists depends
+on how long the user's bullets are:
 
-So the date sits inline next to the title. The right-hand scan column recruiters use is a real
-loss, and it was never real in the first place — it did not survive being read.
+| Bullet length | construction | poppler | pypdf | pdfminer | structure |
+|---|---|---|---|---|---|
+| ~30 chars | 0 | 1 | 0 | **14** | 0 |
+| ~60 chars | 0 | 1 | 0 | **14** | 0 |
+| ~95 chars (cross the band) | 0 | 0 | 0 | 0 | 0 |
+
+Long bullets reach far enough right to break the band up; short ones leave it clean. That makes
+it a property of what the user writes, not of the template — a CV that parses today starts
+failing when its author tightens a bullet. No CSS setting fixes it: capping the header width
+fails too, because the gap grows back whenever a job title is short.
+
+Three things were measured and ruled out along the way:
+
+- **The producer is irrelevant.** WeasyPrint, headless Chrome and a hand-written PDF give
+  identical results.
+- **Text-run structure is irrelevant.** Emitting the title and date as one `TJ` run with an
+  internal offset — what a Word tab stop does — extracts exactly like two separate text
+  objects, given the same glyph positions.
+- **Tagging does not help these engines.** cvloom emits tagged PDFs (see below) and poppler and
+  pdfminer ignore the structure tree entirely.
+
+The one construct that does work is filling the band with glyphs — a dot leader scores 0 under
+every engine in a hand-built PDF. It is not used because no CSS implementation reproduces it:
+floating or flexing the date to the margin puts it in a separate paint pass, which fixes
+poppler and pdfminer and breaks construction order and pypdf instead.
+
+`cv/sidebar-compact` still right-aligns its dates. It is rated caution for a separate reason
+and is not intended for a portal.
+
+**cvloom emits tagged PDFs.** `pdf_tags=True` gives the document a `/StructTreeRoot`, so its
+logical reading order is stated rather than inferred: headings arrive as `/H1`, `/H2` and
+`/H3`, bullet lists as `/L`, `/LI`, `/Lbl`, `/LBody`. Word and Chrome have always done this and
+cvloom did not, which was a real gap. It buys nothing with poppler or pdfminer, which ignore
+tags; it is what makes the document correct for tag-aware consumers and for accessibility.
+
+Two constraints are enforced by tests:
+
+- Every section title and entry title is a real heading element, not a styled `div`. A
+  `div.section-title` looks identical on the page and reaches the structure tree as an
+  anonymous `/Div`.
+- Every date reads back inside its own entry, under all five engines, on multi-page documents,
+  with short bullets — the worst case.
+
+Ratings are derived, not judged. Each template is built and read back with every
+installed engine, and the rating follows from how many of them find a defect:
+
+- **✅ safe** — no engine finds one.
+- **⚠️ caution** — some do and some do not. Readable by most of the market, scrambled by
+  part of it. Minor flags such as alignment artefacts land here.
+- **❌ unsafe** — every engine finds one. Nothing reads it correctly.
+
+`tests/test_ats_ratings.py` re-derives every rating on each run and fails if a declared
+rating and the measured one disagree, in either direction.
 
 ## Template-by-template parseability
 
 | Template | Layout | Extraction verdict |
 |---|---|---|
-| `cv/ats-clean` | Single column, system fonts | Clean in both. Fetches nothing at build time. Use this for ATS portals. |
-| `cv/academic` | Single column, serif, system fonts | Clean in both. Fetches nothing at build time. |
-| `cv/modern-single` | Single column | Clean in both. |
-| `cv/timeline-clean` | Single column + timeline rule | Clean in both. The timeline rule is a CSS border, so it adds no text. |
-| `cv/executive-dark` | Single column, dark header band | Clean in both. The band prints as a filled rectangle, not an image. |
-| `cv/sidebar-compact` | **Two column** | **Interleaves under pdftotext** — see below. Clean under pypdf, which is exactly why one extractor is not enough. |
+| `cv/ats-clean` | Single column, system fonts | Clean under all five engines. Fetches nothing at build time. Use this for ATS portals. |
+| `cv/academic` | Single column, serif, system fonts | Clean under all five engines. Fetches nothing at build time. |
+| `cv/modern-single` | Single column | Clean under all five engines. |
+| `cv/timeline-clean` | Single column + timeline rule | Clean under all five engines. The timeline rule is a CSS border, so it adds no text. |
+| `cv/executive-dark` | Single column, dark header band | Clean under all five engines. The band prints as a filled rectangle, not an image. |
+| `cv/sidebar-compact` | **Two column** | **Interleaves under pdftotext**, and its dates read outside their entry there. Clean under the other four, which is exactly why one extractor is not enough. |
 
 Audited over a tagged corpus: 8 work entries with 0–4 bullets, 15 skill categories with
 labels from 3 to 28 characters, 3 education entries, titles short enough to leave a wide

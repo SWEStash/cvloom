@@ -54,11 +54,11 @@ def test_md_to_html_multiline():
 
 
 def test_date_range_with_end():
-    assert date_range("2020-01", "2022-03") == "2020-01 – 2022-03"
+    assert date_range("2020-01", "2022-03") == "2020-01 - 2022-03"
 
 
 def test_date_range_no_end():
-    assert date_range("2020-01", None) == "2020-01 – Present"
+    assert date_range("2020-01", None) == "2020-01 - Present"
 
 
 def test_skill_level_bar_expert():
@@ -77,7 +77,7 @@ def test_date_range_collapses_identical_dates():
 
 
 def test_date_range_keeps_distinct_dates():
-    assert date_range("2019", "2022") == "2019 – 2022"
+    assert date_range("2019", "2022") == "2019 - 2022"
 
 
 # ── link_anchor ──────────────────────────────────────────────────────
