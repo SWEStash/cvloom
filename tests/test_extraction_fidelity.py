@@ -279,3 +279,40 @@ def test_kern_pairs_do_not_split_words(
     text = _text(root, template, engine)
     split = [n for n in _KERN_TRAPS if n not in text]
     assert not split, f"{template}/{engine} split {split} across a kern pair"
+
+
+def _shading_types(pdf_path: Path) -> set[int]:
+    """Return the PDF ShadingType numbers used anywhere in *pdf_path*.
+
+    2 is axial (a linear gradient), 3 is radial.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    found: set[int] = set()
+    for page in pypdf.PdfReader(str(pdf_path)).pages:
+        for xobj in page["/Resources"].get("/XObject", {}).values():  # type: ignore[union-attr]
+            shadings = xobj.get_object().get("/Resources", {}).get("/Shading", {})
+            for shading in shadings.values():
+                kind = shading.get_object().get("/ShadingType")
+                if kind is not None:
+                    found.add(int(kind))
+    return found
+
+
+def test_timeline_rule_is_a_solid_fill_not_a_gradient(project: Path) -> None:
+    """`cv/timeline-clean`'s vertical rule must not be drawn as a linear gradient.
+
+    Drawn as a background layer it reached the PDF as a full-page *axial* shading
+    inside a transparency group, whose visible 2px was nothing but alpha in the
+    colour function. Poppler resolves that, so the line was there in pdftoppm and
+    in the fidelity suite — and absent in the viewers people actually open the file
+    in, which rasterize the soft mask too coarsely for a 2px feature to survive.
+
+    A border is emitted as a plain filled rectangle, which has no such failure mode.
+    The dots are still radial shadings (type 3): an opaque circle survives a coarse
+    mask where a hairline does not.
+    """
+    types = _shading_types(_build(project, "cv/timeline-clean"))
+    assert 2 not in types, (
+        "cv/timeline-clean emits an axial shading — the rule is a gradient again, "
+        "and will not render in every PDF viewer"
+    )

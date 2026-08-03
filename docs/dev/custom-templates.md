@@ -19,7 +19,8 @@ cvloom's templates are Jinja2 HTML files that extend a shared base. You can crea
 9. [Handling Optional Fields](#handling-optional-fields)
 10. [Annotated Example](#annotated-example)
 11. [Layout Choices That Break Extraction](#layout-choices-that-break-extraction)
-12. [Third-Party Template Packages](#third-party-template-packages)
+12. [Decorations That Do Not Survive Every PDF Viewer](#decorations-that-do-not-survive-every-pdf-viewer)
+13. [Third-Party Template Packages](#third-party-template-packages)
 
 ---
 
@@ -310,13 +311,43 @@ Example:
 {% endblock %}
 ```
 
-Pre-built utility CSS classes from `base.html.j2`: `.muted`, `.right`, `.clearfix`,
-`.skill-tag`, `.skill-level`, `.skill-level-{1-4}`.
+### What base owns, and what you own
 
-`base.html.j2` also sets the pagination rules, so you get them for free: `break-after:
-avoid` on `h2`/`h3`/`.section-title`, and `break-inside: avoid` plus `orphans`/`widows`
-of 2 on `.entry`, `.timeline-entry`, and `li`. Use those class names and a heading will
-not strand at the foot of a page, and a job will not split from its own bullets.
+`base.html.j2` owns the document skeleton, the design tokens, element-level typography,
+the print setup, and the **cross-cutting correctness rules** — kerning off, pagination,
+heading semantics. It reaches your template through element selectors and a small shared
+**role vocabulary**. It does not know your class names, and it must not: a rule keyed on
+one template's class is a guarantee that applies only if base has heard of you.
+
+Everything visual is yours. You opt into base's guarantees by using the role classes.
+
+| Role class | What base guarantees |
+|---|---|
+| `.entry` | `break-inside: avoid` and `orphans`/`widows` of 2 — an entry is not split across a page break |
+| `.entry-title` on an `<h3>` | Inherited size and bold weight, so the title is a real heading in the PDF structure tree |
+| `.entry-meta`, `.entry-date`, `.entry-location`, `.entry-sep` | One size and family across the meta line; override `.entry-meta`, never the individual fields |
+| `.contact-line` | Anchors inside it inherit the surrounding colour, so a header on an accent background stays legible |
+| `.skill-level*` | The rendering of whatever `skill_level_bar` emits — you call the filter, base draws the bar |
+
+`h2` and `h3` get `break-after: avoid` as elements, so a heading never strands at the
+foot of a page. That is one reason section titles must be real headings.
+
+**A skin goes alongside a role, never instead of it.** `cv/timeline-clean` styles its
+entries as timeline nodes and writes:
+
+```html
+<div class="entry timeline-entry">
+```
+
+`entry` is the role — base protects it from splitting. `timeline-entry` is the skin —
+the template styles it and base has never heard of it. Writing only `timeline-entry`
+is what a template did before, and it worked solely because base had been taught that
+name; every *other* template that invented an entry class silently lost its page-break
+protection.
+
+`tests/test_renderer.py` enforces both halves: base may not style a class fewer than two
+packaged templates use, and no packaged template may render a `*-entry` box without the
+`entry` role.
 
 ---
 
@@ -462,6 +493,35 @@ If you add a template to the package, add it to `cvloom/templates_meta.py` — a
 for any packaged `cv/` template without an entry. A template of your own under
 `templates/` shows as `unrated` in `cvloom list-templates`, which means "never measured",
 not "safe".
+
+---
+
+## Decorations That Do Not Survive Every PDF Viewer
+
+A rule, a dot or a bar can be correct in the browser, correct in `pdftoppm`, and
+missing in the viewer your reader actually opens the file in. Two rules, both
+measured against WeasyPrint output:
+
+**Draw hairlines as a solid fill, never as a gradient.** WeasyPrint emits every CSS
+gradient as a form XObject containing a shading, inside a transparency group, with a
+BBox covering the whole page — the visible part is produced by *alpha in the colour
+function*, not by geometry. For a filled shape that is fine. For a 2px rule it is not:
+viewers rasterize the soft mask at their own resolution, and a 2px feature can be
+sampled away completely. `cv/timeline-clean` drew its vertical rule as a
+`linear-gradient` with hard colour stops and the line rendered in poppler and vanished
+elsewhere. Use `border-left`, or a `background-color` on a sized box — both reach the
+PDF as a plain filled rectangle. `tests/test_extraction_fidelity.py` fails the build if
+`cv/timeline-clean` emits an axial (type 2) shading at all.
+
+**Do not use `position` to place a decoration.** Positioned boxes paint in a later pass
+than in-flow content, and that pass is also where they land in the PDF's content
+stream — an absolutely positioned timeline dot moved the *entire* timeline after the
+sections that follow it, so `SKILLS` and `EDUCATION` extracted from the middle of the
+work history while the page looked untouched. Place decorations with backgrounds and
+borders on in-flow boxes. When paint order matters — a dot that must sit *on* its
+line rather than under it — put the two on different elements: a parent's border paints
+before an in-flow child's background, and a negative margin on the child lets it reach
+back over that border. `cv/timeline-clean` does exactly this.
 
 ---
 

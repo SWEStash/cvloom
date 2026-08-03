@@ -547,3 +547,86 @@ def test_entry_dates_are_not_a_right_hand_column(template: str) -> None:
     css = html.split("<body>", 1)[0]
     assert "entry-header" not in css, f"{template} still styles a right-hand date column"
     assert '<div class="entry-meta"' in html, f"{template} has no entry meta line"
+
+
+# ── The base/template boundary ───────────────────────────────────────
+
+# `skill-level*` is the one class base may style without a second user: nothing
+# writes it in markup, `skill_level_bar` emits it, so that CSS is the rendering
+# half of a filter's output contract rather than one template's styling.
+_FILTER_OWNED_CLASSES = {"skill-level"}
+
+_TEMPLATE_ROOT = Path(__file__).resolve().parents[1] / "cvloom" / "templates"
+
+
+def _classes_in_markup() -> dict[str, set[str]]:
+    """Map every class used in a packaged template's markup to the templates using it."""
+    usage: dict[str, set[str]] = {}
+    for path in sorted(_TEMPLATE_ROOT.glob("*/*.html.j2")):
+        name = f"{path.parent.name}/{path.name.removesuffix('.html.j2')}"
+        for attr in re.findall(r'class="([^"]*)"', path.read_text()):
+            for token in attr.split():
+                if "{" in token:  # a Jinja expression, not a literal class
+                    continue
+                usage.setdefault(token, set()).add(name)
+    return usage
+
+
+def _classes_styled_by_base() -> set[str]:
+    css = (_TEMPLATE_ROOT / "base.html.j2").read_text()
+    css = css.split("/* ---- Reset ---- */", 1)[1].split("{% block css_extra %}", 1)[0]
+    # Selectors only: comments carry prose like `docs/dev/architecture.md`, which
+    # otherwise reads as a class named `md`.
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+    return set(re.findall(r"\.([a-zA-Z][\w-]*)", css))
+
+
+def test_base_styles_no_single_template_class() -> None:
+    """`base.html.j2` may not name a class only one template uses.
+
+    Base owns the document skeleton, the design tokens, element-level typography,
+    print setup and the cross-cutting correctness invariants — kerning, pagination,
+    heading semantics. It reaches templates through element selectors and a small
+    shared *role* vocabulary. A class only one template uses is that template's
+    skin, and styling it here inverts the dependency: base ends up knowing its
+    subclasses, and a guarantee like "an entry never splits across a page" silently
+    becomes "…if base has heard of your class name".
+
+    This is how `.timeline-entry` got into the pagination rules. The fix was not to
+    move the rule down into the template — that duplicates an invariant and lets the
+    next template lose it by omission — but to have `cv/timeline-clean` write
+    `class="entry timeline-entry"`: `entry` is the role base guarantees, and
+    `timeline-entry` is the skin the template owns.
+    """
+    usage = _classes_in_markup()
+    offenders = {
+        cls: sorted(usage.get(cls, ()))
+        for cls in _classes_styled_by_base()
+        if not any(cls.startswith(owned) for owned in _FILTER_OWNED_CLASSES)
+        and len(usage.get(cls, ())) < 2
+    }
+    assert not offenders, (
+        "base.html.j2 styles classes that fewer than two templates use: "
+        f"{offenders}. Either they are dead, or they belong in the template that "
+        "uses them — see the docstring for the role-vs-skin rule."
+    )
+
+
+@pytest.mark.parametrize("template", _ALL_CV_TEMPLATES)
+def test_every_cv_entry_carries_the_entry_role(template: str) -> None:
+    """Base's page-break protection is keyed on `.entry`, so every entry needs it.
+
+    A template is free to add its own class alongside for styling; what it may not
+    do is use that class *instead*, which is how a timeline entry once ended up
+    depending on base knowing the word "timeline".
+    """
+    html = _body_of(render_template(template, _FULL_CONTEXT))
+    attrs = [a.split() for a in re.findall(r'class="([^"]*)"', html)]
+    assert any("entry" in tokens for tokens in attrs), f"{template} renders no entry boxes"
+    for tokens in attrs:
+        skins = [t for t in tokens if t.endswith("-entry")]
+        assert not skins or "entry" in tokens, (
+            f"{template} has an entry box classed {' '.join(tokens)!r}: {skins} is a skin "
+            "used without the `entry` role, so base does not protect it from splitting "
+            "across a page break"
+        )

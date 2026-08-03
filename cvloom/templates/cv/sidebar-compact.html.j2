@@ -47,7 +47,10 @@
      band flush, so that 14mm landed on the text instead and pushed the whole
      sidebar column visibly right. The PDF was unaffected, which is why it survived:
      print overrides this padding entirely. */
-  padding: 16mm 12px 12mm 12px;
+  /* The top inset is 8mm here and on `.main`, in both media. The two columns are
+     table cells sharing a top edge, so any difference between them reads as the
+     name and the summary being misaligned rather than as breathing room. */
+  padding: 8mm 12px 12mm 12px;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
 }
@@ -91,6 +94,10 @@
   color: var(--sidebar-text);
   word-break: break-all;
 }
+/* An anchor in the band takes the band's colour, not `--accent`, which is the teal
+   the band is painted in and would be invisible on it. Base states this for the
+   shared `.contact-line` header; this container is ours, so the rule is ours. */
+.sidebar .contact-list a { color: inherit; }
 /* Skills stack label-over-values, not one bordered chip per skill. In a 190px
    column a chip grid wraps after two or three items, so every skill costs most of
    a line and a fifteen-category list ran for pages; the borders also drew a box
@@ -118,6 +125,11 @@
    The base rules use --border and --accent, neither of which reads on the band. */
 .sidebar .skill-level { width: 26px; height: 4px; background: rgba(255, 255, 255, 0.25); }
 .sidebar .skill-level::after { background: var(--sidebar-text); }
+/* A skill and its bar are one unit. In a comma list the bar is just another inline
+   box, so a name landing near the column edge left its bar stranded at the start of
+   the next line, reading as the bar of the skill that follows it. The line may still
+   break after the comma, which sits outside the span. */
+.sidebar .skill-item { white-space: nowrap; }
 .sidebar .entry { margin-bottom: 8px; }
 .sidebar .entry-title { font-weight: 700; font-size: 9pt; }
 .sidebar .entry-meta { color: var(--sidebar-muted); font-size: 8pt; }
@@ -131,7 +143,7 @@
 .main {
   display: table-cell;
   vertical-align: top;
-  padding: 16mm 14mm 12mm 20px;
+  padding: 8mm 14mm 12mm 20px;
 }
 .main .section-title {
   font-size: 11pt;
@@ -165,12 +177,12 @@
      three. A fragmented box otherwise draws its padding only at the very start and
      the very end, so continuation pages had text sitting flush against the band. */
   .sidebar {
-    padding: 12mm 12px 12mm 12px;
+    padding: 8mm 12px 12mm 12px;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
   .main {
-    padding: 12mm 0 12mm 16px;
+    padding: 8mm 0 12mm 16px;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -188,7 +200,7 @@
   <div class="skill-items">
     {%- for item in group['items'] -%}
       {%- if item is mapping -%}
-        {{ item.name }}{% if item.level %}{{ item.level | skill_level_bar }}{% endif %}
+        <span class="skill-item">{{ item.name }}{% if item.level %}{{ item.level | skill_level_bar }}{% endif %}</span>
       {%- else -%}{{ item }}{%- endif -%}
       {%- if not loop.last %}, {% endif -%}
     {%- endfor -%}

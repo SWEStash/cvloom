@@ -53,8 +53,11 @@
     h3 { font-size: 10pt; font-weight: 600; }
     a { color: var(--accent); text-decoration: none; }
     /* Header links carry the surrounding header's colour, so anchoring them
-       does not restyle a design that puts the header on an accent background. */
-    .contact-line a, .contact-pills a, .contact-list a, .sig-contact a { color: inherit; }
+       does not restyle a design that puts the header on an accent background.
+       `.contact-line` is the shared header container; a template with a container
+       of its own — `cv/sidebar-compact` and its `.contact-list` — states the rule
+       itself rather than teaching base one more name. */
+    .contact-line a { color: inherit; }
     ul { padding-left: 1.2em; }
     li { margin-bottom: 2px; }
     p { margin-bottom: 4px; }
@@ -72,12 +75,20 @@
        deliberate rather than like the first page overflowed. A heading must not
        be the last thing on a page, and a job must not be split from its own
        bullets. Both properties are set: WeasyPrint honours the modern `break-*`
-       names, `page-break-*` covers older renderers reading the same HTML. */
-    h2, h3, .section-title { break-after: avoid; page-break-after: avoid; }
-    .entry, .timeline-entry { break-inside: avoid; page-break-inside: avoid; }
+       names, `page-break-*` covers older renderers reading the same HTML.
+
+       These rules reach a template through `.entry`, which is a *role*: "this box
+       is one CV entry, keep it whole". A template's own class is its skin and
+       carries no guarantee of its own — `cv/timeline-clean` writes
+       `class="entry timeline-entry"` for exactly this reason. Base used to name the
+       skin instead, which meant page-break protection was conditional on base
+       having heard of your class name. `.section-title` is gone from the heading
+       rule for a duller reason: it is only ever on an `<h2>`, already listed. */
+    h2, h3 { break-after: avoid; page-break-after: avoid; }
+    .entry { break-inside: avoid; page-break-inside: avoid; }
     li { break-inside: avoid; page-break-inside: avoid; }
     /* An entry longer than a page must still break, or it is dropped entirely. */
-    .entry, .timeline-entry { orphans: 2; widows: 2; }
+    .entry { orphans: 2; widows: 2; }
 
     /* ---- Entry heading and meta line ----
        The date runs inline on the meta line rather than in a right-hand column.
@@ -92,11 +103,11 @@
     .entry-meta .entry-date, .entry-meta .entry-location { font-size: inherit; font-family: inherit; }
     .entry-sep { color: var(--muted); }
 
-    /* ---- Utilities ---- */
-    .muted { color: var(--muted); }
-    .skill-tag { display: inline-block; background: #f3f4f6; border-radius: 3px; padding: 1px 6px; font-size: 8.5pt; margin: 2px 2px 2px 0; }
-
-    /* ---- Skill level bars (skill_level_bar filter) ---- */
+    /* ---- Skill level bars (skill_level_bar filter) ----
+       The one place base styles a class only one packaged template shows: nothing
+       writes `skill-level` in markup, the `skill_level_bar` filter emits it. This
+       CSS is the rendering half of that filter's output, so it belongs to whoever
+       owns the filter — any template calling it gets a bar without restyling one. */
     .skill-level { display: inline-block; width: 40px; height: 5px; background: var(--border); border-radius: 3px; position: relative; vertical-align: middle; margin-left: 4px; }
     .skill-level::after { content: ""; position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 3px; }
     .skill-level-0 { display: none; }

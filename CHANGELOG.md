@@ -11,6 +11,73 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`cv/timeline-clean`: the dot sits on the timeline, not beside and under it.** The line was
+  a `border-left` and the dot a background on the same element, and a border paints over its
+  own element's background — so the marker was half-swallowed by the line and offset to the
+  right of it. The dot moves onto the entry's title, whose background paints *after* the
+  parent's border; a negative margin (with matching padding, so the text does not move) is
+  what lets it reach back over a border outside its own content box.
+
+  The rule stays a `border-left` and must. Drawn as a background gradient instead, it reached
+  the PDF as a full-page **axial shading inside a transparency group**, whose visible 2px was
+  nothing but alpha in the colour function — poppler resolves that, so the line was there in
+  `pdftoppm`, and other viewers rasterize the soft mask too coarsely for a 2px feature to
+  survive, so it was missing on screen. A border is emitted as a plain filled rectangle.
+  `tests/test_extraction_fidelity.py` now fails the build if this template emits an axial
+  shading at all.
+
+  The rule now runs dot to dot. Each entry's border spans its own box, so it used to start
+  9px above one dot and stop 9px above the next — a segment floating clear of both marks it
+  was supposed to join. The dot moves up to 3px from the entry's top edge, inside its own 4px
+  radius, so the ends of each segment sit under the dots and the line reads as continuous.
+
+  The line colour is light grey (`#d1d5db`). It does not need colour to survive the PDF now
+  that it is a solid fill, and grey leaves the blue to the dots.
+
+- **`cv/sidebar-compact`: a skill and its proficiency bar stay on one line.** In the sidebar's
+  comma list the bar was a separate inline box, so a name landing near the column edge left
+  its bar stranded at the start of the next line, reading as the bar of the skill after it.
+
+- **`cv/sidebar-compact`: the two columns start at the same top edge.** The top inset is now
+  8mm on both the sidebar and the main column, in screen *and* print. It was 16mm on screen
+  and 12mm in print, applied per column, so the name and the summary did not line up and the
+  screen preview did not match the PDF.
+
+### Changed
+
+- **`base.html.j2` no longer knows its subclasses.** It was styling `.timeline-entry` in
+  the pagination rules — one class, one template — plus four rules no template used at all
+  (`.muted`, `.skill-tag`, `.contact-pills`, `.sig-contact`) and a `.section-title` that is
+  only ever on an `<h2>` already named in the same selector.
+
+  The boundary is now explicit: base owns the skeleton, the tokens, element typography, print
+  setup and the cross-cutting correctness rules, and reaches templates through element
+  selectors and a small **role vocabulary**. A template's own class is a *skin* and goes
+  alongside a role, never instead of it — `cv/timeline-clean` writes
+  `class="entry timeline-entry"`, taking base's page-break guarantee from `entry` and its
+  styling from `timeline-entry`. Before, that protection depended on base having been taught
+  the name, so any other template that invented an entry class lost it silently.
+
+  `.skill-level*` stays in base despite one user: nothing writes it in markup — the
+  `skill_level_bar` filter emits it — so that CSS is the rendering half of a filter's
+  output contract. `cv/sidebar-compact` takes over the `.contact-list` link rule, which was
+  its own container all along.
+
+  Two tests in `tests/test_renderer.py` hold the line: base may not style a class fewer than
+  two packaged templates use, and no template may render a `*-entry` box without the `entry`
+  role. Both are additions to the existing template guards, not new machinery.
+
+### Documentation
+
+- `docs/dev/custom-templates.md` gains **What base owns, and what you own** — the role-vs-skin
+  rule, a table of what each role class guarantees, and the two tests that enforce it. The
+  section it replaces listed three utility classes that no longer exist and two (`.right`,
+  `.clearfix`) that never did.
+- `docs/dev/custom-templates.md` also gains **Decorations That Do Not Survive Every PDF Viewer**:
+  draw hairlines as a solid fill rather than a gradient, and never use `position` to place a
+  decoration. Both rules cost a release to learn.
+
+
 - **Dates no longer sit in a right-hand column.** Every template except
   `cv/sidebar-compact` now runs the date inline on the entry's meta line —
   `company · date · location`.

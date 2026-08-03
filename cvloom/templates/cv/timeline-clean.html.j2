@@ -8,7 +8,10 @@
 {% block css_vars %}
 :root {
   --accent: #2563eb;
-  --timeline-line: #dbeafe;
+  /* Light grey, a shade darker than `--border`. The rule is a solid fill now, so
+     it does not need colour to survive the PDF — grey keeps the blue for the dots,
+     which are the marks that carry meaning. */
+  --timeline-line: #d1d5db;
   --timeline-dot: #2563eb;
   --font-body: Inter, "Helvetica Neue", Arial, sans-serif;
 }
@@ -58,22 +61,68 @@
 
 /* Timeline entries for work and education */
 .timeline-section { margin-left: 10px; }
-/* The dot is painted as a background, not an absolutely positioned pseudo-element.
-   `position: relative` on the entry would make it a positioned box, and positioned
-   boxes paint in a later pass than in-flow content — which put the whole timeline
-   after the sections that follow it in the content stream, so SKILLS and EDUCATION
-   extracted from the middle of the work history. Invisible on the page. */
+/* The line is a `border-left`, and the dot is a background on the entry's own
+   title — not the other way round, and not a positioned pseudo-element.
+
+   Three constraints meet here, and each one rules out the obvious answer:
+
+   1. Nothing may be positioned. `position: relative` on the entry makes it a
+      positioned box, and positioned boxes paint in a later pass than in-flow
+      content — which put the whole timeline *after* the sections that follow it
+      in the content stream, so SKILLS and EDUCATION extracted from the middle of
+      the work history. Invisible on the page, fatal to a parser.
+
+   2. The line must be a solid fill, not a gradient. Drawn as a background layer
+      it reached the PDF as a full-page axial shading inside a transparency group,
+      whose visible 2px is nothing but alpha in the colour function. Poppler
+      resolves that; other viewers rasterize the soft mask coarsely and a 2px
+      feature disappears entirely — the line rendered here and was missing in
+      Preview and in Chrome's viewer, which reads as "the template is broken".
+      A border is emitted as a plain filled rectangle and has no such failure mode.
+
+   3. The dot must paint *after* the line, or the line swallows it. A border paints
+      over its own element's background, so the dot cannot live on the entry. It
+      lives on the entry's first child instead: in-flow descendants' backgrounds
+      paint after the parent's border, and the negative margin is what lets that
+      child reach back over a border that sits outside its own content box. The
+      matching padding puts the text back where it was, so extraction is unchanged.
+
+   The dot stays a radial gradient — same shading machinery as (2), but an opaque
+   circle survives a coarse mask where a 2px line does not. */
 .timeline-entry {
   padding-left: 22px;
   border-left: 2px solid var(--timeline-line);
   padding-bottom: 14px;
-  background-image: radial-gradient(circle 4px at 5px 9px, var(--timeline-dot) 99%, transparent 100%);
-  background-repeat: no-repeat;
-  background-origin: border-box;
+  padding-top: 1px;
 }
 .timeline-entry:last-child {
   border-left-color: transparent;
   padding-bottom: 0;
+}
+/* Both offsets are the same trick in two axes: pull the title's box out past the
+   entry's edge with a negative margin, then push its text back with an equal
+   padding, so the dot can be painted somewhere the text never goes.
+
+   Horizontally, -28px reaches 4px past the entry's border box, putting the border's
+   centre at x=5px in the title's coordinates — the dot's full 4px radius then fits
+   inside the child and is never clipped.
+
+   Vertically, -6px lifts the dot to 3px below the entry's top edge, which is where
+   its border starts. Without it the dot sat at 9px: the border began 9px above one
+   dot and ended 9px above the *next*, so the rule ran between the entries instead of
+   joining them, visibly floating clear of both marks. 3px is inside the dot's own 4px
+   radius, so each segment's ends are covered by the dots they run to and the line
+   reads as continuous — while the dot still sits level with its title rather than
+   riding above it, which is where a flush 0px offset would put it. The transparent
+   border on `:last-child` stops the line at the final dot rather than trailing past
+   it. Changing the dot's `9px` here means changing this offset by the same amount. */
+.timeline-entry > .entry-title {
+  margin-left: -28px;
+  padding-left: 28px;
+  margin-top: -6px;
+  padding-top: 6px;
+  background-image: radial-gradient(circle 4px at 5px 9px, var(--timeline-dot) 99%, transparent 100%);
+  background-repeat: no-repeat;
 }
 .timeline-entry .timeline-entry .entry-title { font-weight: 600; font-size: 10.5pt; }
 .timeline-entry .entry-org { color: var(--accent); font-weight: 500; }
@@ -114,7 +163,10 @@
 .skill-items { display: table-cell; vertical-align: top; }
 
 /* Plain entries for projects */
-.entry { margin-bottom: 12px; }
+/* `:not()` because a timeline entry now carries `entry` too — it takes base's
+   page-break guarantee from the role class and its spacing from its own
+   `padding-bottom`, so the plain-entry margin would stack a second gap on it. */
+.entry:not(.timeline-entry) { margin-bottom: 12px; }
 .entry-title { font-weight: 600; font-size: 10.5pt; }
 .entry-date { color: var(--muted); font-size: 8.5pt; }
 {% endblock %}
@@ -142,7 +194,7 @@
 <h2 class="section-title">{{ section_title("work", "Experience") }}</h2>
 <div class="timeline-section">
   {% for job in work %}
-  <div class="timeline-entry">
+  <div class="entry timeline-entry">
     <h3 class="entry-title">{{ job.title }}</h3>
     <div class="entry-meta"><span class="entry-org">{{ job.company }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>{% if job.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ job.location }}</span>{% endif %}</div>
     {% if job.highlights %}
@@ -161,7 +213,7 @@
 <h2 class="section-title">{{ section_title("education", "Education") }}</h2>
 <div class="timeline-section">
   {% for edu in education %}
-  <div class="timeline-entry">
+  <div class="entry timeline-entry">
     <h3 class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</h3>
     <div class="entry-meta"><span class="entry-org">{{ edu.institution }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>{% if edu.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ edu.location }}</span>{% endif %}</div>
     {% if edu.highlights %}
@@ -198,7 +250,7 @@
 <h2 class="section-title">{{ section_title("publications", "Publications") }}</h2>
 <div class="timeline-section">
   {% for pub in publications %}
-  <div class="timeline-entry">
+  <div class="entry timeline-entry">
 {# Date runs inline on the meta line, unlike work/education above: these entries are
    two short lines each. #}
     <div class="entry-title">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</div>
@@ -218,7 +270,7 @@
 <h2 class="section-title">{{ section_title(title_key, heading) }}</h2>
 <div class="timeline-section">
   {% for cert in group %}
-  <div class="timeline-entry">
+  <div class="entry timeline-entry">
     <div class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</div>
     {% if cert.issuer or cert.identifier or cert.date %}
     <div class="entry-meta">{{ cert.issuer }}{% if cert.issuer and cert.identifier %} · {% endif %}{{ cert.identifier }}{% if cert.date %} · {{ cert.date }}{% if cert.expiry_date %} - {{ cert.expiry_date }}{% endif %}{% endif %}</div>
