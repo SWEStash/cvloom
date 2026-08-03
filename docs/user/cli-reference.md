@@ -10,6 +10,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 
 ## Table of Contents
 
+- [Global options](#global-options)
 - [build](#build)
 - [check](#check)
 - [trim](#trim)
@@ -23,6 +24,33 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [list-profiles](#list-profiles)
 - [list-templates](#list-templates)
 - [ai](#ai)
+
+---
+
+## Global options
+
+These sit before the subcommand, not after it.
+
+| Flag | Short | Default | Description |
+|---|---|---|---|
+| `--verbose` | `-v` | off | Print the full traceback when a command fails |
+| `--version` | | | Print the installed version and exit |
+
+When a command fails, cvloom prints a single-line message rather than a Python
+traceback — a mistyped profile name or a missing `data/` directory is not a bug
+report:
+
+```bash
+$ cvloom export --format json-resume --profile backned
+Error: Profile not found: backned. Available profiles: backend, general
+Re-run with --verbose to see the full traceback.
+```
+
+Use `--verbose` when the message is not enough, or when filing an issue:
+
+```bash
+cvloom --verbose export --format json-resume --profile backned
+```
 
 ---
 

@@ -149,7 +149,20 @@ def load_data(
 
 
 def load_profile(profile_path: Path) -> dict[str, Any]:
-    """Load and return a build profile YAML file."""
+    """Load and return a build profile YAML file.
+
+    A missing profile is nearly always a typo or a wrong working directory, so the
+    error names the profiles that *do* exist alongside it rather than only the path
+    that does not.
+    """
     if not profile_path.exists():
-        raise FileNotFoundError(f"Profile not found: {profile_path}")
+        available = sorted(p.stem for p in profile_path.parent.glob("*.yaml"))
+        if available:
+            hint = f"Available profiles: {', '.join(available)}"
+        else:
+            hint = (
+                f"No profiles found in {profile_path.parent}/ — "
+                "run `cvloom init` from your project directory to scaffold one."
+            )
+        raise FileNotFoundError(f"Profile not found: {profile_path.stem}. {hint}")
     return _load_yaml(profile_path) or {}

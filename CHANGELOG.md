@@ -9,6 +9,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A global `--verbose` flag, and no more tracebacks for ordinary mistakes.** A failing
+  command now prints one line — `Error: Profile not found: backned. Available profiles:
+  backend, general` — instead of a Python traceback, and a missing profile names the ones
+  that do exist. `cvloom --verbose <command>` puts the traceback back for bug reports.
+
+  Handled on the Click group rather than per-command, so a command cannot forget it:
+  `export` was the one command that never wrapped its own resolve call, which is exactly
+  why it was the one that dumped a raw `FileNotFoundError` at the terminal.
+
 ### Fixed
 
 - **`cv/timeline-clean`: the dot sits on the timeline, not beside and under it.** The line was

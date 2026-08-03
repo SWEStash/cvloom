@@ -428,3 +428,64 @@ def test_safe_template_says_nothing(capsys: pytest.CaptureFixture[str]) -> None:
 
     _warn_template_parse_risk("cv/ats-clean")
     assert capsys.readouterr().out == ""
+
+
+# ── error reporting ──────────────────────────────────────────────────
+
+
+def test_unknown_profile_reports_an_error_not_a_traceback(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A mistyped profile name is the user's to fix, so it gets a message.
+
+    `export` was the one command that never wrapped its own resolve call, and so
+    printed a raw FileNotFoundError traceback at the terminal. The handling now
+    lives on the group, where a command cannot forget it.
+    """
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["export", "--format", "json-resume", "--profile", "nope"])
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "Profile not found: nope" in result.output
+
+
+def test_unknown_profile_names_the_ones_that_exist(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["export", "--format", "json-resume", "--profile", "nope"])
+    assert "general" in result.output
+
+
+def test_verbose_restores_the_traceback(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["--verbose", "export", "--format", "json-resume", "--profile", "nope"]
+    )
+    assert result.exit_code == 1
+    assert "FileNotFoundError" in result.output
+
+
+def test_error_message_points_at_the_verbose_flag(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["export", "--format", "json-resume", "--profile", "nope"])
+    assert "--verbose" in result.output
+
+
+def test_a_command_that_succeeds_is_untouched(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The handler must not swallow or reword a normal run."""
+    monkeypatch.chdir(project_root)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["list-profiles"])
+    assert result.exit_code == 0
+    assert "Error:" not in result.output
