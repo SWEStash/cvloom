@@ -462,3 +462,44 @@ def test_docx_uses_one_typeface(tmp_path: Path) -> None:
     doc = docx.Document(str(out))
     used = {p.style.font.name for p in doc.paragraphs if p.text.strip()}
     assert used == {"Arial"}, f"DOCX mixes typefaces: {used}"
+
+
+# ── section_titles overrides reach the exports ───────────────────────
+
+
+def test_markdown_honours_a_profile_section_title() -> None:
+    """The exports are the same document as the PDF, so they carry its wording.
+
+    A profile that renames a heading was overridden in the HTML and silently
+    reverted to the registry default in Markdown and DOCX.
+    """
+    resolved = dataclasses.replace(
+        _make_resolved(), section_titles={"work": "Professional Experience"}
+    )
+    md = to_markdown(resolved)
+    assert "## Professional Experience" in md
+    assert "## Work Experience" not in md
+
+
+def test_markdown_honours_a_summary_title_override() -> None:
+    resolved = dataclasses.replace(_make_resolved(), section_titles={"summary": "About"})
+    md = to_markdown(resolved)
+    assert "## About" in md
+    assert "## Summary" not in md
+
+
+def test_markdown_headings_default_without_overrides() -> None:
+    assert "## Work Experience" in to_markdown(_make_resolved())
+
+
+def test_docx_honours_a_profile_section_title(tmp_path: Path) -> None:
+    docx = pytest.importorskip("docx")
+    out = tmp_path / "cv.docx"
+    resolved = dataclasses.replace(
+        _make_resolved(), section_titles={"work": "Professional Experience", "summary": "About"}
+    )
+    export_docx(resolved, out)
+    texts = [p.text for p in docx.Document(str(out)).paragraphs]
+    assert "Professional Experience" in texts
+    assert "About" in texts
+    assert "Work Experience" not in texts

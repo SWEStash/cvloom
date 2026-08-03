@@ -23,6 +23,29 @@ _SECTION_HEADINGS: dict[str, str] = {
 }
 
 
+def _heading(resolved: ResolvedProfile, key: str, default: str) -> str:
+    """Return the heading for *key*: the profile's override, else *default*.
+
+    The exports are the same document as the PDF in another container, so a profile
+    that heads its skills "Core Competencies" must say that in the DOCX and the
+    Markdown too — both were reading straight from `_SECTION_HEADINGS` and silently
+    reverted to the default wording. Mirrors the `section_title` Jinja global that
+    does this job for the templates.
+    """
+    override = resolved.section_titles.get(key)
+    return str(override) if override else default
+
+
+def _section_heading(resolved: ResolvedProfile, section: str) -> str | None:
+    """As `_heading`, for an entry in `section_order`.
+
+    ``None`` means "not a section these exports render", which is how the callers
+    skip over anything in `section_order` without a heading of its own.
+    """
+    default = _SECTION_HEADINGS.get(section)
+    return None if default is None else _heading(resolved, section, default)
+
+
 def _map_profiles(links: list[dict[str, Any]] | None) -> list[dict[str, str]]:
     """Map ``basics.links`` to JSON Resume ``basics.profiles``.
 
@@ -349,12 +372,19 @@ def to_markdown(resolved: ResolvedProfile) -> str:
         lines += [" | ".join(parts), ""]
 
     if basics.get("summary"):
-        lines += ["---", "", "## Summary", "", str(basics["summary"]), ""]
+        lines += [
+            "---",
+            "",
+            f"## {_heading(resolved, 'summary', 'Summary')}",
+            "",
+            str(basics["summary"]),
+            "",
+        ]
 
     for section in resolved.section_order:
         if not resolved.show_sections.get(section, False):
             continue
-        heading = _SECTION_HEADINGS.get(section)
+        heading = _section_heading(resolved, section)
         if heading is None:
             continue
 
@@ -606,13 +636,13 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
         doc.add_paragraph(" | ".join(parts), style="Subtitle")
 
     if basics.get("summary"):
-        doc.add_heading("Summary", level=1)
+        doc.add_heading(_heading(resolved, "summary", "Summary"), level=1)
         doc.add_paragraph(str(basics["summary"]), style="Body Text")
 
     for section in resolved.section_order:
         if not resolved.show_sections.get(section, False):
             continue
-        heading = _SECTION_HEADINGS.get(section)
+        heading = _section_heading(resolved, section)
         if heading is None:
             continue
 

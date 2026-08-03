@@ -199,6 +199,10 @@ into one voice.
 by each entry's `type` — see
 [Credentials vs coursework](../user/user-guide.md#credentials-vs-coursework).
 
+The overrides follow the content out of the HTML and PDF into the **Markdown and DOCX
+exports**, which are the same document in another container. They do not reach the
+**JSON Resume** export: its section names are fixed by that schema, not chosen by you.
+
 A key outside that list fails validation with the valid list, rather than silently doing
 nothing:
 

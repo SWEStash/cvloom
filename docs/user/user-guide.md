@@ -504,6 +504,14 @@ uv pip install python-docx
 uv sync --extra docx
 ```
 
+The `docx` is the **ATS-upload artifact**, not a Word rendering of your template. It
+carries the content, the reading order, real Word styles (`Title`, `Heading 1`,
+`List Bullet`, one typeface) and your `section_titles` — but not a template's design.
+The sidebar band of `cv/sidebar-compact` and the rule-and-dot of `cv/timeline-clean` are
+page-layout devices, and the only way to express them in Word is with text boxes and
+tables, which are the constructs that make a document parse badly. Send the PDF when a
+human reads it and the DOCX when a parser does.
+
 The `linkedin` format warns if your About section exceeds LinkedIn's 2600-character limit.
 
 ### JSON Resume conformance and extensions

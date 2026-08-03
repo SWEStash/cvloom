@@ -54,6 +54,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
   and 12mm in print, applied per column, so the name and the summary did not line up and the
   screen preview did not match the PDF.
 
+- **Markdown and DOCX exports honour a profile's `section_titles`.** A profile that heads its
+  skills "Core Competencies" said so in the HTML and PDF and then silently reverted to the
+  registry default in both exports. The `summary` heading is overridable there too, matching
+  the templates. JSON Resume is unaffected — its section names are fixed by that schema.
+
 ### Changed
 
 - **`base.html.j2` no longer knows its subclasses.** It was styling `.timeline-entry` in
@@ -87,7 +92,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `docs/dev/custom-templates.md` also gains **Decorations That Do Not Survive Every PDF Viewer**:
   draw hairlines as a solid fill rather than a gradient, and never use `position` to place a
   decoration. Both rules cost a release to learn.
-
+- `docs/user/cli-reference.md` gains a **Global options** section covering `--verbose` and
+  the new error format, and states what the DOCX export does and does not carry — also
+  covered in `docs/user/user-guide.md`.
 
 - **Dates no longer sit in a right-hand column.** Every template except
   `cv/sidebar-compact` now runs the date inline on the entry's meta line —

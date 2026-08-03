@@ -400,6 +400,19 @@ cvloom export [OPTIONS]
 | `linkedin` | `dist/<profile>.linkedin.txt` |
 | `docx` | `dist/<profile>.resume.docx` |
 
+### What the DOCX carries
+
+The DOCX is the **ATS-upload artifact**, not a Word rendering of your template. It
+carries the content, the reading order and real Word semantics — `Title`,
+`Subtitle`, `Heading 1`/`Heading 2`, `Body Text`, `List Bullet`, one typeface — and
+it honours the profile's `section_titles`. It deliberately does **not** reproduce a
+template's design: the sidebar band of `cv/sidebar-compact` and the rule-and-dot of
+`cv/timeline-clean` are page-layout devices, and the only way to express them in
+Word is with text boxes and tables, which are exactly the constructs that make a
+document parse badly. See [ATS readiness](../reference/ats-readiness.md).
+
+Use the PDF when a human reads it and the DOCX when a parser does.
+
 ### Examples
 
 ```bash
