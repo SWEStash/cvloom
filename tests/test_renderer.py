@@ -129,6 +129,103 @@ def test_render_modern_single_template() -> None:
     assert "Languages" in html
 
 
+def test_modern_single_prefixes_each_link_with_its_icon() -> None:
+    """The icon is additive: the URL stays the anchor's visible text."""
+    html = render_template("cv/modern-single", _FULL_CONTEXT)
+    assert 'class="contact-icon contact-icon-linkedin"' in html
+    assert 'class="contact-icon contact-icon-github"' in html
+    assert ">linkedin.com/in/jane</a>" in html
+    assert ">github.com/jane</a>" in html
+
+
+def test_modern_single_marks_every_contact_field() -> None:
+    """Every field carries a mark; one bare value between marked ones reads as a bug."""
+    html = render_template("cv/modern-single", _FULL_CONTEXT)
+    assert 'class="contact-icon contact-icon-envelope"' in html
+    assert 'class="contact-icon contact-icon-phone"' in html
+    assert 'class="contact-icon contact-icon-globe-americas"' in html
+    assert "contact-icon-telephone" not in html
+    assert "contact-icon-geo-alt" not in html
+
+
+def test_modern_single_keeps_each_mark_welded_to_its_value() -> None:
+    """A mark stranded at the end of a line, its value on the next, reads as a bug.
+
+    `nowrap` on the field spans also keeps each value whole, which is the same
+    property `test_contact_fields_survive_extraction_intact` asserts of the PDF:
+    a URL wrapped mid-token comes back out of the text layer as two tokens.
+
+    The line must still wrap *between* fields, so the rule goes on the span and not
+    on `.contact-line`. Break opportunities live in the whitespace the template
+    leaves between spans, which is outside them and so unaffected.
+    """
+    html = render_template("cv/modern-single", _FULL_CONTEXT)
+    assert re.search(r"\.contact-line span\s*\{[^}]*white-space:\s*nowrap", html)
+    assert not re.search(r"\.contact-line\s*\{[^}]*white-space:\s*nowrap", html)
+    # The separator must stay breakable, or the nowrap above makes the whole line
+    # one box: it then overflows the page and poppler drops the last field.
+    assert re.search(
+        r"\.contact-line span \+ span::before\s*\{[^}]*white-space:\s*normal", html, re.S
+    )
+
+
+def test_modern_single_contact_icons_reach_the_printed_page() -> None:
+    """They print deliberately: no media query may hide them.
+
+    An earlier revision suppressed them in print because the gap each icon opens
+    fragments the contact line under pdfminer and poppler. That cost grouping, not
+    content — every address still extracts whole — so the marks now print, and
+    `test_contact_fields_survive_extraction_intact` guards what actually matters.
+    """
+    html = render_template("cv/modern-single", _FULL_CONTEXT)
+    blocks = re.findall(r"@media print \{(.*?)\n\}", html, re.S)
+    assert not any(re.search(r"\.contact-icon\s*\{[^}]*display:\s*none", b) for b in blocks)
+
+
+_ICON_TEMPLATES = [
+    "cv/modern-single",
+    "cv/timeline-clean",
+    "cv/executive-dark",
+    "cv/sidebar-compact",
+]
+
+
+@pytest.mark.parametrize("template", _ICON_TEMPLATES)
+def test_every_designed_template_marks_its_contact_fields(template: str) -> None:
+    html = render_template(template, _FULL_CONTEXT)
+    for mark in ("envelope", "phone", "globe-americas", "linkedin", "github"):
+        assert f'contact-icon contact-icon-{mark}"' in html, f"{template} lacks {mark}"
+
+
+@pytest.mark.parametrize("template", [t for t in _ICON_TEMPLATES if t != "cv/sidebar-compact"])
+def test_single_line_contact_rows_weld_each_mark_to_its_value(template: str) -> None:
+    """`sidebar-compact` is excluded: its values carry `word-break: break-all` for a
+    190px column, which is the opposite instruction and wins where they disagree."""
+    html = render_template(template, _FULL_CONTEXT)
+    assert re.search(r"\.contact-(line|row) span\s*\{[^}]*white-space:\s*nowrap", html)
+
+
+def test_executive_dark_lifts_its_contact_icons_off_the_band() -> None:
+    """A literal fill, because WeasyPrint resolves no CSS against an inline SVG.
+
+    `currentColor`, a `color` declaration on `.contact-icon` and a `fill`
+    declaration were each measured and each ignored — the path paints black, which
+    is invisible on the carbon band in the PDF while the HTML looked correct.
+
+    The anchors need their own rule for a different reason: base scopes its
+    header-link colour to `.contact-line`, and this header is a `.contact-row`.
+    """
+    html = render_template("cv/executive-dark", _FULL_CONTEXT)
+    assert 'fill="#f4f5f6"' in html
+    assert re.search(r"\.contact-row a\s*\{[^}]*color:\s*inherit", html)
+
+
+def test_ats_clean_stays_free_of_icons() -> None:
+    """The strictest template keeps a text-only contact line by design."""
+    html = render_template("cv/ats-clean", _FULL_CONTEXT)
+    assert "contact-icon" not in html
+
+
 def test_render_academic_template() -> None:
     html = render_template("cv/academic", _FULL_CONTEXT)
     assert "Jane" in html

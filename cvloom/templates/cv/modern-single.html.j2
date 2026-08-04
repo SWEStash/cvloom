@@ -7,11 +7,6 @@
 
 {% block css_vars %}
 :root {
-  /* Desaturated slate, arrived at from violet-600 via indigo-700 — both of which
-     were still bright enough to be the first thing on the page. Slate reads as ink
-     with a temperature rather than as a colour, which is the point: the hierarchy
-     should come from weight and rules, not from hue competing with the text. It
-     also clears ~7:1 on white, so it survives a tired office laser printer. */
   --accent: #4a5568;
   --font-body: Lato, Calibri, Arial, Helvetica, sans-serif;
 }
@@ -26,54 +21,30 @@
 }
 .header h1 { font-size: 22pt; color: var(--accent); margin-bottom: 0.4em; font-weight: 900; }
 .header .headline { font-size: 12pt; color: var(--text); margin-bottom: 6px; }
-/* Plain pipe-separated contact line. The rounded coloured pills this replaces
-   were the one element a recruiter recognises on sight as drag-and-drop builder
-   output, and they cost more attention than the addresses inside them earn. */
 .contact-line { font-size: 9pt; color: var(--muted); }
-/* Separators come from CSS, not from the markup. Emitting a literal `|` before
-   each field assumes the fields before it rendered — under `--public`, where
-   email/phone/location are dropped entirely, the line opened with a dangling
-   separator. An adjacent-sibling rule can only match a span that actually has a
-   span before it. */
-.contact-line span + span::before { content: " | "; color: var(--accent); }
+/* `white-space: normal` is required: the fields are `nowrap` below and Jinja
+   leaves no whitespace between the spans, so this pseudo-element carries every
+   soft wrap opportunity on the line. See docs/reference/ats-readiness.md. */
+.contact-line span + span::before {
+  content: " · "; color: var(--accent); white-space: normal;
+}
+.contact-icon { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 0.3em; }
+.contact-line span { white-space: nowrap; }
 .section-title {
   font-size: 11pt; text-transform: uppercase; letter-spacing: .06em;
   color: var(--accent); font-weight: 700;
   border-bottom: 1.5px solid var(--accent); padding-bottom: 2px; margin: 14px 0 6px;
 }
 .entry { margin-bottom: 10px; }
-/* Certifications are two short lines each, so the 10px built for a job entry with
-   five bullets under it reads as a gap rather than as separation. */
 .entry.compact { margin-bottom: 4px; }
 .entry-title { font-weight: 700; font-size: 10.5pt; }
 .entry-org { color: var(--accent); font-weight: 700; }
 .entry-meta { color: var(--muted); font-size: 9pt; margin-bottom: 3px; }
 
-/* One grid for every category, so the labels share a column edge instead of each
-   row starting wherever its own label happens to end. The tag-chip grid this
-   replaces put each skill in its own bordered box: it turned a 40-word list into
-   half a page, and a chip is a box an extractor can pull out of reading order.
-   A labelled comma list is what parses most reliably and what reads fastest. */
 .skills-list { margin-bottom: 2px; }
-/* An aligned label column and single-line text extraction cannot both be had: the
-   whitespace that does the aligning is exactly what an extractor reads as a column
-   boundary, so a short label like `Networking` comes back on its own line ahead of
-   its values. The pairing survives as reading order rather than as adjacency, which
-   is the trade the design-led templates make and `cv/ats-clean` does not — it runs
-   `Category: items` ragged and inline, and extracts as one line every time.
-   `vertical-align: top` gives a label that wraps a hanging indent rather than
-   pushing its own values down. */
-/* A table row, for the same reason the entry header is one: two inline-blocks
-   sitting side by side are only implicitly one line, and pypdf resolved that
-   implication differently from pdftotext — a value at the wrap point drifted out
-   of its own category's run. Table cells state the relationship outright, and both
-   extractors then emit `category` immediately followed by all of its values.
-
-   The colon after the label is a separator, not decoration. The gap between the
-   columns is padding, and padding puts no character in the text stream — so when a
-   label fills its cell, pypdf emitted `CLOUDOPSSV01i0`, fusing the category and its
-   first skill into a single unsearchable token. A colon guarantees a separator that
-   every tokeniser splits on, whatever the label's width. */
+/* A table row, not two inline-blocks: cells state the line relationship outright
+   so extractors keep a category with its values. The colon after the label is a
+   required separator, not decoration. See docs/reference/ats-readiness.md. */
 .skill-row { display: table; width: 100%; margin-bottom: 3px; font-size: 9.5pt; }
 .skill-category {
   display: table-cell;
@@ -230,15 +201,19 @@
 } %}
 
 {% block body %}
+{# The icon fill is a literal: an SVG presentation attribute cannot read a CSS
+   variable, and WeasyPrint resolves no CSS against an inline SVG. Keep in step
+   with `--muted`. #}
+{% set icon_fill = "#6b7280" %}
 <!-- HEADER -->
 <div class="header">
   <h1>{{ contact.name }}</h1>
   <div class="headline">{{ basics.headline }}</div>
   <div class="contact-line">
-    {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
-    {% if contact.phone is defined %}<span>{{ contact.phone }}</span>{% endif %}
-    {% if contact.location is defined %}<span>{{ contact.location }}</span>{% endif %}
-    {% for link in basics.links | default([]) %}<span>{{ link | link_anchor }}</span>{% endfor %}
+    {% if contact.email is defined %}<span>{{ icon("envelope", icon_fill) }}{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined %}<span>{{ icon("phone", icon_fill) }}{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span>{{ icon("globe-americas", icon_fill) }}{{ contact.location }}</span>{% endif %}
+    {% for link in basics.links | default([]) %}<span>{{ link | link_icon(icon_fill) }}{{ link | link_anchor }}</span>{% endfor %}
   </div>
 </div>
 

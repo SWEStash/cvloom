@@ -217,6 +217,62 @@ tokeniser splits on regardless of how wide the label is.
 column. Not because alignment is unsafe any more, but because those two are the templates
 whose whole purpose is to hold under content shapes nobody measured.
 
+## Contact icons
+
+Four of the design-led templates put a small mark beside each contact field — envelope,
+smartphone, globe, and the LinkedIn/GitHub/website marks. The mark is derived from the URL,
+not authored in `basics.yaml`: `links.network_of()` already answers which network a URL
+belongs to, and a hand-written `icon:` field would be a second answer nothing could validate
+against the first. An unrecognised host gets the generic web mark.
+
+They are inline SVG, and that is the only form that works. An emoji or an icon-font glyph is
+a character, so an extractor reads it as part of the address next to it, and an icon font's
+Private Use Area codepoints come back as garbage — it would also drag a network dependency
+into templates that currently need none. An SVG path is geometry and puts nothing in the
+text layer at all.
+
+**What they cost is grouping.** Each mark opens about 1.25em of blank space inside the
+contact line, and pdfminer and poppler read a gap that size as a box boundary — the same
+effect the right-aligned dates had. The contact line therefore comes back out of the PDF as
+several boxes rather than one, sometimes ordered differently than it was written. Every
+address, the email and the phone still extract as one uninterrupted token, which is what a
+keyword search matches on, so the trade is grouping for legibility. Painting the mark as a
+CSS background rather than an inline element fragments identically, so it is the gap and not
+the element that does it, and no markup buys it back.
+
+**Two templates are excluded, for different reasons.** `cv/ats-clean` stays text-only
+because conservatism is its whole purpose. `cv/academic` centres its contact line, and the
+centring turns the fragmentation into something worse: six stacked boxes with symmetric side
+gaps trip poppler's column detector outright, and the template measures `caution` instead of
+`safe`. Shrinking the mark does not help, because the gap exists at any size. A template
+whose rating an ornament would cost does not get the ornament.
+
+**`cv/executive-dark` carries one caveat.** With marks present, poppler emits one contact
+field after the first work entry rather than in the header. The value is intact and
+parseable, it is simply displaced. Removing the flex layout from its header does not fix
+this — it only changes which field moves — so this too is the gap rather than the layout.
+
+**The fields are `white-space: nowrap`, and the separator is deliberately exempt.** A mark
+left at the end of a line with its address on the next reads as a rendering bug, and a URL
+wrapped mid-token comes back out of the text layer as two tokens. But Jinja leaves no
+whitespace between the field spans, so the separator's pseudo-element carries every soft
+wrap opportunity on the line: without the exemption the whole contact line becomes one
+unbreakable box, the last field renders off the right edge of the page, and poppler drops it
+entirely. The visible cost is that a wrapped contact line opens with the separator. Gluing
+the separator to the preceding field with a non-breaking space costs the trailing space its
+break opportunity in WeasyPrint and puts the overflow back.
+
+`cv/sidebar-compact` is the exception to the `nowrap`: its values carry
+`word-break: break-all` for a 190px column, which is the opposite instruction and wins.
+
+## Separators in the conservative templates
+
+`cv/ats-clean` and `cv/academic` use an ASCII `|` between contact fields where the
+design-led templates use a middot. Every separator extracts cleanly from a WeasyPrint PDF,
+so this is not about extraction — a non-ASCII glyph depends on the embedded font subset
+carrying it, and these are the two templates whose purpose is to hold under conditions
+nobody measured. `tests/test_renderer.py` enforces it.
+
 ## Multi-page behaviour
 
 All six templates are single-*column*, not single-*page*. Measured on a 17-page

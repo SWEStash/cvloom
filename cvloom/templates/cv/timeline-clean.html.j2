@@ -37,12 +37,10 @@
   color: var(--muted);
   margin-bottom: 4px;
 }
-/* Separators come from CSS, not from the markup. Emitting a literal `|` before
-   each field assumes the fields before it rendered — under `--public`, where
-   email/phone/location are dropped entirely, the line opened with a dangling
-   separator. An adjacent-sibling rule can only match a span that actually has a
-   span before it. */
-.contact-line span + span::before { content: " | "; }
+.contact-line span + span::before { content: " · "; white-space: normal; }
+.contact-icon { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 0.3em; }
+.contact-line span { white-space: nowrap; }
+
 
 .section-title {
   font-size: 9pt;
@@ -61,34 +59,17 @@
 
 /* Timeline entries for work and education */
 .timeline-section { margin-left: 10px; }
-/* The line is a `border-left`, and the dot is a background on the entry's own
-   title — not the other way round, and not a positioned pseudo-element.
-
-   Three constraints meet here, and each one rules out the obvious answer:
+/* The line is a `border-left`; the dot is a background on the entry's first
+   child. Three constraints, each ruling out the obvious alternative:
 
    1. Nothing may be positioned. `position: relative` on the entry makes it a
-      positioned box, and positioned boxes paint in a later pass than in-flow
-      content — which put the whole timeline *after* the sections that follow it
-      in the content stream, so SKILLS and EDUCATION extracted from the middle of
-      the work history. Invisible on the page, fatal to a parser.
-
-   2. The line must be a solid fill, not a gradient. Drawn as a background layer
-      it reached the PDF as a full-page axial shading inside a transparency group,
-      whose visible 2px is nothing but alpha in the colour function. Poppler
-      resolves that; other viewers rasterize the soft mask coarsely and a 2px
-      feature disappears entirely — the line rendered here and was missing in
-      Preview and in Chrome's viewer, which reads as "the template is broken".
-      A border is emitted as a plain filled rectangle and has no such failure mode.
-
-   3. The dot must paint *after* the line, or the line swallows it. A border paints
-      over its own element's background, so the dot cannot live on the entry. It
-      lives on the entry's first child instead: in-flow descendants' backgrounds
-      paint after the parent's border, and the negative margin is what lets that
-      child reach back over a border that sits outside its own content box. The
-      matching padding puts the text back where it was, so extraction is unchanged.
-
-   The dot stays a radial gradient — same shading machinery as (2), but an opaque
-   circle survives a coarse mask where a 2px line does not. */
+      positioned box, which paints in a later pass — the whole timeline then
+      extracts *after* the sections that follow it in the content stream.
+   2. The line must be a solid fill, not a gradient: as a background layer it
+      reaches the PDF as an axial shading whose visible 2px is alpha, and viewers
+      that rasterize the soft mask coarsely drop it entirely.
+   3. The dot must paint after the line. A border paints over its own element's
+      background, so the dot lives on the child, whose background paints later. */
 .timeline-entry {
   padding-left: 22px;
   border-left: 2px solid var(--timeline-line);
@@ -99,23 +80,11 @@
   border-left-color: transparent;
   padding-bottom: 0;
 }
-/* Both offsets are the same trick in two axes: pull the title's box out past the
-   entry's edge with a negative margin, then push its text back with an equal
-   padding, so the dot can be painted somewhere the text never goes.
-
-   Horizontally, -28px reaches 4px past the entry's border box, putting the border's
-   centre at x=5px in the title's coordinates — the dot's full 4px radius then fits
-   inside the child and is never clipped.
-
-   Vertically, -6px lifts the dot to 3px below the entry's top edge, which is where
-   its border starts. Without it the dot sat at 9px: the border began 9px above one
-   dot and ended 9px above the *next*, so the rule ran between the entries instead of
-   joining them, visibly floating clear of both marks. 3px is inside the dot's own 4px
-   radius, so each segment's ends are covered by the dots they run to and the line
-   reads as continuous — while the dot still sits level with its title rather than
-   riding above it, which is where a flush 0px offset would put it. The transparent
-   border on `:last-child` stops the line at the final dot rather than trailing past
-   it. Changing the dot's `9px` here means changing this offset by the same amount. */
+/* Negative margin pulls the title's box past the entry's edge, equal padding
+   pushes its text back, so the dot paints where the text never goes. -28px puts
+   the border's centre at x=5px so the dot's 4px radius is not clipped; -6px puts
+   the dot 3px below the entry's top edge, inside its own radius, so segments read
+   as continuous. Changing the dot's `9px` means changing this offset to match. */
 .timeline-entry > .entry-title {
   margin-left: -28px;
   padding-left: 28px;
@@ -132,25 +101,9 @@
    width, so the values restarted at a different x on each row and in both columns
    at once — sixteen ragged left edges, reading as scatter rather than a list. */
 .skills-list { margin-bottom: 2px; }
-/* An aligned label column and single-line text extraction cannot both be had: the
-   whitespace that does the aligning is exactly what an extractor reads as a column
-   boundary, so a short label like `Networking` comes back on its own line ahead of
-   its values. The pairing survives as reading order rather than as adjacency, which
-   is the trade the design-led templates make and `cv/ats-clean` does not — it runs
-   `Category: items` ragged and inline, and extracts as one line every time.
-   `vertical-align: top` gives a label that wraps a hanging indent rather than
-   pushing its own values down. */
-/* A table row, for the same reason the entry header is one: two inline-blocks
-   sitting side by side are only implicitly one line, and pypdf resolved that
-   implication differently from pdftotext — a value at the wrap point drifted out
-   of its own category's run. Table cells state the relationship outright, and both
-   extractors then emit `category` immediately followed by all of its values.
-
-   The colon after the label is a separator, not decoration. The gap between the
-   columns is padding, and padding puts no character in the text stream — so when a
-   label fills its cell, pypdf emitted `CLOUDOPSSV01i0`, fusing the category and its
-   first skill into a single unsearchable token. A colon guarantees a separator that
-   every tokeniser splits on, whatever the label's width. */
+/* A table row, not two inline-blocks: cells state the line relationship outright
+   so extractors keep a category with its values. The colon after the label is a
+   required separator, not decoration. See docs/reference/ats-readiness.md. */
 .skill-row { display: table; width: 100%; margin-bottom: 3px; font-size: 9pt; }
 .skill-category {
   display: table-cell;
@@ -323,15 +276,19 @@
 } %}
 
 {% block body %}
+{# The icon fill is a literal: an SVG presentation attribute cannot read a CSS
+   variable, and WeasyPrint resolves no CSS against an inline SVG. Keep in step
+   with `--muted`. #}
+{% set icon_fill = "#6b7280" %}
 <!-- HEADER -->
 <div class="header">
   <h1>{{ contact.name }}</h1>
   <div class="headline">{{ basics.headline }}</div>
   <div class="contact-line">
-    {% if contact.email is defined %}<span>{{ contact.email }}</span>{% endif %}
-    {% if contact.phone is defined %}<span>{{ contact.phone }}</span>{% endif %}
-    {% if contact.location is defined %}<span>{{ contact.location }}</span>{% endif %}
-    {% for link in basics.links | default([]) %}<span>{{ link | link_anchor }}</span>{% endfor %}
+    {% if contact.email is defined %}<span>{{ icon("envelope", icon_fill) }}{{ contact.email }}</span>{% endif %}
+    {% if contact.phone is defined %}<span>{{ icon("phone", icon_fill) }}{{ contact.phone }}</span>{% endif %}
+    {% if contact.location is defined %}<span>{{ icon("globe-americas", icon_fill) }}{{ contact.location }}</span>{% endif %}
+    {% for link in basics.links | default([]) %}<span>{{ link | link_icon(icon_fill) }}{{ link | link_anchor }}</span>{% endfor %}
   </div>
 </div>
 

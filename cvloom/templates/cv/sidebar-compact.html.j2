@@ -18,17 +18,8 @@
 
 {% block css_extra %}
 /* Two-column sidebar layout */
-/* CSS table, not CSS grid. WeasyPrint's grid fragmentation across page breaks is
-   superlinear in page count: on a 60-entry CV this template took 69s to build
-   against ~6s for the single-column ones, and it kept getting worse with length —
-   long enough on a full CV to look like the build had hung. The same two columns
-   expressed as a table fragment in 6.5s. Anonymous table boxes also make the
-   column widths independent of any grid track sizing, so the layout is unchanged.
-
-   `min-height: 100vh` used to stretch the sidebar band down the first page. It is
-   gone: it was not what made the sidebar full-height (the table cell already does
-   that), and vh units in paged media resolve against the page box, which pinned a
-   minimum height onto a fragment that then had to be re-laid out. */
+/* CSS table, not CSS grid: WeasyPrint's grid fragmentation across page breaks is
+   superlinear in page count (69s vs 6.5s on a 60-entry CV). Do not convert. */
 .layout {
   display: table;
   table-layout: fixed;
@@ -41,15 +32,7 @@
   vertical-align: top;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
-  /* 12px each side, matching the print rule below. This was 14mm on the left —
-     about 53px — which is the inset the band needs to clear the *page* edge, not
-     the inset its own text needs. On screen the negative margin already pulls the
-     band flush, so that 14mm landed on the text instead and pushed the whole
-     sidebar column visibly right. The PDF was unaffected, which is why it survived:
-     print overrides this padding entirely. */
-  /* The top inset is 8mm here and on `.main`, in both media. The two columns are
-     table cells sharing a top edge, so any difference between them reads as the
-     name and the summary being misaligned rather than as breathing room. */
+  /* Keep in step with `.main`: the two columns share a top edge. */
   padding: 8mm 12px 12mm 12px;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
@@ -94,16 +77,8 @@
   color: var(--sidebar-text);
   word-break: break-all;
 }
-/* An anchor in the band takes the band's colour, not `--accent`, which is the teal
-   the band is painted in and would be invisible on it. Base states this for the
-   shared `.contact-line` header; this container is ours, so the rule is ours. */
 .sidebar .contact-list a { color: inherit; }
-/* Skills stack label-over-values, not one bordered chip per skill. In a 190px
-   column a chip grid wraps after two or three items, so every skill costs most of
-   a line and a fifteen-category list ran for pages; the borders also drew a box
-   around each individual word, which is a lot of ink spent on no information. A
-   comma list in the same column is roughly a third of the height. Stacked rather
-   than side-by-side because there is no room here for a label column. */
+.sidebar .contact-icon { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 0.3em; }
 .sidebar .skill-group { margin-bottom: 5px; break-inside: avoid; page-break-inside: avoid; }
 .sidebar .skill-group-title {
   font-weight: 700;
@@ -116,19 +91,11 @@
   color: var(--sidebar-muted);
   line-height: 1.3;
 }
-/* Proficiency bars, on the one template where they cost nothing.
-   `skill_level_bar` renders an empty span: the level is carried by a CSS class, so
-   there is no text in the PDF and no parser can read it. That rules it out of the
-   five templates meant to survive extraction — but this one is already rated unsafe
-   for a reason no styling fixes, so a decorative bar takes nothing away from it.
-   Only mapping items with a `level` render one; a plain string skill renders none.
-   The base rules use --border and --accent, neither of which reads on the band. */
+/* `skill_level_bar` renders an empty span carrying the level in a CSS class, so
+   it puts no text in the PDF. Only items with a `level` render one. */
 .sidebar .skill-level { width: 26px; height: 4px; background: rgba(255, 255, 255, 0.25); }
 .sidebar .skill-level::after { background: var(--sidebar-text); }
-/* A skill and its bar are one unit. In a comma list the bar is just another inline
-   box, so a name landing near the column edge left its bar stranded at the start of
-   the next line, reading as the bar of the skill that follows it. The line may still
-   break after the comma, which sits outside the span. */
+/* A skill and its bar are one unit; the line breaks after the comma instead. */
 .sidebar .skill-item { white-space: nowrap; }
 .sidebar .entry { margin-bottom: 8px; }
 .sidebar .entry-title { font-weight: 700; font-size: 9pt; }
@@ -167,15 +134,8 @@
 
 @media print {
   .layout { margin: 0; }
-  /* The teal band survives into the PDF. This block used to repaint the sidebar
-     #f3f4f6 with black text, which meant the designed look existed only in the
-     HTML preview and every actual PDF came out grey — the artefact nobody sees is
-     the one that was styled. This template is already rated unsafe for parsing, so
-     it is the one place in the set where the design gets to win outright.
-
-     `box-decoration-break: clone` is what puts padding back on pages two and
-     three. A fragmented box otherwise draws its padding only at the very start and
-     the very end, so continuation pages had text sitting flush against the band. */
+  /* `box-decoration-break: clone` restores padding on continuation pages: a
+     fragmented box otherwise draws it only at the very start and end. */
   .sidebar {
     padding: 8mm 12px 12mm 12px;
     box-decoration-break: clone;
@@ -350,6 +310,10 @@
 } %}
 
 {% block body %}
+{# The icon fill is a literal: an SVG presentation attribute cannot read a CSS
+   variable, and WeasyPrint resolves no CSS against an inline SVG. Keep in step
+   with `--sidebar-text`. #}
+{% set icon_fill = "#ffffff" %}
 <div class="layout">
   <!-- SIDEBAR -->
   <aside class="sidebar">
@@ -358,10 +322,10 @@
 
     <h2 class="section-title">{{ section_title("contact", "Contact") }}</h2>
     <ul class="contact-list">
-      {% if contact.email is defined %}<li><span class="contact-label">Email</span><span class="contact-value">{{ contact.email }}</span></li>{% endif %}
-      {% if contact.phone is defined %}<li><span class="contact-label">Phone</span><span class="contact-value">{{ contact.phone }}</span></li>{% endif %}
-      {% if contact.location is defined %}<li><span class="contact-label">Location</span><span class="contact-value">{{ contact.location }}</span></li>{% endif %}
-      {% for link in basics.links | default([]) %}<li><span class="contact-label">{{ link.label }}</span><span class="contact-value">{{ link | link_anchor }}</span></li>{% endfor %}
+      {% if contact.email is defined %}<li><span class="contact-label">{{ icon("envelope", icon_fill) }}Email</span><span class="contact-value">{{ contact.email }}</span></li>{% endif %}
+      {% if contact.phone is defined %}<li><span class="contact-label">{{ icon("phone", icon_fill) }}Phone</span><span class="contact-value">{{ contact.phone }}</span></li>{% endif %}
+      {% if contact.location is defined %}<li><span class="contact-label">{{ icon("globe-americas", icon_fill) }}Location</span><span class="contact-value">{{ contact.location }}</span></li>{% endif %}
+      {% for link in basics.links | default([]) %}<li><span class="contact-label">{{ link | link_icon(icon_fill) }}{{ link.label }}</span><span class="contact-value">{{ link | link_anchor }}</span></li>{% endfor %}
     </ul>
 
     {% for sec in section_order | default(["work", "skills", "education", "projects", "publications", "certifications", "awards", "languages"]) if sec in _sidebar_macros %}

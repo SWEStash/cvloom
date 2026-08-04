@@ -42,17 +42,36 @@ _HEADLINE = "Headline Engineer"
 # Work entries in the fixture; enough that every template runs to several pages.
 _ENTRIES = 16
 
+# The contact line, in distinctive values that can be located in an extracted
+# page. The fixture carried `links: []` and a line short enough never to wrap
+# until contact icons were added, so nothing here measured the contact line at
+# all — see `test_contact_fields_survive_extraction_intact`.
+_LINKS = ("linkhandlealpha", "linkhandlebravo", "linkhandlecharlie")
+# Templates whose contact fields all read back before the first work entry. Once
+# `cv/executive-dark` carries icons, poppler emits one of them after `COMPANY00`
+# instead. Dropping the flex row from its header does not fix that — it only
+# changes which field moves — so it is the gap each icon opens, not the layout.
+# The values stay whole, which is the bar; position is asserted where it holds.
+_HEADER_LOCAL = [t for t in _TEMPLATES if t != "cv/executive-dark"]
+_EMAIL = "firstname.lastname@example.com"
+_PHONE = "+1 (555) 000-0000"
+_LOCATION = "Someplace City, Some Country"
+
 
 def _write_project(root: Path) -> None:
     (root / "data").mkdir()
     (root / "private").mkdir()
     (root / "profiles").mkdir()
     (root / "private" / "contact.yaml").write_text(
-        f'name: {_NAME}\nemail: "t@example.com"\nlocation: "Somewhere"\n'
+        f'name: {_NAME}\nemail: "{_EMAIL}"\nphone: "{_PHONE}"\nlocation: "{_LOCATION}"\n'
     )
     (root / "data" / "basics.yaml").write_text(
         f'headline: "{_HEADLINE}"\n'
-        'summary: "A summary sentence of adequate length here."\nlinks: []\n'
+        'summary: "A summary sentence of adequate length here."\n'
+        "links:\n"
+        f'  - {{label: "LinkedIn", url: "https://linkedin.com/in/{_LINKS[0]}"}}\n'
+        f'  - {{label: "GitHub", url: "https://github.com/{_LINKS[1]}"}}\n'
+        f'  - {{label: "Site", url: "https://{_LINKS[2]}.dev"}}\n'
     )
     # Enough entries, with enough bullets, to run past a page break — the last
     # entry on a page is the one a right-aligned date can corrupt. The page count
@@ -243,6 +262,39 @@ def test_skill_categories_do_not_weld_to_their_values(
 @pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
 @pytest.mark.parametrize("template", _TEMPLATES)
 @pytest.mark.parametrize("engine", _ENGINES)
+def test_contact_fields_survive_extraction_intact(
+    project: Path, template: str, engine: str
+) -> None:
+    """Every contact field reads back whole, and inside the header.
+
+    This is the line that contact icons are allowed to cost nothing against. Each
+    icon opens ~1.25em of blank space, pdfminer and poppler read a gap that size as
+    a box boundary, and the contact line therefore comes back as several boxes —
+    sometimes in a different order than it was written. That is accepted: an ATS
+    matches on the address, and grouping is not the address.
+
+    What is *not* accepted is a field arriving broken. A gap wide enough to split a
+    box is a gap wide enough to split a token, which is how `PAYPAL` became
+    `P AYP AL` elsewhere in this suite — so each address is asserted as one
+    uninterrupted substring, and asserted to land in the header rather than adrift
+    in the work history. Order is deliberately not asserted.
+
+    The fixture carried `links: []` until icons were added, so none of this was
+    measured and a contact-line regression passed every engine in silence.
+    """
+    text = _text(project, template, engine)
+    first_entry = text.index("COMPANY00")
+    for field in (*_LINKS, _EMAIL, _PHONE, _LOCATION):
+        assert field in text, f"{template}/{engine} lost or split {field!r}"
+        if template in _HEADER_LOCAL:
+            assert text.index(field) < first_entry, (
+                f"{template}/{engine} put {field!r} outside the header"
+            )
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("template", _TEMPLATES)
+@pytest.mark.parametrize("engine", _ENGINES)
 def test_no_content_is_lost(project: Path, template: str, engine: str) -> None:
     text = _text(project, template, engine)
     missing = [f"COMPANY{i:02d}" for i in range(_ENTRIES) if f"COMPANY{i:02d}" not in text]
@@ -281,6 +333,19 @@ def test_kern_pairs_do_not_split_words(
     assert not split, f"{template}/{engine} split {split} across a kern pair"
 
 
+def _paints_timeline_rule(pdf_path: Path) -> bool:
+    """True when page 1 fills with `--timeline-line` (#d1d5db) at least once."""
+    pypdf = pytest.importorskip("pypdf")
+    want = tuple(v / 255 for v in (0xD1, 0xD5, 0xDB))
+    page = pypdf.PdfReader(str(pdf_path)).pages[0]
+    stream = page.get_contents().get_data().decode("latin-1")
+    for match in re.finditer(r"([\d.]+) ([\d.]+) ([\d.]+) rg", stream):
+        rgb = tuple(float(g) for g in match.groups())
+        if all(abs(a - b) < 0.02 for a, b in zip(rgb, want)):
+            return True
+    return False
+
+
 def _shading_types(pdf_path: Path) -> set[int]:
     """Return the PDF ShadingType numbers used anywhere in *pdf_path*.
 
@@ -311,8 +376,15 @@ def test_timeline_rule_is_a_solid_fill_not_a_gradient(project: Path) -> None:
     The dots are still radial shadings (type 3): an opaque circle survives a coarse
     mask where a hairline does not.
     """
-    types = _shading_types(_build(project, "cv/timeline-clean"))
+    pdf = _build(project, "cv/timeline-clean")
+    types = _shading_types(pdf)
     assert 2 not in types, (
         "cv/timeline-clean emits an axial shading — the rule is a gradient again, "
         "and will not render in every PDF viewer"
+    )
+    assert _paints_timeline_rule(pdf), (
+        "cv/timeline-clean paints no rule at all. A rule that is simply absent also "
+        "emits no axial shading, so the assertion above passes on a blank page — an "
+        "unterminated CSS comment once swallowed the `border-left` and this test "
+        "stayed green."
     )

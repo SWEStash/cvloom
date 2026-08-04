@@ -11,6 +11,45 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Contact icons in the design-led templates.** Every field in the contact line now renders a
+  small mark beside its value — envelope, smartphone, globe, and the LinkedIn/GitHub/website
+  marks — in `cv/modern-single`, `cv/timeline-clean`, `cv/executive-dark` and
+  `cv/sidebar-compact`. The link mark is derived from the URL through `links.network_of()`
+  rather than from a new `icon:` field in `basics.yaml`, so there is no second source to
+  validate against the first; an unrecognised host gets the globe. Email, phone and location
+  have no URL to derive from and name their mark through a new `icon()` Jinja global, which
+  raises on an unknown name rather than rendering a silent blank.
+
+  Each field is one unbreakable unit (`white-space: nowrap`), so a mark is never stranded at a
+  line end with its value on the next and no value wraps mid-token. The separator is exempt,
+  because it carries every soft wrap opportunity on the line.
+
+  **`cv/ats-clean` and `cv/academic` stay text-only.** `ats-clean` by design; `academic`
+  because its centred contact line turns the marks into six stacked boxes whose symmetric side
+  gaps trip poppler's column detector, dropping the template from `ATS_SAFE` to `ATS_CAUTION`.
+  A template whose rating an ornament would cost does not get the ornament. `cv/executive-dark`
+  carries a lesser caveat: poppler emits one contact field after the first work entry. Every
+  field still extracts as one uninterrupted token on all five engines, which is the bar.
+
+  See docs/reference/ats-readiness.md for the measurements behind all of this. Marks are
+  Bootstrap Icons (MIT).
+
+### Fixed
+
+- **The extraction-fidelity fixture had no profile links at all**, so nothing in the suite
+  measured the contact line and a regression there would have passed every engine in silence.
+  The fixture now carries three links, an email, a phone and a line long enough to wrap, and
+  `test_contact_fields_survive_extraction_intact` asserts every field reads back as one whole
+  token, on all five engines. Order is deliberately not asserted.
+
+### Changed
+
+- **Code comments now carry mechanics, not decisions.** The rationale that had accumulated in
+  template CSS comments and module docstrings — measured extraction findings, palette choices,
+  rejected alternatives — moved to `docs/reference/ats-readiness.md` or was removed. What stays
+  explains non-obvious code or the shape of a file. Tests are untouched: a test's docstring is
+  its specification.
+
 - **A global `--verbose` flag, and no more tracebacks for ordinary mistakes.** A failing
   command now prints one line — `Error: Profile not found: backned. Available profiles:
   backend, general` — instead of a Python traceback, and a missing profile names the ones
