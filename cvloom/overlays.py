@@ -116,8 +116,7 @@ def _apply_entry_overlay(entry: dict[str, Any], overlay: dict[str, Any]) -> None
 def _apply_skills_overlay(data: dict[str, Any], overlay: dict[str, Any]) -> None:
     """Override the items within a skill category.
 
-    Choosing *which* categories appear is selection, not patching, and lives in
-    :mod:`cvloom.select` under ``select.skills``.
+    Choosing which categories appear is selection; see :mod:`cvloom.select`.
     """
     skills: list[dict[str, Any]] = data.get("skills", [])
     if not skills:

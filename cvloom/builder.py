@@ -14,8 +14,7 @@ from cvloom.models import BuildResult, ResolvedProfile
 class ResolveError(Exception):
     """A profile could not be resolved (profile/data validation, missing template).
 
-    Carries the individual error messages so each frontend can present them —
-    the CLI renders them, the MCP server returns them as structured ``details``.
+    Carries the individual error messages so each frontend can present them.
     """
 
     def __init__(self, errors: list[str]) -> None:
@@ -138,8 +137,7 @@ def resolve_project(
     """Resolve a profile using the conventional ``data/``, ``private/``,
     ``profiles/`` layout under a project *root*.
 
-    Thin wrapper over :func:`resolve` that fixes the fixed directory
-    convention so callers don't re-type it.
+    Thin wrapper over :func:`resolve` that fixes the directory convention.
     """
     return resolve(
         data_dir=root / "data",
@@ -181,9 +179,8 @@ def build_project(
 def _pdf_filename(resolved: ResolvedProfile) -> str:
     """Derive the PDF output stem from profile format string or contact name.
 
-    The default carries a ``_<profile>`` suffix: without it every profile
-    resolves to the same contact-derived stem, so building several profiles
-    leaves one PDF and silently overwrites the rest.
+    The default carries a ``_<profile>`` suffix so building several profiles does
+    not overwrite a single contact-derived stem.
     """
     name = resolved.data.get("contact", {}).get("name", "")
     parts = name.split()
@@ -284,7 +281,5 @@ def _render_pdf(html: str, output_path: Path) -> None:
         from weasyprint import HTML  # type: ignore[import-untyped]
     except ImportError:
         raise SystemExit("WeasyPrint is not installed. Install it with: uv pip install weasyprint")
-    # Tagged output carries the logical reading order in a structure tree, which is
-    # what makes a right-aligned date extract with its own entry rather than with
-    # whatever the page happened to paint next. See docs/dev/architecture.md.
+    # Tagged output carries the logical reading order in a structure tree.
     HTML(string=html).write_pdf(str(output_path), pdf_tags=True)

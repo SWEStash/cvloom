@@ -1,9 +1,7 @@
 """Profile- and project-listing data layer, shared by the CLI and MCP server.
 
-Both frontends need the same information out of ``profiles/*.yaml`` and
-``data/projects/*.yaml`` — only the presentation differs (a Rich table vs
-JSON). These functions do the reading and tag filtering once; each frontend
-formats the returned summaries.
+Reading and tag filtering happen here; each frontend formats the returned
+summaries (a Rich table for the CLI, JSON for MCP).
 """
 
 from __future__ import annotations

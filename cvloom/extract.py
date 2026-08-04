@@ -1,13 +1,8 @@
 """Read the text layer back out of a built PDF.
 
-A PDF carries several independent reading orders, and an extractor picks one.
-The engines here are chosen to cover that spread rather than to agree; see
-``docs/dev/architecture.md`` ("PDF reading order and right-aligned dates") for
-what each one models and why the spread is the measurement.
-
-None of them *is* any particular ATS. Agreement across engines that read the
-document by different means is evidence the text layer is unambiguous; it is not
-a certificate.
+A PDF carries several independent reading orders, and an extractor picks one. The
+engines here are chosen to cover that spread rather than to agree. None of them is
+any particular ATS. See ``docs/dev/architecture.md``.
 """
 
 from __future__ import annotations
@@ -226,10 +221,8 @@ def extract(pdf: Path, engine: str) -> Extraction:
 def extract_all(pdf: Path, engines: list[str] | None = None) -> list[Extraction]:
     """Extract with every requested engine that is installed.
 
-    Silently skipping a missing engine would be the wrong default here — a report
-    that says "clean" because only one engine ran is the failure mode this module
-    exists to prevent — so the caller gets the list of what actually ran and is
-    expected to say so.
+    Returns the list of engines that actually ran, so a caller never reports
+    "clean" off a single engine.
     """
     wanted = engines or available_engines()
     out = []

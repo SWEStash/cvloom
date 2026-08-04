@@ -28,17 +28,11 @@ def entry_defaults(name: str, prop: str | None = None) -> dict[str, Any]:
     Pass *prop* to descend into a nested object property instead of the root
     (e.g. ``entry_defaults("profile", "job_context")``).
 
-    Templates render under Jinja2's ``StrictUndefined``, where reading a key
-    that is simply absent raises instead of evaluating falsy — so ``{% if
-    edu.field %}`` blows up on an entry that legitimately omits ``field``.
-    Filling the schema's own optional properties keeps "optional" meaning
-    optional. Required properties are left out so validation still catches
-    genuinely missing data.
-
-    A property declaring its own ``default`` gets that value rather than the
-    typed empty one: for a constrained field (an ``enum``, say) the empty
-    string is not a legal member, so filling it that way would make otherwise
-    valid data fail validation.
+    Templates render under ``StrictUndefined``, where an absent key raises rather
+    than evaluating falsy, so optional properties are filled to keep ``{% if
+    edu.field %}`` working. Required properties are left out so validation still
+    catches missing data. A property declaring its own ``default`` gets that value
+    rather than the typed empty one, which for an ``enum`` would not be legal.
     """
     schema = _load_schema(name)
     if prop is not None:

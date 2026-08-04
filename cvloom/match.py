@@ -204,10 +204,8 @@ def _extract_cv_keywords(
     _ingest(basics.get("headline", ""), "basics")
     _ingest(basics.get("summary", ""), "basics")
 
-    # Every entry-list section. Walking the shared field list rather than a
-    # local copy means a certification's issuer or a language name counts
-    # toward keyword coverage — previously a JD asking for Kubernetes was
-    # reported as a gap even when the CV carried a CKA certification.
+    # Every entry-list section, walked through the shared field list so a
+    # certification's issuer or a language name counts toward keyword coverage.
     for section in sections.ARRAY_SECTIONS:
         if not show_sections.get(section):
             continue

@@ -1,33 +1,15 @@
 """Parse-risk metadata for the packaged templates.
 
-This is deliberately not part of the writing linter. ``cvloom check`` grades what
-the user *wrote*; whether a layout survives PDF text extraction is a property of
-the template, and no amount of editing a bullet changes it. A user who never
-looks at the template list would otherwise have no way to learn that the layout
-they picked interleaves its columns — the CV reads perfectly on screen, and the
-failure only appears inside an ATS they cannot see.
-
-Ratings come from rendering each template to PDF and extracting the text layer back
-out with five independent extractors, spanning raw content-stream order through
-geometric reconstruction to the PDF structure tree. They disagree, and only what
-survives all five is rated safe: the constructs that broke were invisible in whichever
-one we happened to try first. Measured against worst-case content — short titles and
-short bullets, which leave the widest empty bands for a column detector to find. See
-``docs/reference/ats-readiness.md``.
-
-The rating is a function of how many engines flag a defect, not a judgement call:
+A rating is a function of how many of the five extraction engines flag a defect:
 
 ===============  ============================================================
 ``ATS_SAFE``     No engine finds a defect.
-``ATS_CAUTION``  Some engines find a defect, others do not. The layout is
-                 readable by most of the market and scrambled by part of it —
-                 including minor flags such as alignment artefacts.
-``ATS_UNSAFE``   Every engine finds a defect. Nothing reads it correctly.
+``ATS_CAUTION``  Some engines find a defect, others do not.
+``ATS_UNSAFE``   Every engine finds a defect.
 ===============  ============================================================
 
-Ratings are checked against that rule by ``tests/test_ats_ratings.py``, which builds
-each template, runs the defect suite per engine, and fails if the declared rating and
-the measured one disagree. A rating cannot drift from reality unnoticed.
+``tests/test_ats_ratings.py`` measures each template and fails if a declared rating
+disagrees. See docs/reference/ats-readiness.md.
 """
 
 from __future__ import annotations

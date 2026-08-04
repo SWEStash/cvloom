@@ -86,10 +86,8 @@ def _section_summary(data: dict[str, Any], show: dict[str, bool]) -> str:
 def _friendly(exc: BaseException) -> str:
     """Return a one-line description of ``exc`` fit for someone who is not us.
 
-    Only the exception types a user can actually provoke get a rewrite — a missing
-    file, an unreadable one, malformed YAML. Anything else falls through to
-    ``TypeName: message``, which is honest about being a bug rather than dressing
-    one up as user error.
+    Only the exception types a user can provoke get a rewrite; anything else falls
+    through to ``TypeName: message``.
     """
     if isinstance(exc, builder.ResolveError):
         return "; ".join(exc.errors)
@@ -108,17 +106,8 @@ def _friendly(exc: BaseException) -> str:
 class _CvloomCLI(click.Group):
     """Group that turns an unhandled exception into a message instead of a traceback.
 
-    A traceback tells the person who wrote cvloom where the failure was; it tells
-    the person *using* it nothing, and the commonest failures here — a mistyped
-    profile name, a project directory with no `data/` — are theirs to fix, not
-    ours. Handling this on the group rather than per-command means a command
-    cannot forget to do it: `export` reached 0.x raising a raw `FileNotFoundError`
-    at the terminal precisely because it was the one command that never added its
-    own `try`.
-
-    `--verbose` puts the traceback back for bug reports. Click's own exceptions
-    (bad options, `Abort`) and `SystemExit` pass through untouched — those already
-    print something deliberate.
+    Handled on the group so no command can forget it. `--verbose` puts the
+    traceback back. Click's own exceptions and `SystemExit` pass through untouched.
     """
 
     def invoke(self, ctx: click.Context) -> Any:
@@ -158,11 +147,8 @@ def cli(verbose: bool) -> None:
 def _warn_template_parse_risk(template_name: str) -> None:
     """Warn at build time when the chosen layout does not survive extraction.
 
-    This has to fire on `build` rather than only in `list-templates`: the whole
-    failure mode is invisible from the output the user is looking at. The PDF
-    renders beautifully; it is the copy an ATS makes of it that is scrambled, and
-    nobody opens that copy. Warning once per build is the only point at which the
-    person about to upload the file is actually present.
+    Fires on `build`, not only `list-templates`: the failure is invisible in the
+    rendered PDF and only appears in the text layer an ATS reads.
     """
     meta = templates_meta.info_for(template_name)
     if meta is None or meta.ats == templates_meta.ATS_SAFE:
@@ -174,9 +160,6 @@ def _warn_template_parse_risk(template_name: str) -> None:
     )
     colour = "red" if meta.ats == templates_meta.ATS_UNSAFE else "yellow"
     _console.print(f"[{colour}]Note:[/{colour}] {template_name} {label}. {meta.caveat}")
-    # A PDF states reading order only implicitly, through glyph positions; a .docx
-    # states it as document order, so a parser cannot get it wrong. When the chosen
-    # layout is one we know extracts badly, that is the artifact to upload.
     _console.print(
         "[dim]      For an ATS portal, upload the DOCX instead — "
         "`cvloom export --format docx`. Reading order is guaranteed by that format, "
@@ -187,10 +170,8 @@ def _warn_template_parse_risk(template_name: str) -> None:
 def _write_extracted_text(pdf_path: Path) -> None:
     """Write the PDF's text layer beside it, once per available engine.
 
-    One engine is not enough to trust: they disagree about reading order, and a
-    layout can read correctly in one and scramble in another. Naming the engine in
-    the filename is the point — a single `.txt` invites the conclusion that there is
-    one right answer. See docs/dev/architecture.md.
+    The engine is named in each filename because they disagree about reading order.
+    See docs/dev/architecture.md.
     """
     engines = extract_mod.available_engines()
     if not engines:
@@ -381,9 +362,7 @@ def _build_every_profile(
 ) -> None:
     """Build every profile in profiles/.
 
-    One failing profile stops the run rather than being skipped: these are release
-    artefacts for a job application, and a batch that reports success while one CV
-    silently did not rebuild is worse than a batch that stops and says which.
+    One failing profile stops the run rather than being skipped.
     """
     try:
         summaries = projects.list_profiles(root)
@@ -434,9 +413,6 @@ def check(profile: str) -> None:
     root = _root()
     resolved = _resolve(root, profile, public=True)
     findings = linter.lint(resolved)
-    # The layout note goes out whether or not the writing is clean: a spotless
-    # `check` on a template that scrambles under extraction is the exact false
-    # reassurance this command should not be handing out.
     _warn_template_parse_risk(resolved.template_name)
     if not findings:
         _console.print("[green]✓ No writing issues found.[/green]")

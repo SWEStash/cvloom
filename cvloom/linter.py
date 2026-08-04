@@ -7,8 +7,7 @@ Each rule carries a *category* that maps to one of the three honest axes of
 - ``structure`` — document structure and completeness (bullet/skill counts, …).
 - ``ats-parse`` — things that specifically affect ATS parsing / keyword pickup.
 
-There is deliberately no single "ATS score 0–100": that number would claim a
-predictive validity we cannot honestly support (see the reference doc).
+There is no single "ATS score"; see the reference doc.
 """
 
 from __future__ import annotations
@@ -384,9 +383,7 @@ def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
 def _check_missing_quantification(resolved: ResolvedProfile) -> list[LintFinding]:
     """wl-002: Flag entries whose highlights carry no numbers at all.
 
-    Reported per entry rather than per bullet: a role is weak when it shows no
-    quantified outcome anywhere, not because some individual bullet lacks a
-    figure. Per-bullet reporting also drowned every other rule in duplicates.
+    Reported per entry rather than per bullet.
     """
     findings: list[LintFinding] = []
     for section in ("work", "projects"):
@@ -1216,11 +1213,8 @@ _NON_ASCII_DASHES = {"\u2013": "en dash", "\u2014": "em dash", "\u2212": "minus 
 def _check_non_ascii_dashes(resolved: ResolvedProfile) -> list[LintFinding]:
     """wl-023: Flag en/em dashes in content.
 
-    cvloom renders every date range and separator it controls as an ASCII hyphen,
-    so a document that still mixes dash characters is mixing them because the
-    content does. A parser splitting "IEEE - CACIDI" on the separator has one
-    character to handle; three is three chances to get it wrong, and U+2013 also
-    depends on the embedded font subset carrying the glyph.
+    cvloom renders every range and separator it controls as an ASCII hyphen, so a
+    remaining en/em dash comes from the content. See docs/reference/ats-linter-rules.md.
     """
     findings: list[LintFinding] = []
     for section in (sec.name for sec in sections.SECTIONS):

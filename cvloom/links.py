@@ -1,11 +1,6 @@
 """Shared vocabulary for profile links (``data/basics.yaml`` → ``links``).
 
-Links used to live in two places — handle fields in ``private/contact.yaml`` and
-labelled URLs in ``basics.public_links`` — and were reconciled at render time by
-substring-matching the handle against the URL. That guard broke on a stale
-handle, on ``www.`` prefixes, and on trailing slashes. ``links`` is now the
-single source, so the only reconciliation left is recognising which network a
-URL belongs to and comparing two URLs for sameness; both live here.
+Recognising which network a URL belongs to, and comparing two URLs for sameness.
 """
 
 from __future__ import annotations
@@ -22,8 +17,7 @@ _NETWORKS: dict[str, tuple[str, str]] = {
 def _host(url: str) -> str:
     """Return the lowercased host of *url*, without ``www.``.
 
-    Falls back to parsing a scheme-less URL, since a hand-written YAML value is
-    as likely to read ``github.com/me`` as ``https://github.com/me``.
+    Accepts a scheme-less URL: ``github.com/me`` parses like ``https://github.com/me``.
     """
     parsed = urlsplit(url if "://" in url else f"//{url}")
     return parsed.netloc.lower().removeprefix("www.")
@@ -41,9 +35,8 @@ def network_of(url: str) -> str | None:
 def link_username(url: str) -> str:
     """Recover the account handle from a known network URL, else empty string.
 
-    ``https://linkedin.com/in/jane/`` → ``jane``; ``https://github.com/jane`` →
-    ``jane``. Anything with extra path segments (a repo, a post) is not a
-    profile URL, so no handle is claimed.
+    ``https://linkedin.com/in/jane/`` → ``jane``. Anything with extra path
+    segments (a repo, a post) is not a profile URL and yields no handle.
     """
     host = _host(url)
     for suffix, (_, prefix) in _NETWORKS.items():
@@ -59,12 +52,8 @@ def link_username(url: str) -> str:
 
 
 def normalize_url(url: str) -> str:
-    """Return a comparison key for *url*, ignoring cosmetic differences.
-
-    Scheme, ``www.``, host case, and a trailing slash all vary between how a
-    person types a URL and how the site reports it, and none of them change
-    where the link points.
-    """
+    """Return a comparison key for *url*, ignoring scheme, ``www.``, case and
+    any trailing slash."""
     split = urlsplit(url if "://" in url else f"//{url}")
     path = split.path.rstrip("/")
     return f"{_host(url)}{path}".lower()

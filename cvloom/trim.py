@@ -10,8 +10,7 @@ from cvloom.models import ResolvedProfile
 _WORDS_PER_PAGE = 350
 
 # Default page target, shared by the CLI's `--target-pages`, its post-build warning,
-# the `wl-011` lint rule, and the `trim_report` MCP tool — they disagreed once and the
-# tool told users two different things about the same CV.
+# the `wl-011` lint rule, and the `trim_report` MCP tool.
 MAX_PAGES = 3
 
 

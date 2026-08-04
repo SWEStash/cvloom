@@ -2,16 +2,11 @@
 
 Agent-safety guarantees (see docs/reference/mcp-server.md):
 
-- **Schema-validated writes.** Every mutating tool (``create_profile``,
-  ``upsert_project``) validates its input against the JSON Schema *before*
-  writing anything and returns a structured ``{"error", "details"}`` on failure —
-  so a malformed write never lands a partial file.
-- **PII fence.** Read/analysis tools resolve in *public* mode (placeholder
-  contact; email and phone stripped) so agent context never sees the most
-  sensitive contact fields. The only tools that can surface real contact PII are
-  ``get_section("contact")`` — an explicit, named request — and
-  ``export_json_resume(public=False)`` — an explicit opt-out. Both require the
-  caller to ask for it deliberately.
+- **Schema-validated writes.** Mutating tools validate against the JSON Schema
+  before writing, so a malformed write never lands a partial file.
+- **PII fence.** Read/analysis tools resolve in *public* mode. Only
+  ``get_section("contact")`` and ``export_json_resume(public=False)`` surface real
+  contact PII, and both require the caller to ask deliberately.
 """
 
 from __future__ import annotations

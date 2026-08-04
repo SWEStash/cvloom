@@ -42,9 +42,8 @@ def _load_yaml(path: Path) -> Any:
 def normalize_optional_fields(section: str, entries: list[dict[str, Any]]) -> None:
     """Fill schema-optional keys the data file omitted, in-place.
 
-    ``contact`` is deliberately excluded: templates guard it with ``is
-    defined`` precisely so a public build — which *deletes* email and phone —
-    renders nothing rather than a blank field.
+    ``contact`` is excluded: templates guard it with ``is defined`` so a public
+    build, which deletes email and phone, renders nothing rather than a blank.
     """
     defaults = schema.entry_defaults(sections.SECTIONS_BY_NAME[section].schema)
     for entry in entries:
@@ -151,9 +150,7 @@ def load_data(
 def load_profile(profile_path: Path) -> dict[str, Any]:
     """Load and return a build profile YAML file.
 
-    A missing profile is nearly always a typo or a wrong working directory, so the
-    error names the profiles that *do* exist alongside it rather than only the path
-    that does not.
+    A missing profile raises an error naming the profiles that do exist.
     """
     if not profile_path.exists():
         available = sorted(p.stem for p in profile_path.parent.glob("*.yaml"))

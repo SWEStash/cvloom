@@ -1,17 +1,7 @@
 """Per-section content selection for a build profile.
 
-Selection used to be split across two mechanisms. ``include_tags`` was *global* —
-one tag set applied to all seven entry sections at once — so narrowing one
-section silently gutted the others, and ``include_entries`` existed purely to
-claw back what the global filter over-removed. Skills, meanwhile, were selected
-by a different key in a different block (``overlays.skills.include_categories``).
-
-``select`` replaces all three. It is per-section and opt-in: a section not named
-in the profile is untouched. That is what makes strict semantics safe — you only
-ever filter a section you deliberately named.
-
-Selection is *which content*; overlays are *how it is edited*. Keeping the two
-apart is why ``overlays.skills`` now holds only ``category_overrides``.
+Per-section and opt-in: a section not named in the profile is untouched.
+Selection is *which content*; overlays are *how it is edited*.
 """
 
 from __future__ import annotations
@@ -28,10 +18,7 @@ _EXCLUDE_CATEGORIES_KEY = "exclude_categories"
 def _select_entries(entries: list[dict[str, Any]], tags: list[str]) -> list[dict[str, Any]]:
     """Keep entries carrying at least one of *tags*.
 
-    An entry with no tags does not match: an include list is a query, and
-    untagged content answers no query. This is uniform across every section —
-    ``projects`` used to be the only strict one, an exception that existed
-    because ``tags`` is required there.
+    An entry with no tags does not match. Uniform across every section.
     """
     wanted = set(tags)
     return [entry for entry in entries if wanted & set(entry.get("tags") or ())]
@@ -42,10 +29,8 @@ def _select_skills(
 ) -> list[dict[str, Any]]:
     """Filter skill groups by category name, exclusion first.
 
-    Unlike tags, categories are a *closed* set declared in ``data/skills.yaml``,
-    so excluding four of fifteen is both equally expressive and far shorter than
-    listing the other eleven. That asymmetry is why exclusion exists here and
-    not for tags.
+    Categories are a closed set declared in ``data/skills.yaml``, which is why
+    exclusion exists here and not for tags.
     """
     include_set, exclude_set = set(categories), set(exclude)
     result = []
@@ -62,11 +47,8 @@ def _select_skills(
 def apply_selection(data: dict[str, Any], select_cfg: dict[str, Any]) -> list[str]:
     """Filter each named section of *data* in place; return warnings.
 
-    Warnings surface the two ways a selector quietly does the wrong thing: it
-    matches nothing at all, or it drops entries only because they were never
-    tagged. The second is the safety net for strict semantics — a newly added,
-    untagged entry vanishes from every filtered profile, and this warning is
-    what stands between that and shipping a CV missing a current role.
+    Warnings cover the two silent failures: a selector matching nothing, and
+    entries dropped only because they were never tagged.
     """
     warnings: list[str] = []
     if not select_cfg:

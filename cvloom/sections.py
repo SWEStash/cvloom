@@ -1,13 +1,11 @@
-"""Shared knowledge of the CV data model — walked in one place.
+"""The ``SECTIONS`` registry and the shared walk over CV data.
 
-Several modules need to walk entries, extract highlight text, count words, or
-label an entry. Historically each re-implemented the same field tuple and the
-same ``str | {text}`` guards. These helpers are the single source of truth.
+Single source of truth for the entry-list sections: loader, schema, builder, cli,
+export, trim and diff all derive from it.
 
 Invariant: after :func:`cvloom.builder.resolve`, highlights in ``work`` /
-``education`` / ``projects`` are plain strings (see ``loader.flatten_highlights``).
-:func:`highlight_text` stays tolerant of the pre-flatten ``{id, text}`` form so
-it is safe in the loader/overlays zone as well.
+``education`` / ``projects`` are plain strings. :func:`highlight_text` also accepts
+the pre-flatten ``{id, text}`` form, so it is safe in the loader/overlays zone.
 """
 
 from __future__ import annotations
@@ -25,12 +23,10 @@ from cvloom.models import ResolvedProfile
 class Section:
     """One entry-list CV section, and what the pipeline needs to know about it.
 
-    These five sections share a shape — a YAML list of entry dicts — so loading,
-    tag filtering, validation, word counting, section visibility and export
-    headings can all be driven from this one table instead of being restated in
-    each module. ``skills`` and ``basics`` are deliberately absent: their entry
-    shapes are genuinely different, and pretending otherwise would buy uniformity
-    with a pile of exceptions.
+    These sections share a shape — a YAML list of entry dicts — so loading, tag
+    filtering, validation, word counting, visibility and export headings are all
+    driven from this table. ``skills`` and ``basics`` are absent: their shapes
+    differ enough that including them would need more exceptions than it saves.
     """
 
     name: str
@@ -130,12 +126,8 @@ ARRAY_SECTIONS: tuple[str, ...] = tuple(s.name for s in SECTIONS)
 
 # Every section a profile can toggle or order, including the ones with bespoke
 # shapes. Order is the default render order.
-#
-# Work leads, skills follow it. Skills used to open the CV, which put a keyword
-# block where the reader's first fixation lands: the Ladders eye-tracking work
-# found recruiters fixate on job titles before anything else during the ~7s
-# initial scan, and a skills wall pushes the first title down the page. Derived
-# rather than written out so a new entry in SECTIONS cannot silently go missing.
+# Derived from SECTIONS rather than written out, so a new section cannot silently
+# go missing from the default order.
 _ORDER_HEAD: tuple[str, ...] = ("work", "skills")
 DEFAULT_SECTION_ORDER: tuple[str, ...] = (
     *_ORDER_HEAD,
@@ -203,10 +195,8 @@ def group_certifications(
 ) -> list[tuple[str, list[dict[str, Any]]]]:
     """Split certification entries into their rendered groups.
 
-    Returns ``(heading, entries)`` pairs — credentials first, coursework
-    second — omitting any group with no entries, so a section of purely one
-    kind renders under a single accurate heading rather than a hardcoded
-    "Certifications" that overclaims a list of MOOCs.
+    Returns ``(heading, entries)`` pairs, credentials first and coursework second,
+    omitting any empty group.
     """
     credentials: list[dict[str, Any]] = []
     coursework: list[dict[str, Any]] = []
@@ -227,10 +217,8 @@ def ordered_runs(section: str, entries: list[dict[str, Any]]) -> list[list[dict[
     """Entry runs that are each rendered as one contiguous, independently
     ordered block.
 
-    Almost every section renders as a single run, so chronology applies to the
-    whole list. Certifications render as two groups, and ordering only means
-    anything *within* a group — a course newer than the credential above it is
-    not out of order, because they never appear under the same heading.
+    Almost every section is a single run. Certifications render as two groups, and
+    ordering only applies within a group.
     """
     if section == "certifications":
         return [group for _, group in group_certifications(entries)]

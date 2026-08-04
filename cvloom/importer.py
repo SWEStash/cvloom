@@ -94,9 +94,8 @@ def _map_contact(basics: dict[str, Any]) -> dict[str, Any]:
 def _map_basics(basics: dict[str, Any]) -> dict[str, Any]:
     """Map JSON Resume ``basics`` non-PII fields to a cvloom basics dict.
 
-    Every profile lands in ``links``, including LinkedIn and GitHub: a profile
-    URL is public by nature, so it belongs in committed ``data/``, not in the
-    gitignored contact file. ``basics.url`` (the personal site) joins them as a
+    Every profile lands in ``links``, including LinkedIn and GitHub; a profile URL
+    is public, so it belongs in committed ``data/``. ``basics.url`` joins them as a
     plain labelled link.
     """
     result: dict[str, Any] = {
@@ -126,10 +125,8 @@ def _map_basics(basics: dict[str, Any]) -> dict[str, Any]:
 def _restore_extensions(item: dict[str, Any], entry: dict[str, Any], *keys: str) -> None:
     """Read back cvloom's namespaced extensions (see ``export.TAGS_EXTENSION_KEY``).
 
-    Fields cvloom carries that JSON Resume has no home for are exported under
-    ``x-cvloom-*``. Reading them back is what makes an export → import
-    round-trip lossless — without this, a round-trip silently strips the tag
-    taxonomy that profile filtering depends on.
+    Fields JSON Resume has no home for are exported under ``x-cvloom-*``; reading
+    them back is what makes an export → import round-trip lossless.
     """
     if entry.get(TAGS_EXTENSION_KEY):
         item["tags"] = [str(t) for t in entry[TAGS_EXTENSION_KEY]]
@@ -228,8 +225,7 @@ def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Map a JSON Resume publications array to cvloom publication entries.
 
     JSON Resume has no ISBN/DOI field, so ``identifier`` is never populated on
-    import — export folds it into ``summary`` and there is no reliable way to
-    split it back out.
+    import; export folds it into ``summary``.
     """
     result: list[dict[str, Any]] = []
     for entry in entries:
@@ -274,8 +270,7 @@ def _map_simple(
 ) -> list[dict[str, Any]]:
     """Map entries by (JSON Resume key → cvloom key), dropping empty values.
 
-    Enough for sections whose two schemas line up field-for-field; anything
-    needing a fold or a rename with logic keeps its own mapper.
+    For sections whose two schemas line up field-for-field.
     """
     result: list[dict[str, Any]] = []
     for entry in entries:

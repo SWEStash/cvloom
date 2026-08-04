@@ -1,10 +1,8 @@
 """Project scaffolding for ``cvloom init`` / ``cvloom sync``.
 
-Owns the create-a-project file operations that used to live in ``cli.py``:
-writing the sample ``data/``, ``profiles/``, and ``private/`` files (content
-under :mod:`cvloom.scaffold.samples`), and the managed-file registry (the
-pre-commit PII hook and the Pages publish workflow) shared by ``init`` and
-``sync``. The CLI stays the thin command layer; this module does the work.
+Writes the sample ``data/``, ``profiles/`` and ``private/`` files (content under
+:mod:`cvloom.scaffold.samples`), and owns the managed-file registry — the
+pre-commit PII hook and the Pages publish workflow — shared by ``init`` and ``sync``.
 """
 
 from __future__ import annotations

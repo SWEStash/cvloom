@@ -26,11 +26,7 @@ _SECTION_HEADINGS: dict[str, str] = {
 def _heading(resolved: ResolvedProfile, key: str, default: str) -> str:
     """Return the heading for *key*: the profile's override, else *default*.
 
-    The exports are the same document as the PDF in another container, so a profile
-    that heads its skills "Core Competencies" must say that in the DOCX and the
-    Markdown too — both were reading straight from `_SECTION_HEADINGS` and silently
-    reverted to the default wording. Mirrors the `section_title` Jinja global that
-    does this job for the templates.
+    Mirrors the `section_title` Jinja global that does this job for the templates.
     """
     override = resolved.section_titles.get(key)
     return str(override) if override else default
@@ -49,9 +45,8 @@ def _section_heading(resolved: ResolvedProfile, section: str) -> str | None:
 def _map_profiles(links: list[dict[str, Any]] | None) -> list[dict[str, str]]:
     """Map ``basics.links`` to JSON Resume ``basics.profiles``.
 
-    The label stands in for ``network``. For the two networks JSON Resume
-    consumers reliably key on, the handle is recovered from the URL path so the
-    ``username`` field is populated too; other links carry a URL only.
+    The label stands in for ``network``. Where the handle can be recovered from the
+    URL path, ``username`` is populated too; other links carry a URL only.
     """
     profiles: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -78,16 +73,13 @@ def _map_location(contact: dict[str, Any]) -> dict[str, str]:
 
 # ── JSON Resume field mapping ────────────────────────────────────────
 #
-# Each cvloom section maps to a JSON Resume array by renaming fields. These
-# tables replace what used to be five near-identical hand-rolled mappers, so a
-# new section (or a new field on an existing one) is a table edit rather than
-# another copy of the same conditional-assignment block.
+# Each cvloom section maps to a JSON Resume array by renaming fields, so a new
+# section or field is a table edit.
 
 # JSON Resume requires ISO 8601 with flexible granularity.
 _ISO_DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 
-# cvloom's tags drive profile filtering but have no JSON Resume home outside
-# projects (which map to the spec's `keywords`). A namespaced extension keeps
+# Tags have no JSON Resume home outside projects. A namespaced extension keeps
 # them through a round-trip; conforming consumers ignore unknown x- keys.
 TAGS_EXTENSION_KEY = "x-cvloom-tags"
 
@@ -104,9 +96,8 @@ class _Field:
 def _iso_date(value: Any) -> str | None:
     """Return *value* if it is a valid JSON Resume date, else None.
 
-    cvloom allows free text here — most importantly ``"Present"``. JSON Resume
-    has no such sentinel: a current role is expressed by *omitting* endDate.
-    Anything non-conforming is dropped rather than emitted invalid.
+    cvloom allows free text such as ``"Present"``; JSON Resume expresses a current
+    role by omitting endDate, so anything non-conforming is dropped.
     """
     text = str(value or "")
     return text if _ISO_DATE_RE.match(text) else None
@@ -198,9 +189,8 @@ _CERTIFICATION_FIELDS = (
 def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Map skill groups to JSON Resume skills array.
 
-    Per-item proficiency has no JSON Resume home (its `level` sits on the
-    group, not the item), so it rides along in the tags extension namespace
-    rather than being silently lost.
+    Per-item proficiency has no JSON Resume home, so it rides in the extension
+    namespace.
     """
     result: list[dict[str, Any]] = []
     for group in groups:
@@ -221,8 +211,7 @@ def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Map publication entries to the JSON Resume publications array.
 
-    ``identifier`` (ISBN/DOI) has no JSON Resume counterpart, so it is folded
-    into ``summary`` rather than dropped on export.
+    ``identifier`` (ISBN/DOI) has no counterpart, so it is folded into ``summary``.
     """
     items = _map_entries(entries, _PUBLICATION_FIELDS)
     for item, entry in zip(items, entries, strict=True):
@@ -235,11 +224,8 @@ def _map_publications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Map certification entries to the JSON Resume certificates array.
 
-    JSON Resume's certificate object is only {name, date, issuer, url}. Unlike
-    a publication's ``identifier`` there is no ``summary`` to fold into, so
-    ``expiry_date``, ``identifier`` and ``type`` ride in the extension
-    namespace. ``type`` matters most on the way *out* to LinkedIn, which does
-    split credentials from coursework across two profile sections.
+    JSON Resume's certificate object is only {name, date, issuer, url}, so
+    ``expiry_date``, ``identifier`` and ``type`` ride in the extension namespace.
     """
     items = _map_entries(entries, _CERTIFICATION_FIELDS)
     for item, entry in zip(items, entries, strict=True):
@@ -567,20 +553,17 @@ def export_linkedin(resolved: ResolvedProfile, output_path: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-# One typeface across the whole document. python-docx's default template inherits
-# from the Office theme, whose majorFont is Calibri and minorFont is Cambria — so
-# an untouched export renders headings in a sans and body text in a serif, which
-# nobody chose. Arial matches `cv/ats-clean` and is present on every platform.
+# One typeface across the document: python-docx's default template otherwise
+# inherits the Office theme, giving sans headings and serif body text.
 _DOCX_FONT = "Arial"
 
 
 def _pin_docx_font(doc: object) -> None:
     """Force every style used by the export onto one typeface.
 
-    Setting `style.font.name` alone only writes `w:ascii`; Word still resolves the
-    other scripts through the theme, so the heading styles come back serif. The
-    remaining `rFonts` attributes have to be set on the element directly, and the
-    theme-linked ones cleared, or they win.
+    Setting `style.font.name` alone only writes `w:ascii`; Word resolves the other
+    scripts through the theme, so the remaining `rFonts` attributes must be set on
+    the element directly and the theme-linked ones cleared.
     """
     from docx.oxml.ns import qn
 
