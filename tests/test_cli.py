@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from click.testing import CliRunner
 
 from cvloom.cli import cli
+from tests.ai_fakes import FakeClient
 
 
 @pytest.fixture
@@ -489,3 +492,584 @@ def test_a_command_that_succeeds_is_untouched(
     result = runner.invoke(cli, ["list-profiles"])
     assert result.exit_code == 0
     assert "Error:" not in result.output
+
+
+# ── _friendly: the exception rewrites ────────────────────────────────
+
+# Click validates path options before a command body runs, so a directory passed
+# where a file is expected, or an unreadable file, never reaches the group handler
+# through the CLI. These branches are therefore exercised directly.
+
+
+def test_friendly_names_the_directory_when_a_file_was_expected() -> None:
+    from cvloom.cli import _friendly
+
+    exc = IsADirectoryError(21, "Is a directory")
+    exc.filename = "data/work.yaml"
+    assert _friendly(exc) == "Expected a file, got a directory: data/work.yaml"
+
+
+def test_friendly_names_the_unreadable_file() -> None:
+    from cvloom.cli import _friendly
+
+    exc = PermissionError(13, "Permission denied")
+    exc.filename = "private/contact.yaml"
+    assert _friendly(exc) == "Permission denied: private/contact.yaml"
+
+
+def test_friendly_joins_every_validation_error() -> None:
+    """A ResolveError carries a list; reporting only the first hides the rest."""
+    from cvloom import builder
+    from cvloom.cli import _friendly
+
+    assert _friendly(builder.ResolveError(["work[0]: no title", "work[0]: no company"])) == (
+        "work[0]: no title; work[0]: no company"
+    )
+
+
+def test_friendly_admits_an_unexpected_exception_is_ours() -> None:
+    """Anything not on the list is a bug, and says so as `TypeName: message`
+    rather than being dressed up as user error."""
+    from cvloom.cli import _friendly
+
+    assert _friendly(ValueError("something we did not anticipate")) == (
+        "ValueError: something we did not anticipate"
+    )
+
+
+def test_malformed_yaml_reports_one_line(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (project_root / "data" / "work.yaml").write_text("- company: Acme\n  title: [unclosed\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["check"])
+    assert result.exit_code == 1
+    assert "Invalid YAML" in result.output
+    assert "Traceback" not in result.output
+
+
+# ── resolve errors and selection warnings ────────────────────────────
+
+
+def test_check_reports_validation_errors_from_resolve(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`check` resolves through `_resolve`, which renders a ResolveError itself."""
+    (project_root / "data" / "work.yaml").write_text("- company: Acme\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["check"])
+    assert result.exit_code == 1
+    assert "Validation errors:" in result.output
+
+
+def test_selection_that_matches_nothing_warns(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Selection is include-only, so a typo'd tag silently empties a section."""
+    (project_root / "profiles" / "general.yaml").write_text(
+        "template: cv/ats-clean\noutput_filename: cv\nselect:\n  work:\n    tags: [typo]\n"
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["trim"])
+    assert result.exit_code == 0
+    assert "Warning:" in result.output
+
+
+# ── build: extracted text ────────────────────────────────────────────
+
+
+def test_extracted_text_is_named_per_engine(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One `.txt` would imply one right answer; the engines disagree by design."""
+    from cvloom import extract as extract_mod
+    from cvloom.cli import _write_extracted_text
+
+    pdf = tmp_path / "cv.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(extract_mod, "available_engines", lambda: ["poppler", "pypdf"])
+    monkeypatch.setattr(
+        extract_mod,
+        "extract_all",
+        lambda p: [
+            extract_mod.Extraction("poppler", "poppler order"),
+            extract_mod.Extraction("pypdf", "pypdf order"),
+        ],
+    )
+    _write_extracted_text(pdf)
+    assert (tmp_path / "cv.poppler.txt").read_text() == "poppler order"
+    assert (tmp_path / "cv.pypdf.txt").read_text() == "pypdf order"
+
+
+def test_extracted_text_warns_when_no_engine_is_installed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from cvloom import extract as extract_mod
+    from cvloom.cli import _write_extracted_text
+
+    pdf = tmp_path / "cv.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(extract_mod, "available_engines", lambda: [])
+    _write_extracted_text(pdf)
+    assert "no PDF text extractor available" in capsys.readouterr().err
+    assert list(tmp_path.glob("*.txt")) == []
+
+
+def test_build_extract_text_writes_beside_the_pdf(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("weasyprint")
+    from cvloom import extract as extract_mod
+
+    monkeypatch.setattr(extract_mod, "available_engines", lambda: ["poppler"])
+    monkeypatch.setattr(
+        extract_mod, "extract_all", lambda p: [extract_mod.Extraction("poppler", "text layer")]
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build", "--public", "--extract-text"])
+    assert result.exit_code == 0
+    # The PDF is named after the contact, so find the text layer beside it.
+    written = list((project_root / "dist").glob("*.poppler.txt"))
+    assert [p.read_text() for p in written] == ["text layer"]
+
+
+def _fatten(project_root: Path, entries: int) -> None:
+    """Append enough work history to push the build past the page ceiling."""
+    blocks = [
+        f"- company: Corp{i}\n  title: Engineer\n  location: Remote\n"
+        f'  start_date: "20{i:02d}-01"\n  end_date: "20{i:02d}-12"\n'
+        "  highlights:\n"
+        + "".join(
+            f"    - Delivered subsystem {i}.{j} and cut processing time by {j} percent "
+            "across every regional deployment in the fleet during the migration.\n"
+            for j in range(6)
+        )
+        for i in range(entries)
+    ]
+    with (project_root / "data" / "work.yaml").open("a") as fh:
+        fh.write("".join(blocks))
+
+
+def test_build_warns_when_the_cv_runs_long(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fatten(project_root, 12)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build", "--skip-pdf", "--public"])
+    assert result.exit_code == 0
+    assert "exceeds" in result.output
+
+
+def test_trim_reports_the_words_to_cut(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _fatten(project_root, 12)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["trim"])
+    assert result.exit_code == 0
+    assert "words to reach target" in result.output
+    assert "Recommendations:" in result.output
+
+
+def test_build_all_with_an_empty_profiles_dir_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Distinct from a missing directory: the directory is there and holds nothing."""
+    (tmp_path / "profiles").mkdir()
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["build", "--all", "--skip-pdf"])
+    assert result.exit_code == 1
+    assert "No profiles found" in result.output
+
+
+# ── diff: sections and entries present on only one side ──────────────
+
+
+def test_diff_reports_sections_and_entries_only_on_one_side(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (project_root / "profiles" / "narrow.yaml").write_text(
+        "template: cv/modern-single\noutput_filename: narrow\n"
+        "sections:\n  projects: false\n"
+        "select:\n  work:\n    tags: [rust]\n"
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["diff", "general", "narrow"])
+    assert result.exit_code == 0
+    assert "Template:" in result.output
+    assert "only in general" in result.output
+
+
+def test_diff_reports_the_other_side_too(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A and B are reported by separate branches, so both directions need a test."""
+    (project_root / "profiles" / "narrow.yaml").write_text(
+        "template: cv/modern-single\noutput_filename: narrow\n"
+        "sections:\n  projects: false\n"
+        "select:\n  work:\n    tags: [rust]\n"
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["diff", "narrow", "general"])
+    assert result.exit_code == 0
+    assert "only in general" in result.output
+
+
+# ── export: the non-JSON formats ─────────────────────────────────────
+
+
+def test_export_markdown(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["export", "--format", "markdown"])
+    assert result.exit_code == 0
+    assert (project_root / "dist" / "general.resume.md").exists()
+
+
+def test_export_linkedin_prints_its_warnings(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """LinkedIn caps the About field; a summary over the limit still exports, and
+    the CLI has to say so — the file itself gives no sign it will be truncated."""
+    (project_root / "data" / "basics.yaml").write_text(
+        'headline: "Test Engineer"\nsummary: "' + "Long summary sentence. " * 150 + '"\n'
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["export", "--format", "linkedin"])
+    assert result.exit_code == 0
+    assert (project_root / "dist" / "general.linkedin.txt").exists()
+    assert "About section is" in result.output
+
+
+def test_export_docx(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("docx")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["export", "--format", "docx"])
+    assert result.exit_code == 0
+    assert (project_root / "dist" / "general.resume.docx").exists()
+
+
+# ── import: data that parses but does not validate ───────────────────
+
+
+def test_import_rejects_data_that_fails_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A JSON Resume can parse cleanly and still not be valid cvloom data —
+    here a language entry that states a fluency but never names the language."""
+    source = tmp_path / "resume.json"
+    source.write_text(
+        json.dumps({"basics": {"name": "Jane"}, "languages": [{"fluency": "C1"}]}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["import", str(source)])
+    assert result.exit_code == 1
+    assert "failed validation" in result.output
+
+
+# ── match: truncation and reorder hints ──────────────────────────────
+
+
+def test_match_truncates_a_long_gap_list(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Printing 200 gaps buries the ones worth acting on."""
+    jd = project_root / "jd.txt"
+    jd.write_text(" ".join(f"gapword{i}" for i in range(60)) + "\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["match", "--jd", str(jd)])
+    assert result.exit_code == 0
+    assert "more" in result.output
+
+
+def test_match_suggests_reordering_work(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The hint only fires when a later job matches the JD better than the first."""
+    with (project_root / "data" / "work.yaml").open("a") as fh:
+        fh.write(
+            "- company: Globex\n  title: Platform Engineer\n  location: Remote\n"
+            '  start_date: "2018-01"\n  end_date: "2019-12"\n'
+            "  highlights:\n"
+            "    - Ran Kubernetes clusters and Terraform pipelines for platform teams.\n"
+            "  tags: [python]\n"
+        )
+    jd = project_root / "jd.txt"
+    jd.write_text("We need Kubernetes and Terraform experience on our platform teams.\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["match", "--jd", str(jd)])
+    assert result.exit_code == 0
+    assert "Reorder Suggestions" in result.output
+
+
+# ── the listing commands' empty and edge rows ────────────────────────
+
+
+def test_list_projects_empty_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "data" / "projects").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["list-projects"])
+    assert result.exit_code == 0
+    assert "No projects found" in result.output
+
+
+def test_list_projects_truncates_a_long_description(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (project_root / "data" / "projects" / "alpha.yaml").write_text(
+        "name: alpha\ndescription: " + "x" * 200 + "\ntags: [python]\n"
+        'url: "https://example.com/alpha"\nstart_date: "2024-01"\n'
+        "highlights:\n  - Built a CLI tool in Python used by over 500 developers every day.\n"
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["list-projects"])
+    assert result.exit_code == 0
+    # Rich wraps the line, so the ellipsis can straddle a newline.
+    assert "..." in result.output.replace("\n", "")
+    assert "x" * 100 not in result.output
+
+
+def test_list_profiles_empty_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "profiles").mkdir()
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["list-profiles"])
+    assert result.exit_code == 0
+    assert "No profiles found" in result.output
+
+
+def test_list_profiles_shows_a_company_without_a_role(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (project_root / "profiles" / "backend.yaml").write_text(
+        "template: cv/modern-single\noutput_filename: backend-cv\njob_context:\n  company: Acme\n"
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["list-profiles"])
+    assert result.exit_code == 0
+    assert "Acme" in result.output
+
+
+# ── ai command group ─────────────────────────────────────────────────
+
+_REVIEW_JSON = json.dumps(
+    {
+        "overall_score": 7.5,
+        "sections": [
+            {
+                "section": "work",
+                "score": 8.0,
+                "strengths": ["QUANTIFIED"],
+                "weaknesses": ["THIN"],
+                "suggestions": ["ADDMETRICS"],
+            }
+        ],
+        "top_priorities": ["QUANTIFYMORE"],
+    }
+)
+
+_COVER_JSON = json.dumps(
+    {
+        "letter": "Dear Hiring Manager, LETTERBODY.",
+        "word_count": 4,
+        "key_alignments": ["PYTHONMATCH"],
+    }
+)
+
+_SUGGEST_JSON = json.dumps(
+    {
+        "suggestions": [
+            {
+                "section": "work",
+                "entry": "Acme",
+                "type": "bullet",
+                "current": "OLDBULLET",
+                "suggested": "NEWBULLET",
+                "rationale": "WHYBULLET",
+            }
+        ],
+        "missing_skills": ["KUBERNETES"],
+        "summary": "SUMMARYLINE",
+    }
+)
+
+_ALIGN_JSON = json.dumps(
+    {
+        "alignment_score": 6.5,
+        "narrative": "NARRATIVEBODY",
+        "repositioning": ["REPOSITIONME"],
+        "tone_gaps": ["TONEGAP"],
+        "strengths": ["ALIGNSTRENGTH"],
+    }
+)
+
+
+def _patch_ai(monkeypatch: pytest.MonkeyPatch, content: str) -> FakeClient:
+    """Configure the provider and hand every ai command the same fake client.
+
+    Each ai command does `from cvloom.ai import get_client` inside its own body, so
+    the module attribute is read at call time and patching it is what takes effect
+    — the same lever tests/test_mcp_server.py uses.
+    """
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    client = FakeClient(content)
+    monkeypatch.setattr("cvloom.ai.get_client", lambda: client)
+    return client
+
+
+def _jd_file(project_root: Path) -> Path:
+    jd = project_root / "jd.txt"
+    jd.write_text("We need a Python developer with Kubernetes experience.\n")
+    return jd
+
+
+def _ai_argv(command: str, jd: Path) -> list[str]:
+    if command in {"cover", "align"}:
+        return ["ai", command, "--jd", str(jd)]
+    return ["ai", command]
+
+
+_AI_COMMANDS = ["review", "cover", "suggest", "align"]
+
+
+def test_ai_config_unconfigured_lists_the_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
+    result = CliRunner().invoke(cli, ["ai", "config"])
+    assert result.exit_code == 0
+    assert "not configured" in result.output
+    for var in ("CVLOOM_AI_BASE_URL", "CVLOOM_AI_API_KEY", "CVLOOM_AI_MODEL"):
+        assert var in result.output
+
+
+def test_ai_config_configured_hides_the_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    monkeypatch.setenv("CVLOOM_AI_API_KEY", "sk-secret-value")
+    monkeypatch.setenv("CVLOOM_AI_MODEL", "gemma3:27b")
+    result = CliRunner().invoke(cli, ["ai", "config"])
+    assert result.exit_code == 0
+    assert "http://fake/v1" in result.output
+    assert "gemma3:27b" in result.output
+    assert "sk-secret-value" not in result.output
+
+
+def test_ai_config_reports_a_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    monkeypatch.delenv("CVLOOM_AI_API_KEY", raising=False)
+    result = CliRunner().invoke(cli, ["ai", "config"])
+    assert result.exit_code == 0
+    assert "not set" in result.output
+
+
+@pytest.mark.parametrize("command", _AI_COMMANDS)
+def test_ai_command_without_a_provider_points_at_config(
+    command: str, project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, _ai_argv(command, jd))
+    assert result.exit_code == 1
+    assert "cvloom ai config" in result.output
+
+
+@pytest.mark.parametrize("command", _AI_COMMANDS)
+def test_ai_command_reports_a_client_that_will_not_build(
+    command: str, project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`is_configured()` only checks the base URL, so the client can still refuse."""
+    from cvloom.ai import AINotConfiguredError
+
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+
+    def _refuse() -> Any:
+        raise AINotConfiguredError("CVLOOM_AI_BASE_URL is not set.")
+
+    monkeypatch.setattr("cvloom.ai.get_client", _refuse)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, _ai_argv(command, jd))
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+
+
+@pytest.mark.parametrize("command", _AI_COMMANDS)
+def test_ai_command_reports_a_response_that_is_not_json(
+    command: str, project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A proxy returning an HTML error page is the realistic version of this."""
+    _patch_ai(monkeypatch, "<html>502 Bad Gateway</html>")
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, _ai_argv(command, jd))
+    assert result.exit_code == 1
+    assert "AI error:" in result.output
+
+
+def test_ai_review_renders_every_part_of_the_result(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_ai(monkeypatch, _REVIEW_JSON)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0
+    assert "7.5/10" in result.output
+    for token in ("QUANTIFIED", "THIN", "ADDMETRICS", "QUANTIFYMORE"):
+        assert token in result.output
+
+
+def test_ai_cover_prints_the_letter(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd)])
+    assert result.exit_code == 0
+    assert "LETTERBODY" in result.output
+    assert "PYTHONMATCH" in result.output
+
+
+def test_ai_cover_output_writes_the_file_instead_of_printing(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    out = project_root / "cover.md"
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd), "--output", str(out)])
+    assert result.exit_code == 0
+    assert "LETTERBODY" in out.read_text()
+    assert "LETTERBODY" not in result.output
+
+
+def test_ai_suggest_renders_the_suggestions(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_ai(monkeypatch, _SUGGEST_JSON)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "suggest", "--role", "Staff Engineer"])
+    assert result.exit_code == 0
+    assert "Staff Engineer" in result.output
+    for token in ("SUMMARYLINE", "OLDBULLET", "NEWBULLET", "WHYBULLET", "KUBERNETES"):
+        assert token in result.output
+
+
+def test_ai_suggest_falls_back_to_the_profile_job_context(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without --role the target role comes from the profile, not from nowhere:
+    the `backend` profile already names the role it was written for."""
+    client = _patch_ai(monkeypatch, _SUGGEST_JSON)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "suggest", "--profile", "backend"])
+    assert result.exit_code == 0
+    assert "Senior Engineer" in result.output
+    assert "Senior Engineer" in client.calls[0]["messages"][1]["content"]
+
+
+def test_ai_align_renders_every_part_of_the_result(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_ai(monkeypatch, _ALIGN_JSON)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "align", "--jd", str(jd)])
+    assert result.exit_code == 0
+    assert "6.5/10" in result.output
+    for token in ("NARRATIVEBODY", "ALIGNSTRENGTH", "TONEGAP", "REPOSITIONME"):
+        assert token in result.output

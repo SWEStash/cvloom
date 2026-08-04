@@ -57,9 +57,9 @@ on Python 3.11, 3.12, and 3.13.
 
 ## Adding a template
 
-1. Create `templates/<category>/<name>.html.j2`.
+1. Create `cvloom/templates/<category>/<name>.html.j2`.
 2. Extend `base.html.j2` and override the `css_vars`, `css_extra`, and `body`
-   blocks as needed. See `templates/cv/ats-clean.html.j2` for a minimal
+   blocks as needed. See `cvloom/templates/cv/ats-clean.html.j2` for a minimal
    example.
 3. Add a render test in `tests/test_renderer.py` that exercises the template
    with minimal fixture data.

@@ -288,6 +288,12 @@ _CV_TEMPLATES = [
     "cv/sidebar-compact",
 ]
 
+# Every CV template except `cv/sidebar-compact`, which is the one two-column layout
+# and is rated unsafe for extraction. The single-column rules below — no floated
+# date, no block formatting context on the entry header — do not apply to it: it
+# right-aligns its date on purpose, and its parse risk is the documented cost.
+_SINGLE_COLUMN_TEMPLATES = [t for t in _CV_TEMPLATES if t != "cv/sidebar-compact"]
+
 
 @pytest.mark.parametrize("template", _CV_TEMPLATES)
 def test_every_cv_template_renders_links_as_anchors(template: str) -> None:
@@ -405,17 +411,8 @@ _MAX_HEADING_LETTER_SPACING_EM = 0.08
 
 _LETTER_SPACING_RE = re.compile(r"letter-spacing:\s*(-?[\d.]+)em")
 
-_ALL_CV_TEMPLATES = [
-    "cv/ats-clean",
-    "cv/academic",
-    "cv/modern-single",
-    "cv/executive-dark",
-    "cv/timeline-clean",
-    "cv/sidebar-compact",
-]
 
-
-@pytest.mark.parametrize("template", _ALL_CV_TEMPLATES)
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
 def test_letter_spacing_stays_under_the_extraction_cliff(template: str) -> None:
     html = render_template(template, _FULL_CONTEXT)
     excessive = [
@@ -439,13 +436,6 @@ def test_letter_spacing_stays_under_the_extraction_cliff(template: str) -> None:
 # entries, some with a trailing summary paragraph — the column stayed open past
 # the entry and the date surfaced late, in the worst case after the final section
 # of the document. Those three therefore run the date inline on the meta line.
-_DESIGN_TEMPLATES = [
-    "cv/modern-single",
-    "cv/timeline-clean",
-    "cv/executive-dark",
-    "cv/ats-clean",
-    "cv/academic",
-]
 
 
 def _body_of(html: str) -> str:
@@ -462,7 +452,7 @@ def _context_only(section: str, entries: list[dict]) -> dict:
     return ctx
 
 
-@pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES)
 def test_compact_sections_run_dates_inline(template: str) -> None:
     award = {"title": "Prize", "date": "2023", "awarder": "Acme", "summary": ""}
     html = _body_of(render_template(template, _context_only("awards", [award])))
@@ -472,7 +462,7 @@ def test_compact_sections_run_dates_inline(template: str) -> None:
     assert "entry-header" not in html, f"{template} right-aligns an award date"
 
 
-@pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES)
 def test_compact_certifications_run_dates_inline(template: str) -> None:
     ctx = _context_only("certifications", [_cert("CKA", "CNCF", date="2023")])
     html = _body_of(render_template(template, ctx))
@@ -480,7 +470,7 @@ def test_compact_certifications_run_dates_inline(template: str) -> None:
     assert "entry-header" not in html, f"{template} right-aligns a certification date"
 
 
-@pytest.mark.parametrize("template", _DESIGN_TEMPLATES)
+@pytest.mark.parametrize("template", _SINGLE_COLUMN_TEMPLATES)
 @pytest.mark.parametrize("section", ["work", "education"])
 def test_bullet_sections_carry_their_date_on_the_meta_line(template: str, section: str) -> None:
     """Every dated entry states its date inline, next to company and location.
@@ -502,14 +492,6 @@ def test_bullet_sections_carry_their_date_on_the_meta_line(template: str, sectio
 # reads correctly in the first and fuses the title into the date in the second. The
 # table-row form survives both. These tests pin the form, because the failure is
 # invisible in the rendered page and in whichever extractor you happen to try.
-
-_SINGLE_COLUMN_TEMPLATES = [
-    "cv/ats-clean",
-    "cv/academic",
-    "cv/modern-single",
-    "cv/timeline-clean",
-    "cv/executive-dark",
-]
 
 
 def _entry_css_lines(template: str) -> list[str]:
@@ -612,7 +594,7 @@ def test_base_styles_no_single_template_class() -> None:
     )
 
 
-@pytest.mark.parametrize("template", _ALL_CV_TEMPLATES)
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
 def test_every_cv_entry_carries_the_entry_role(template: str) -> None:
     """Base's page-break protection is keyed on `.entry`, so every entry needs it.
 

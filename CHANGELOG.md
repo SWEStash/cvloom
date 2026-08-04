@@ -83,6 +83,25 @@ Versions follow [Semantic Versioning](https://semver.org/).
   two packaged templates use, and no template may render a `*-entry` box without the `entry`
   role. Both are additions to the existing template guards, not new machinery.
 
+### Tests (internal)
+
+- **The `ai` command group is tested.** `cvloom/cli.py` is the largest module and the surface
+  every user touches, and it was the worst covered — the five `ai` subcommands had no test at
+  all, so the unconfigured-provider exit, the client that refuses to build, and a proxy
+  answering with an HTML error page instead of JSON were all unexercised. They now run against
+  `tests/ai_fakes.FakeClient`, no network involved. Also covered: `--extract-text` (both with
+  and without an installed engine), the non-JSON export formats, the `_friendly` exception
+  rewrites Click's path validation makes unreachable through the CLI, and the empty-directory
+  and truncation branches of the listing commands.
+
+- **`tests/test_renderer.py` had four template lists that were really two.** `_CV_TEMPLATES`
+  and `_ALL_CV_TEMPLATES` were byte-identical; `_DESIGN_TEMPLATES` and
+  `_SINGLE_COLUMN_TEMPLATES` held the same five templates in a different order. A reader could
+  not tell whether a test deliberately excluded `cv/sidebar-compact` or whether someone grabbed
+  the nearest list. There are now two, and the second is derived from the first so it cannot
+  drift, with the exclusion stated: `cv/sidebar-compact` is the one two-column layout and is
+  rated unsafe for extraction. No assertions and no test counts changed.
+
 ### Documentation
 
 - `docs/dev/custom-templates.md` gains **What base owns, and what you own** — the role-vs-skin
