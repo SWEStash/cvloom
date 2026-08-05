@@ -1,19 +1,20 @@
 name: release-please
 
-# Automated releases AFTER the hand-cut v0.6.0.
+# The single release + publish path.
 #
 # On every push to main, release-please maintains a "release PR" that bumps the
 # version in pyproject.toml and updates CHANGELOG.md from Conventional Commits.
 # Merging that PR creates the git tag + GitHub Release, and the `publish` job
 # below then builds and publishes to PyPI via trusted publishing (OIDC).
 #
-# Why publish here instead of letting release.yml's tag trigger fire: tags/
-# releases created by the default GITHUB_TOKEN do NOT trigger other workflows
-# (GitHub suppresses this to avoid recursion), so the tag-triggered release.yml
-# would never run for an automated release. Publishing in this same workflow —
-# gated on release-please's `release_created` output — sidesteps that without a
-# personal access token. release.yml remains the path for manual tag pushes
-# (the v0.6.0 cut) and TestPyPI rehearsals.
+# Publishing happens in this workflow (gated on release-please's `release_created`
+# output) rather than a separate tag-triggered one, because tags/releases created
+# by the default GITHUB_TOKEN do NOT trigger other workflows (GitHub suppresses
+# this to avoid recursion) — so a separate publish workflow would never fire for
+# an automated release, and a personal access token would be needed to force it.
+#
+# PyPI trusted publisher must be registered for THIS workflow filename
+# (release-please.yml), environment `pypi`.
 #
 # Config: release-please-config.json + .release-please-manifest.json.
 # bump-minor-pre-major / bump-patch-for-minor-pre-major keep pre-1.0 semantics
