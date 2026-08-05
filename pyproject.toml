@@ -60,8 +60,13 @@ dev = [
     "cvloom[docx]",
     "cvloom[extract]",
 ]
+# Capped below mcp 2.0.0, which removed the bundled `mcp.server.fastmcp.FastMCP`
+# that mcp_server.py uses (FastMCP was split into the standalone `fastmcp`
+# package — itself still mcp<2). 1.x is the current, maintained line (1.29.0)
+# and keeps the bundled FastMCP; migrating to mcp 2.0's low-level server API is
+# a tracked follow-up, not needed for cvloom's 16 stdio tools.
 mcp = [
-    "mcp>=1.0",
+    "mcp>=1.0,<2",
 ]
 # Extra PDF text extractors for `build --extract-text`. Optional because poppler's
 # `pdftotext` binary is the one that matters most and is a system package, not a
