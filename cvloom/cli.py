@@ -108,12 +108,21 @@ class _CvloomCLI(click.Group):
 
     Handled on the group so no command can forget it. `--verbose` puts the
     traceback back. Click's own exceptions and `SystemExit` pass through untouched.
+
+    `click.exceptions.Exit` is one of those: it subclasses `RuntimeError`, not
+    `ClickException` or `SystemExit`, so it has to be named explicitly. It is what
+    `--help` and `--version` raise to stop the command.
     """
 
     def invoke(self, ctx: click.Context) -> Any:
         try:
             return super().invoke(ctx)
-        except (click.ClickException, click.exceptions.Abort, SystemExit):
+        except (
+            click.ClickException,
+            click.exceptions.Abort,
+            click.exceptions.Exit,
+            SystemExit,
+        ):
             raise
         except Exception as exc:
             if ctx.params.get("verbose"):

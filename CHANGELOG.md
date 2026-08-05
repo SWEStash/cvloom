@@ -36,6 +36,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`--help` on any subcommand exited 1 and printed `Error: Exit: 0`.** The help text itself was
+  correct; it was followed by a bogus error line and a non-zero status, which breaks shell
+  scripts and CI steps that run `--help` as a smoke check. `click.exceptions.Exit` — what Click
+  raises to stop a command after `--help` or `--version` — subclasses `RuntimeError`, not
+  `ClickException` or `SystemExit`, so it slipped past the re-raise tuple in `_CvloomCLI.invoke`
+  and got rendered as an unhandled exception. It is now named explicitly. The group's own
+  `cvloom --help` was unaffected, since that resolves before `invoke` runs.
+
 - **The extraction-fidelity fixture had no profile links at all**, so nothing in the suite
   measured the contact line and a regression there would have passed every engine in silence.
   The fixture now carries three links, an email, a phone and a line long enough to wrap, and

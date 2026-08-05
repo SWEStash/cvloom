@@ -494,6 +494,23 @@ def test_a_command_that_succeeds_is_untouched(
     assert "Error:" not in result.output
 
 
+@pytest.mark.parametrize("command", ["build", "check", "export", "trim", "diff", "init"])
+def test_subcommand_help_exits_clean(command: str) -> None:
+    """`--help` raises `click.exceptions.Exit`, which subclasses `RuntimeError` rather
+    than `ClickException` or `SystemExit`. Left out of the re-raise tuple it reached the
+    generic handler, so every subcommand printed its help and then `Error: Exit: 0`."""
+    result = CliRunner().invoke(cli, [command, "--help"])
+    assert result.exit_code == 0
+    assert "Error:" not in result.output
+    assert "--verbose" not in result.output
+
+
+def test_group_help_exits_clean() -> None:
+    result = CliRunner().invoke(cli, ["--help"])
+    assert result.exit_code == 0
+    assert "Error:" not in result.output
+
+
 # ── _friendly: the exception rewrites ────────────────────────────────
 
 # Click validates path options before a command body runs, so a directory passed
