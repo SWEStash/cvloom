@@ -36,6 +36,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **CI measured the ATS ratings against four extraction engines instead of five.** The test job
+  installed no `poppler-utils`, so `pdftotext` was absent and `available_engines()` dropped the
+  poppler engine. `cv/sidebar-compact` is flagged by poppler and nothing else, so the derived
+  rating came out `safe` against its declared `caution` and the build failed — the first time
+  that test had run in CI. The job now installs `poppler-utils`, and the test skips outright
+  rather than measuring against a partial engine set, where a missing engine silently turns a
+  `caution` into a `safe` and points users at a template whose columns interleave.
+
 - **`--help` on any subcommand exited 1 and printed `Error: Exit: 0`.** The help text itself was
   correct; it was followed by a bogus error line and a non-zero status, which breaks shell
   scripts and CI steps that run `--help` as a smoke check. `click.exceptions.Exit` — what Click

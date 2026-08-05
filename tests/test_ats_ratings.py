@@ -14,6 +14,12 @@ so the rating can be derived rather than asserted, and the derived value compare
 with the declared one. A template that quietly improves fails this test as loudly
 as one that regresses, because a rating that is too pessimistic sends users to a
 worse-looking CV for no reason.
+
+The derivation only holds against the *full* engine set: drop one and a defect it
+alone catches disappears, turning `caution` into `safe`. `cv/sidebar-compact` is
+flagged by poppler and nothing else, so an environment without `pdftotext` would
+rate it safe and send users to a template whose columns interleave. Hence the skip
+below rather than a partial measurement.
 """
 
 from __future__ import annotations
@@ -110,7 +116,13 @@ def _measured_rating(pdf: Path) -> tuple[str, dict[str, list[str]]]:
     return rating, per_engine
 
 
-@pytest.mark.skipif(len(_ENGINES) < 2, reason="rating needs more than one engine to disagree")
+@pytest.mark.skipif(
+    len(_ENGINES) < len(extract_mod.ENGINES),
+    reason=(
+        "a rating is only meaningful against the full engine set — missing: "
+        f"{sorted(set(extract_mod.ENGINES) - set(_ENGINES))}"
+    ),
+)
 @pytest.mark.parametrize("template", sorted(templates_meta.TEMPLATES))
 def test_declared_rating_matches_measurement(
     tmp_path_factory: pytest.TempPathFactory, template: str

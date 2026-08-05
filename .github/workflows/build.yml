@@ -26,6 +26,12 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
+      # `pdftotext` is the poppler extraction engine. Without it the suite runs on
+      # four engines instead of five, and the declared/measured ATS ratings in
+      # tests/test_ats_ratings.py are derived from a smaller set than they were
+      # measured against — cv/sidebar-compact is flagged by poppler alone.
+      - name: Install poppler-utils
+        run: sudo apt-get install -y poppler-utils
       - name: Install dependencies
         run: uv sync --all-extras
       - name: Lint
