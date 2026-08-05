@@ -233,9 +233,20 @@ def _map_certifications(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return items
 
 
-def _meta_line(*parts: Any) -> str:
-    """Join the present values with a separator: `ACM SIGPLAN · 2019`."""
-    return " · ".join(str(p) for p in parts if p)
+def _meta_line(*parts: Any, sep: str = " · ") -> str:
+    """Join the present values with a separator: `ACM SIGPLAN · 2019`.
+
+    Work and education pass ``sep=" | "``, which is what those sections have
+    always used; everything else takes the default.
+    """
+    return sep.join(str(p) for p in parts if p)
+
+
+def _entry_dates(entry: dict[str, Any]) -> str:
+    """`2021-03` or `2021-03 - Present` — the range an entry spans."""
+    start = entry.get("start_date", "")
+    end = entry.get("end_date")
+    return f"{start} - {end}" if end else str(start)
 
 
 def _language_label(entry: dict[str, Any]) -> str:
@@ -393,12 +404,10 @@ def to_markdown(resolved: ResolvedProfile) -> str:
 
         elif section == "work":
             for entry in data.get("work", []):
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                location = entry.get("location", "")
-                date_str = f"{start} - {end}" if end else start
-                meta = f"{date_str} | {location}" if location else date_str
-                lines.append(f"### {entry.get('title', '')} at {entry.get('company', '')}")
+                meta = _meta_line(
+                    entry.get("company"), _entry_dates(entry), entry.get("location"), sep=" | "
+                )
+                lines.append(f"### {entry.get('title', '')}")
                 lines += [f"*{meta}*", ""]
                 for h in entry.get("highlights", []):
                     lines.append(f"- {_hl(h)}")
@@ -406,16 +415,10 @@ def to_markdown(resolved: ResolvedProfile) -> str:
 
         elif section == "education":
             for entry in data.get("education", []):
-                degree = entry.get("degree", "")
-                field = entry.get("field", "")
-                institution = entry.get("institution", "")
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                location = entry.get("location", "")
-                degree_str = f"{degree} in {field}" if field else degree
-                date_str = f"{start} - {end}" if end else start
-                meta = f"{date_str} | {location}" if location else date_str
-                lines.append(f"### {degree_str} | {institution}")
+                meta = _meta_line(
+                    entry.get("institution"), _entry_dates(entry), entry.get("location"), sep=" | "
+                )
+                lines.append(f"### {sections.degree_line(entry)}")
                 lines += [f"*{meta}*", ""]
                 for h in entry.get("highlights", []):
                     lines.append(f"- {_hl(h)}")
@@ -519,27 +522,20 @@ def to_text(resolved: ResolvedProfile) -> str:
 
         elif section == "work":
             for entry in data.get("work", []):
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                location = entry.get("location", "")
-                date_str = f"{start} - {end}" if end else start
-                meta = f"{date_str} | {location}" if location else date_str
-                body.append(f"{entry.get('title', '')} at {entry.get('company', '')}")
+                meta = _meta_line(
+                    entry.get("company"), _entry_dates(entry), entry.get("location"), sep=" | "
+                )
+                body.append(str(entry.get("title", "")))
                 body += [meta, ""]
                 body += [f"· {_hl(h)}" for h in entry.get("highlights", [])]
                 body.append("")
 
         elif section == "education":
             for entry in data.get("education", []):
-                degree = entry.get("degree", "")
-                field = entry.get("field", "")
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                location = entry.get("location", "")
-                degree_str = f"{degree} in {field}" if field else degree
-                date_str = f"{start} - {end}" if end else start
-                meta = f"{date_str} | {location}" if location else date_str
-                body.append(f"{degree_str} | {entry.get('institution', '')}")
+                meta = _meta_line(
+                    entry.get("institution"), _entry_dates(entry), entry.get("location"), sep=" | "
+                )
+                body.append(sections.degree_line(entry))
                 body += [meta, ""]
                 body += [f"· {_hl(h)}" for h in entry.get("highlights", [])]
                 body.append("")
@@ -674,12 +670,10 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
 
         if section == "work":
             for entry in data.get("work", []):
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                location = entry.get("location", "")
-                date_str = f"{start} - {end}" if end else start
-                meta = f"{date_str} | {location}" if location else date_str
-                doc.add_heading(f"{entry.get('title', '')} at {entry.get('company', '')}", level=2)
+                meta = _meta_line(
+                    entry.get("company"), _entry_dates(entry), entry.get("location"), sep=" | "
+                )
+                doc.add_heading(str(entry.get("title", "")), level=2)
                 if meta:
                     p = doc.add_paragraph(meta, style="Body Text")
                     p.runs[0].italic = True
@@ -688,15 +682,12 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
 
         elif section == "education":
             for entry in data.get("education", []):
-                degree = entry.get("degree", "")
-                field = entry.get("field", "")
-                institution = entry.get("institution", "")
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                degree_str = f"{degree} in {field}" if field else degree
-                doc.add_heading(f"{degree_str} | {institution}", level=2)
-                if start:
-                    p = doc.add_paragraph(f"{start} - {end}" if end else start, style="Body Text")
+                meta = _meta_line(
+                    entry.get("institution"), _entry_dates(entry), entry.get("location"), sep=" | "
+                )
+                doc.add_heading(sections.degree_line(entry), level=2)
+                if meta:
+                    p = doc.add_paragraph(meta, style="Body Text")
                     p.runs[0].italic = True
                 for h in entry.get("highlights", []):
                     doc.add_paragraph(_hl(h), style="List Bullet")

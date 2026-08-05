@@ -240,6 +240,22 @@ def skill_name(item: Any) -> str:
     return str(item.get("name", ""))
 
 
+def degree_line(entry: dict[str, Any]) -> str:
+    """An education entry's degree and field, joined by the entry's own ``connector``.
+
+    The connector is written verbatim, so it carries its own spacing:
+    ``connector: " in "`` gives ``BSc in Computer Science``. Omitted, the two
+    join with a single space — no language belongs to cvloom here, since the
+    right connector is per entry, not per language (``Licenciatura en
+    Informática`` but ``Ingeniero Informático``).
+    """
+    degree = str(entry.get("degree", ""))
+    field = str(entry.get("field", ""))
+    if not field:
+        return degree
+    return f"{degree}{entry.get('connector') or ' '}{field}"
+
+
 def entry_label(section: str, entry: dict[str, Any]) -> str:
     """Human-readable label for an entry (company / institution / name)."""
     key = SECTION_LABEL_KEY.get(section, "name")

@@ -1153,3 +1153,52 @@ def test_ascii_dashes_are_not_flagged() -> None:
         work=[{"company": "IEEE - CACIDI", "title": "Engineer", "highlights": []}]
     )
     assert lint(resolved, rule_ids=["wl-023"]) == []
+
+
+# ── wl-024: fused connector ────────────────────────────────────────
+
+
+def _connector_findings(connector: str) -> list:
+    resolved = _make_resolved(
+        education=[
+            {
+                "institution": "MIT",
+                "degree": "BSc",
+                "field": "Computer Science",
+                "start_date": "2014",
+                "connector": connector,
+            }
+        ]
+    )
+    return lint(resolved, rule_ids=["wl-024"])
+
+
+def test_fused_connector_flagged_when_padded_on_neither_side():
+    findings = _connector_findings("in")
+    assert len(findings) == 1
+    assert findings[0].rule_id == "wl-024"
+    assert "BScinComputer Science" in findings[0].bullet_text
+
+
+def test_connector_padded_both_sides_is_silent():
+    assert _connector_findings(" in ") == []
+
+
+def test_punctuation_connector_with_trailing_space_is_silent():
+    """`MSc, Computer Science` is correct — only the leading space is unwanted."""
+    assert _connector_findings(", ") == []
+
+
+def test_connector_padded_on_the_leading_side_only_is_silent():
+    assert _connector_findings(" -") == []
+
+
+def test_absent_connector_is_silent():
+    assert _connector_findings("") == []
+
+
+def test_fused_connector_ignored_without_a_field():
+    resolved = _make_resolved(
+        education=[{"institution": "MIT", "degree": "PhD", "start_date": "2014", "connector": "in"}]
+    )
+    assert lint(resolved, rule_ids=["wl-024"]) == []

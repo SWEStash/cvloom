@@ -709,3 +709,20 @@ def test_every_cv_entry_carries_the_entry_role(template: str) -> None:
             "used without the `entry` role, so base does not protect it from splitting "
             "across a page break"
         )
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_degree_and_field_join_with_a_space_by_default(template: str) -> None:
+    """cvloom supplies no connecting word — the entry owns it (see decision F9)."""
+    html = _body_of(render_template(template, _FULL_CONTEXT))
+    assert "BSc CS" in html
+    assert "BSc in CS" not in html
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+@pytest.mark.parametrize("connector", [" in ", ", ", " en "])
+def test_degree_connector_renders_verbatim(template: str, connector: str) -> None:
+    """Whatever the entry supplies is written through untouched, spacing included."""
+    education = [{**_FULL_CONTEXT["education"][0], "connector": connector}]  # type: ignore[index]
+    html = _body_of(render_template(template, {**_FULL_CONTEXT, "education": education}))
+    assert f"BSc{connector}CS" in html

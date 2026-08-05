@@ -11,6 +11,10 @@
       "institution": {"type": "string"},
       "degree": {"type": "string"},
       "field": {"type": "string"},
+      "connector": {
+        "type": "string",
+        "description": "Written verbatim between degree and field, so it carries its own spacing (\" in \"). Omitted, the two join with a single space."
+      },
       "location": {"type": "string"},
       "start_date": {"type": "string"},
       "end_date": {"type": "string"},

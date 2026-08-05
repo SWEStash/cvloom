@@ -110,6 +110,7 @@ A list of education entries.
 - institution: State University            # required
   degree: "Bachelor of Science"            # required
   field: Computer Science                  # optional
+  connector: " in "                        # optional — note the quotes and spaces
   location: "Anytown, USA"                # optional
   start_date: "2014"                       # required
   end_date: "2018"                         # optional
@@ -123,12 +124,32 @@ A list of education entries.
 | `institution` | Yes | University or school name |
 | `degree` | Yes | Degree type |
 | `field` | No | Field of study |
+| `connector` | No | Written between `degree` and `field`, verbatim (see below) |
 | `location` | No | City or country |
 | `start_date` | Yes | `YYYY-MM` or `YYYY` |
 | `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
 | `grade` | No | GPA or classification |
 | `highlights` | No | Notable achievements, GPA, awards |
 | `tags` | No | Used for profile `select` filtering; never rendered |
+
+**Joining degree and field.** cvloom supplies no connecting word of its own — the
+right one belongs to the entry, not to the tool. Without `connector`, degree and
+field join with a single space (`Bachelor of Science Computer Science`). Set it to
+whatever the entry needs, and note that it is written **verbatim**, so it carries
+its own spacing:
+
+```yaml
+connector: " in "     # Bachelor of Science in Computer Science
+connector: ", "       # Bachelor of Science, Computer Science
+connector: " en "     # Licenciatura en Informática
+```
+
+Quote it. Unquoted YAML strips the spaces, so `connector: in` renders
+`Bachelor of ScienceinComputer Science` — the `wl-024` lint rule catches exactly that.
+
+`connector` has no equivalent in JSON Resume (which has only `studyType` and
+`area`), so it does not survive an `export` → `import` round trip; a reimported
+entry falls back to the single space.
 
 If your education section has grown a long tail of certifications and short
 courses, put those in [`certifications.yaml`](#certificationsyaml) instead — they
@@ -566,7 +587,7 @@ Two flags run the writing lint as part of the build:
 
 | Flag | Effect |
 |---|---|
-| `--check` | Runs all 22 lint rules after build and prints a per-axis breakdown |
+| `--check` | Runs all 24 lint rules after build and prints a per-axis breakdown |
 | `--strict N` | Same as `--check`, plus exits with code 1 if there are more than N findings |
 
 cvloom deliberately prints no single "ATS score" — the breakdown is per axis

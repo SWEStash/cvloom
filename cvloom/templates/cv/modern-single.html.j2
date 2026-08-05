@@ -97,7 +97,7 @@
 <h2 class="section-title">{{ section_title("education", "Education") }}</h2>
 {% for edu in education %}
 <div class="entry">
-  <h3 class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</h3>
+  <h3 class="entry-title">{{ edu | degree_line }}</h3>
   <div class="entry-meta"><span class="entry-org">{{ edu.institution }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</span>{% if edu.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ edu.location }}</span>{% endif %}</div>
   {% if edu.highlights %}
   <ul>
