@@ -576,7 +576,7 @@ def diff(profile_a: str, profile_b: str) -> None:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["json-resume", "markdown", "linkedin", "docx"]),
+    type=click.Choice(["json-resume", "markdown", "text", "docx"]),
     required=True,
     help="Export format.",
 )
@@ -598,12 +598,10 @@ def export_cmd(profile: str, fmt: str, output: str | None) -> None:
         out_path = Path(output) if output else root / "dist" / f"{profile}.resume.md"
         export.export_markdown(resolved, out_path)
         _console.print(f"[green]✓[/green] Markdown → {out_path}")
-    elif fmt == "linkedin":
-        out_path = Path(output) if output else root / "dist" / f"{profile}.linkedin.txt"
-        warnings = export.export_linkedin(resolved, out_path)
-        _console.print(f"[green]✓[/green] LinkedIn → {out_path}")
-        for w in warnings:
-            _console.print(f"[yellow]⚠[/yellow]  {w}")
+    elif fmt == "text":
+        out_path = Path(output) if output else root / "dist" / f"{profile}.resume.txt"
+        export.export_text(resolved, out_path)
+        _console.print(f"[green]✓[/green] Text → {out_path}")
     elif fmt == "docx":
         out_path = Path(output) if output else root / "dist" / f"{profile}.resume.docx"
         export.export_docx(resolved, out_path)

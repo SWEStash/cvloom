@@ -740,19 +740,20 @@ def test_export_markdown(project_root: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert (project_root / "dist" / "general.resume.md").exists()
 
 
-def test_export_linkedin_prints_its_warnings(
+def test_export_text(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["export", "--format", "text"])
+    assert result.exit_code == 0
+    assert (project_root / "dist" / "general.resume.txt").exists()
+
+
+def test_export_rejects_the_old_linkedin_format(
     project_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """LinkedIn caps the About field; a summary over the limit still exports, and
-    the CLI has to say so — the file itself gives no sign it will be truncated."""
-    (project_root / "data" / "basics.yaml").write_text(
-        'headline: "Test Engineer"\nsummary: "' + "Long summary sentence. " * 150 + '"\n'
-    )
+    """`linkedin` was renamed to `text`; the old value must fail loudly, not silently."""
     monkeypatch.chdir(project_root)
     result = CliRunner().invoke(cli, ["export", "--format", "linkedin"])
-    assert result.exit_code == 0
-    assert (project_root / "dist" / "general.linkedin.txt").exists()
-    assert "About section is" in result.output
+    assert result.exit_code != 0
 
 
 def test_export_docx(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:

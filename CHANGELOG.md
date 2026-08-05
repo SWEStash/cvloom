@@ -52,6 +52,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **BREAKING: `export --format linkedin` is now `--format text`, and it exports everything.**
+  There was never a LinkedIn integration — no API call, no matching import — only a plain-text
+  writer, and the name had made LinkedIn's constraints look like the format's requirements. It
+  emitted four blocks (About, Experience, Education, Skills) and silently dropped projects,
+  publications, certifications, awards and languages even when the profile showed them; it
+  wrote no name, no contact and no links; it flattened every skill group into one line and
+  discarded the category names; and it ignored `section_titles`, which Markdown and DOCX
+  already honoured.
+
+  `text` is now a full plain-text peer of the Markdown export: same header, same sections,
+  same `section_order` / `show` / `section_titles` handling, markup dropped, headings in caps
+  over a rule. The 2600-character "About" warning is gone — it named a LinkedIn field limit
+  and truncated nothing.
+
+  Two things to update: `--format linkedin` no longer parses, and the output path moved from
+  `dist/<profile>.linkedin.txt` to `dist/<profile>.resume.txt`, which puts it in line with
+  the `.resume.<ext>` naming every other format already used.
+
 - **Code comments now carry mechanics, not decisions.** The rationale that had accumulated in
   template CSS comments and module docstrings — measured extraction findings, palette choices,
   rejected alternatives — moved to `docs/reference/ats-readiness.md` or was removed. What stays
@@ -185,7 +203,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 - **One dash character across every output.** Date ranges used an en dash in the design
   templates and a hyphen in the ATS-first ones, and the DOCX export mixed hyphen, en dash and
-  em dash in a single document. Everything cvloom emits — HTML, PDF, DOCX, Markdown, LinkedIn,
+  em dash in a single document. Everything cvloom emits — HTML, PDF, DOCX, Markdown, plain text,
   JSON Resume — now uses an ASCII hyphen for ranges and `|` where an em dash was acting as a
   field separator.
 

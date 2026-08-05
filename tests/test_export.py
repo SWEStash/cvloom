@@ -9,11 +9,11 @@ import pytest
 
 from cvloom.export import (
     export_docx,
-    export_linkedin,
     export_markdown,
+    export_text,
     to_json_resume,
-    to_linkedin,
     to_markdown,
+    to_text,
 )
 from cvloom.models import ResolvedProfile
 
@@ -237,43 +237,113 @@ def test_export_markdown_writes_file(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# LinkedIn export
+# Plain text export
 # ---------------------------------------------------------------------------
 
 
-def test_linkedin_contains_sections() -> None:
-    txt = to_linkedin(_make_resolved())
-    assert "ABOUT" in txt
-    assert "EXPERIENCE" in txt
-    assert "SKILLS" in txt
+def _text_with_every_section() -> ResolvedProfile:
+    """A resolved profile carrying all nine sections, each shown."""
+    extra = {
+        "publications": [
+            {"name": "On Scaling", "publisher": "ACM", "release_date": "2019"},
+        ],
+        "certifications": [
+            {"name": "CKA", "issuer": "CNCF", "date": "2023-04", "type": "certification"},
+        ],
+        "awards": [
+            {"title": "Engineer of the Year", "awarder": "Acme Corp", "date": "2022"},
+        ],
+        "languages": [
+            {"language": "Spanish", "fluency": "Native speaker"},
+        ],
+    }
+    every = ["skills", "work", "education", "projects"] + list(extra)
+    return dataclasses.replace(
+        _make_resolved(**extra),
+        show_sections=dict.fromkeys(every, True),
+        section_order=every,
+    )
 
 
-def test_linkedin_entry_content() -> None:
-    txt = to_linkedin(_make_resolved())
+def test_text_contains_header() -> None:
+    txt = to_text(_make_resolved())
+    assert txt.startswith("Jane Doe\n")
+    assert "Software Engineer | jane@example.com | +1 555-1234 | San Francisco, CA" in txt
+    assert "https://github.com/janedoe" in txt
+
+
+def test_text_section_headings() -> None:
+    txt = to_text(_make_resolved())
+    assert "SUMMARY\n-------" in txt
+    assert "WORK EXPERIENCE\n---------------" in txt
+    assert "EDUCATION\n---------" in txt
+    assert "SKILLS\n------" in txt
+
+
+def test_text_entry_content() -> None:
+    txt = to_text(_make_resolved())
     assert "Senior Engineer at Acme Corp" in txt
+    assert "2021-03 - Present | Remote" in txt
     assert "· Built scalable systems." in txt
-    assert "Python" in txt
 
 
-def test_linkedin_no_warning_under_limit(tmp_path: Path) -> None:
-    warnings = export_linkedin(_make_resolved(), tmp_path / "li.txt")
-    assert warnings == []
+def test_text_keeps_skill_categories() -> None:
+    """The old LinkedIn export flattened every group into one line and dropped the names."""
+    txt = to_text(_make_resolved())
+    assert "Languages: Python, Go" in txt
 
 
-def test_linkedin_warning_over_limit(tmp_path: Path) -> None:
-    long_summary = "x" * 2601
-    r = _make_resolved(basics={"headline": "Engineer", "summary": long_summary, "links": []})
-    warnings = export_linkedin(r, tmp_path / "li.txt")
-    assert len(warnings) == 1
-    assert "2601" in warnings[0]
-    assert "2600" in warnings[0]
+def test_text_keeps_education_highlights() -> None:
+    txt = to_text(_make_resolved())
+    assert "· Dean's list." in txt
 
 
-def test_export_linkedin_writes_file(tmp_path: Path) -> None:
-    out = tmp_path / "li.txt"
-    export_linkedin(_make_resolved(), out)
+def test_text_renders_every_section() -> None:
+    """Projects, publications, certifications, awards and languages were silently dropped."""
+    txt = to_text(_text_with_every_section())
+    assert "PROJECTS" in txt
+    assert "cvloom" in txt and "CLI CV tool." in txt and "· Built it." in txt
+    assert "PUBLICATIONS" in txt
+    assert "On Scaling" in txt and "ACM · 2019" in txt
+    assert "CERTIFICATIONS" in txt
+    assert "· CKA | CNCF · 2023-04" in txt
+    assert "AWARDS" in txt
+    assert "Engineer of the Year" in txt and "Acme Corp · 2022" in txt
+    assert "LANGUAGES" in txt
+    assert "Spanish (Native speaker)" in txt
+
+
+def test_text_honours_section_titles() -> None:
+    r = dataclasses.replace(_make_resolved(), section_titles={"work": "Where I've Worked"})
+    txt = to_text(r)
+    assert "WHERE I'VE WORKED\n-----------------" in txt
+    assert "WORK EXPERIENCE" not in txt
+
+
+def test_text_hidden_section_omitted() -> None:
+    r = dataclasses.replace(
+        _make_resolved(),
+        show_sections={"work": False, "education": True, "skills": True, "projects": True},
+    )
+    txt = to_text(r)
+    assert "WORK EXPERIENCE" not in txt
+    assert "EDUCATION" in txt
+
+
+def test_text_section_order() -> None:
+    r = dataclasses.replace(
+        _make_resolved(),
+        section_order=["education", "skills", "work", "projects"],
+    )
+    txt = to_text(r)
+    assert txt.index("EDUCATION") < txt.index("SKILLS") < txt.index("WORK EXPERIENCE")
+
+
+def test_export_text_writes_file(tmp_path: Path) -> None:
+    out = tmp_path / "cv.txt"
+    export_text(_make_resolved(), out)
     assert out.exists()
-    assert "ABOUT" in out.read_text()
+    assert out.read_text().startswith("Jane Doe\n")
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +506,7 @@ def test_links_falls_back_to_url_when_unlabelled():
 
 
 def test_certification_type_survives_export():
-    """`type` drives the LinkedIn export's two-section split, so it must survive."""
+    """`type` drives the credential/coursework heading split, so it must survive."""
     resolved = _make_resolved(
         certifications=[
             {"name": "CKA", "issuer": "CNCF", "date": "2023", "type": "certification"},

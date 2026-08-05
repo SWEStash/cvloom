@@ -388,7 +388,7 @@ cvloom export [OPTIONS]
 | Flag | Short | Default | Description |
 |---|---|---|---|
 | `--profile` | `-p` | `general` | Profile name (without `.yaml` extension) |
-| `--format` | | *(required)* | Export format: `json-resume`, `markdown`, `linkedin`, `docx` |
+| `--format` | | *(required)* | Export format: `json-resume`, `markdown`, `text`, `docx` |
 | `--output` | `-o` | *(inferred)* | Output file path (inferred from profile and format if omitted) |
 
 ### Default output paths
@@ -397,7 +397,7 @@ cvloom export [OPTIONS]
 |---|---|
 | `json-resume` | `dist/<profile>.resume.json` |
 | `markdown` | `dist/<profile>.resume.md` |
-| `linkedin` | `dist/<profile>.linkedin.txt` |
+| `text` | `dist/<profile>.resume.txt` |
 | `docx` | `dist/<profile>.resume.docx` |
 
 ### What the DOCX carries
@@ -422,8 +422,8 @@ cvloom export --format json-resume
 # Export as Markdown
 cvloom export --format markdown
 
-# Export LinkedIn-pasteable plain text (warns if About > 2600 chars)
-cvloom export --format linkedin
+# Export as plain text
+cvloom export --format text
 
 # Export as Word document (requires python-docx: uv pip install python-docx)
 cvloom export --format docx
@@ -459,8 +459,8 @@ Contact details are **never** written to `data/`. `import` routes them to
 
 | JSON Resume field | Written to |
 |---|---|
-| `basics.name` / `email` / `phone` / `url` / `location` | `private/contact.yaml` |
-| `basics.profiles` (LinkedIn, GitHub) | `private/contact.yaml` |
+| `basics.name` / `email` / `phone` / `location` | `private/contact.yaml` |
+| `basics.url`, `basics.profiles` (LinkedIn, GitHub) → `links` | `data/basics.yaml` |
 | `basics.label` → `headline`, `basics.summary` | `data/basics.yaml` |
 | `work`, `education`, `skills` | `data/*.yaml` |
 | `projects[]` | `data/projects/<slug>.yaml` |

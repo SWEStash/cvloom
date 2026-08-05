@@ -158,9 +158,8 @@ ENTRY_TEXT_FIELDS = (
 
 
 # Credential kinds, following the Open Badges 3.0 achievementType vocabulary.
-# The split is exam-backed credential vs completion record — the same line
-# LinkedIn draws between "Licenses & Certifications" and "Courses", which is
-# what makes this field a direct lookup for the LinkedIn export.
+# The split is exam-backed credential vs completion record, and it decides which
+# of the two headings below an entry renders under.
 CREDENTIAL_TYPES: frozenset[str] = frozenset({"certification", "license"})
 COURSEWORK_TYPES: frozenset[str] = frozenset({"course", "micro-credential"})
 

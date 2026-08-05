@@ -714,7 +714,7 @@ This helps you see at a glance how much content differs and whether you have tri
 
 ## Scenario 9: Export Formats
 
-Four export formats are available: JSON Resume, Markdown, LinkedIn plain text, and DOCX.
+Four export formats are available: JSON Resume, Markdown, plain text, and DOCX.
 
 ### 9.1 JSON Resume
 
@@ -739,24 +739,25 @@ Output: `dist/<profile>.resume.md`
 
 Sections are ordered by your profile's `section_order`. Sections with `show: false` are omitted.
 
-### 9.3 LinkedIn plain text
+### 9.3 Plain text
 
-Generate copy-paste-ready plain text structured for LinkedIn sections (About, Experience, Skills):
+Generate a copy-paste-ready plain-text CV — for web application forms, ATS fields that
+reject file uploads, plain-text email, or pasting section by section into a profile site:
 
 ```bash
-cvloom export --format linkedin
+cvloom export --format text
 ```
 
-Output: `dist/<profile>.linkedin.txt`
-
-If your summary exceeds LinkedIn's 2600-character About limit, a warning is printed:
+Output: `dist/<profile>.resume.txt`
 
 ```
-✓ LinkedIn → dist/general.linkedin.txt
-⚠  About section is 2743 chars (LinkedIn limit: 2600)
+✓ Text → dist/general.resume.txt
 ```
 
-Paste the file into LinkedIn's About, Experience, and Skills sections individually.
+It carries everything the Markdown export does — the name and contact header, your summary,
+and every section your profile shows — with the markup dropped. Headings are set in caps over
+a rule, so you can find and split the sections by eye. `section_order`, `show: false` and
+`section_titles` all apply.
 
 ### 9.4 DOCX (Word document)
 

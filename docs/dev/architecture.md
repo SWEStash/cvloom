@@ -42,7 +42,7 @@ cvloom/
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
-├── export.py           # to_json_resume(), markdown, linkedin, docx exporters
+├── export.py           # to_json_resume(), markdown, text, docx exporters
 ├── importer.py         # from_json_resume(); PII-aware split into data/ + private/
 ├── mcp_server.py       # FastMCP server exposing 16 tools
 ├── ai/
@@ -251,7 +251,7 @@ Tokenizes CV content and JD text, removes stop words, classifies keywords as mat
 
 - `to_json_resume(resolved)` — maps `ResolvedProfile` to JSON Resume schema
 - `to_markdown(resolved)` — plain Markdown
-- `to_linkedin(resolved)` — plain text structured for LinkedIn sections
+- `to_text(resolved)` — plain text; same content as the Markdown export
 - `to_docx(resolved)` — Word document via `python-docx` (optional dependency)
 
 Field mapping to JSON Resume is table-driven: `_Field(src, dest, kind)` tuples per

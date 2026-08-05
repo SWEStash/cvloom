@@ -270,9 +270,8 @@ Omitting `type` means `certification`, so files written before the field
 existed render exactly as they did.
 
 The vocabulary follows [Open Badges 3.0](https://www.imsglobal.org/spec/ob/v3p0)'s
-`achievementType`, and the credential/coursework split is the same line LinkedIn
-draws between its *Licenses & Certifications* and *Courses* sections — which is
-what lets an export route each entry to the right one.
+`achievementType`. The credential/coursework split decides which of the two headings
+an entry renders under — *Certifications* or *Professional Development*.
 
 Exports to JSON Resume's native `certificates` array. That object is only
 `{name, date, issuer, url}`, so `type`, `expiry_date` and `identifier` are
@@ -493,7 +492,7 @@ Place custom Jinja2 templates in `templates/` at your project root — cvloom wi
 |---|---|---|---|
 | `json-resume` | `cvloom export --format json-resume` | `dist/<profile>.resume.json` | Job boards, JSON Resume ecosystem |
 | `markdown` | `cvloom export --format markdown` | `dist/<profile>.resume.md` | Markdown-based sites, pasting into docs |
-| `linkedin` | `cvloom export --format linkedin` | `dist/<profile>.linkedin.txt` | Copy-paste into LinkedIn About/Experience/Skills |
+| `text` | `cvloom export --format text` | `dist/<profile>.resume.txt` | Pasting into web forms, ATS fields, plain-text email |
 | `docx` | `cvloom export --format docx` | `dist/<profile>.resume.docx` | Word/LibreOffice, when a `.docx` is required |
 
 The `docx` format requires the optional `python-docx` dependency:
@@ -512,7 +511,9 @@ page-layout devices, and the only way to express them in Word is with text boxes
 tables, which are the constructs that make a document parse badly. Send the PDF when a
 human reads it and the DOCX when a parser does.
 
-The `linkedin` format warns if your About section exceeds LinkedIn's 2600-character limit.
+The `text` format carries the same content as the `markdown` one — the header, your summary
+and every section your profile shows — with the markup dropped and headings set in caps over
+a rule. It honours `section_order`, `show: false` and `section_titles` like the others do.
 
 ### JSON Resume conformance and extensions
 

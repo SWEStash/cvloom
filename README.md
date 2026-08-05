@@ -61,7 +61,7 @@ example.
 | | Tailored cover letter from CV + JD | `cvloom ai cover` |
 | | Content improvement suggestions for a target role | `cvloom ai suggest` |
 | | Qualitative JD alignment — tone, framing, repositioning | `cvloom ai align` |
-| **Export** | JSON Resume, Markdown, LinkedIn text, DOCX | `cvloom export` |
+| **Export** | JSON Resume, Markdown, plain text, DOCX | `cvloom export` |
 | **Inspect** | List projects with tag filtering | `cvloom list-projects` |
 | | List all build profiles | `cvloom list-profiles` |
 | | List templates with their PDF text-extraction rating | `cvloom list-templates` |
