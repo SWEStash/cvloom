@@ -13,11 +13,33 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
-from mcp.server.fastmcp import FastMCP
+
+try:
+    from mcp.server.fastmcp import FastMCP
+
+    _MCP_AVAILABLE = True
+except ModuleNotFoundError:
+    # The MCP server is an optional feature (the `cvloom[mcp]` extra). Import a stub
+    # so this module still loads without it — the @mcp.tool() registrations below
+    # become no-ops and main() prints an install hint instead of failing with a bare
+    # `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`.
+    _MCP_AVAILABLE = False
+
+    class FastMCP:  # type: ignore[no-redef]
+        def __init__(self, name: str) -> None:
+            pass
+
+        def tool(self) -> Any:
+            return lambda func: func
+
+        def run(self) -> None:  # pragma: no cover - guarded by main()
+            pass
+
 
 from cvloom import builder, linter, loader, projects, schema, sections
 from cvloom import trim as trim_mod
@@ -459,6 +481,13 @@ def ai_align_to_jd(
 
 def main() -> None:
     """Entry point for the MCP server."""
+    if not _MCP_AVAILABLE:
+        sys.stderr.write(
+            "cvloom-mcp requires the optional 'mcp' dependency, which is not installed.\n"
+            "Install it with:  uv tool install 'cvloom[mcp]'   "
+            "(or: pip install 'cvloom[mcp]')\n"
+        )
+        raise SystemExit(1)
     mcp.run()
 
 
