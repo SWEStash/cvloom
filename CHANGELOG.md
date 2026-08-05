@@ -7,6 +7,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.1](https://github.com/SWEStash/cvloom/compare/v0.6.0...v0.6.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **mcp:** friendly error when cvloom-mcp runs without the [mcp] extra ([64994a9](https://github.com/SWEStash/cvloom/commit/64994a9cf6b5a41291c65cb1f9eb5c0cacbd5c91))
+
+
+### Documentation
+
+* add GitHub issue templates (bug, feature) + security routing ([e73a170](https://github.com/SWEStash/cvloom/commit/e73a170eeb155563b0fcb62ee41845cd6aefc582))
+
 ## [Unreleased]
 
 ---
