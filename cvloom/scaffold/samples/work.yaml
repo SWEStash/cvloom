@@ -2,7 +2,8 @@
   title: Senior Backend Engineer
   location: Remote
   start_date: "2021-03"
-  end_date: Present
+  # Omit end_date for a current role. cvloom fills in your locale's word for it
+  # ("Present" in en, "Actualidad" in es), so this stays right in any language.
   highlights:
     - Led migration of monolith to microservices, reducing deploy time by 60%.
     - Designed event-driven pipeline processing 50k events/sec with Kafka.

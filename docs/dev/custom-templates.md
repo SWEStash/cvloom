@@ -245,7 +245,8 @@ it — a hardcoded `<h2>Skills</h2>` is neither renameable nor translatable:
 <h2>{{ section_title("skills") }}</h2>
 ```
 
-Three things can decide the wording, narrowest winning:
+The pack side of this is documented in [Locales](../reference/locales.md). Three things
+can decide the wording, narrowest winning:
 
 | Source | Who owns it |
 |---|---|

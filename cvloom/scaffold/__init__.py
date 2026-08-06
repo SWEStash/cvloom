@@ -75,6 +75,28 @@ def init_profile(root: Path, force: bool) -> None:
             _console.print(f"[dim]  {rel} already exists, skipping[/dim]")
 
 
+def init_config(root: Path, locale: str, force: bool) -> None:
+    """Write ``cvloom.yaml``, declaring the language the project operates in.
+
+    Deliberately *not* a :class:`ManagedFile`. ``managed_status`` compares bytes
+    against a packaged source, so a file whose content is a user's own choice
+    would read as "outdated" for every project that picked anything but the
+    default, and ``sync --force`` would reset their locale. This belongs with the
+    other create-if-absent writers instead.
+    """
+    path = root / "cvloom.yaml"
+    if path.exists() and not force:
+        _console.print("[dim]  cvloom.yaml already exists, skipping[/dim]")
+        return
+    path.write_text(
+        "# The language this project operates in. One project, one language —\n"
+        "# a CV in a second language is a second project directory.\n"
+        "# See `cvloom list-locales` for what each locale covers.\n"
+        f"locale: {locale}\n"
+    )
+    _console.print(f"[green]✓[/green] Created cvloom.yaml (locale: {locale})")
+
+
 def init_private(root: Path, force: bool) -> None:
     private_dir = root / "private"
     private_dir.mkdir(exist_ok=True)

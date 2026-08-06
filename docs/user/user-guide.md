@@ -22,9 +22,11 @@ This guide covers everything you need to know to use cvloom effectively: data fi
 2. [Profile Keys Reference](#profile-keys-reference)
 3. [Templates](#templates)
 4. [Export Formats](#export-formats)
-5. [Build Modes](#build-modes)
-6. [Lint Integration](#lint-integration)
-7. [Environment Variables](#environment-variables)
+5. [Project Settings (`cvloom.yaml`)](#project-settings-cvloomyaml)
+   - [Where section headings come from](#where-section-headings-come-from)
+6. [Build Modes](#build-modes)
+7. [Lint Integration](#lint-integration)
+8. [Environment Variables](#environment-variables)
 
 ---
 
@@ -78,7 +80,7 @@ A list of work experience entries.
   title: Senior Backend Engineer           # required
   location: Remote                         # optional
   start_date: "2021-03"                    # required (YYYY-MM or YYYY)
-  end_date: Present                        # optional; omit or "Present" for current role
+  # end_date                               # optional; omit for a current role
   highlights:                              # optional list of bullets
     - id: kafka-pipeline                   # optional ID for overlay targeting
       text: "Built real-time pipeline..."
@@ -92,7 +94,7 @@ A list of work experience entries.
 | `title` | Yes | Job title |
 | `location` | No | Office location or "Remote" |
 | `start_date` | Yes | `YYYY-MM` or `YYYY` |
-| `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
+| `end_date` | No | `YYYY-MM` or `YYYY`. Omit for a current role — cvloom supplies your [locale](../reference/locales.md)'s word (`Present` in `en`) |
 | `highlights` | No | Bullet points; plain strings or `{id, text}` objects |
 | `tags` | No | Used for profile `select` filtering; never rendered |
 
@@ -127,7 +129,7 @@ A list of education entries.
 | `connector` | No | Written between `degree` and `field`, verbatim (see below) |
 | `location` | No | City or country |
 | `start_date` | Yes | `YYYY-MM` or `YYYY` |
-| `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
+| `end_date` | No | `YYYY-MM` or `YYYY`. Omit for a current role — cvloom supplies your [locale](../reference/locales.md)'s word (`Present` in `en`) |
 | `grade` | No | GPA or classification |
 | `highlights` | No | Notable achievements, GPA, awards |
 | `tags` | No | Used for profile `select` filtering; never rendered |
@@ -189,7 +191,7 @@ description: >                             # required
   Open-source REST API framework...
 url: https://github.com/user/repo          # optional
 start_date: "2023-06"                      # optional
-end_date: Present                          # optional
+# end_date                                 # optional; omit for a current role
 highlights:                                # optional
   - id: stars
     text: "800+ GitHub stars..."
@@ -204,7 +206,7 @@ tags: [python, fastapi, open-source]       # required
 | `tags` | Yes | Used for profile filtering |
 | `url` | No | Project URL |
 | `start_date` | No | `YYYY-MM` or `YYYY` |
-| `end_date` | No | `YYYY-MM`, `YYYY`, or `"Present"` |
+| `end_date` | No | `YYYY-MM` or `YYYY`. Omit for a current role — cvloom supplies your [locale](../reference/locales.md)'s word (`Present` in `en`) |
 | `highlights` | No | Key achievements or features |
 
 ---
@@ -386,7 +388,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `select` | — | Per-section content selection; see [Selecting Content](../reference/profiles-and-overlays.md#selecting-content) |
 | `section_order` | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
-| `section_titles` | The project locale's wording | Rename section headings — text only, styling stays in the template. See [Section Headings](../reference/profiles-and-overlays.md#section-headings) |
+| `section_titles` | The project locale's wording | Rename section headings — text only, styling stays in the template. See [Where section headings come from](#where-section-headings-come-from) |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 
@@ -541,8 +543,9 @@ Exported documents are validated against the official JSON Resume schema in CI, 
 `json-resume` output is guaranteed to conform. Two consequences worth knowing:
 
 - **Dates must be ISO 8601** (`YYYY`, `YYYY-MM`, or `YYYY-MM-DD`). cvloom allows free
-  text — most importantly `end_date: Present`. JSON Resume has no such sentinel: a
-  current role is expressed by *omitting* `endDate`. Any date that isn't ISO 8601 is
+  text — most importantly the open-ended end date (`Present` in `en`, `Actualidad` in
+  `es`). JSON Resume has no such sentinel: a current role is expressed by *omitting*
+  `endDate`, which is what cvloom emits for one. Any date that isn't ISO 8601 is
   omitted from the export rather than emitted invalid, so check `wl-012` findings if
   you expect dates to appear.
 - **Empty fields are omitted**, not exported as `""`. A `--public` build strips your
@@ -569,6 +572,64 @@ your content back and quietly lose every profile.
 
 ---
 
+## Project Settings (`cvloom.yaml`)
+
+`cvloom.yaml` sits at the project root and holds the settings that belong to the
+project as a whole rather than to one build profile. A profile says how one output
+variant is rendered; this says what the project *is*. The file is committed, and it
+is optional — a project without one behaves exactly as it did before the file
+existed.
+
+Today it has one key:
+
+```yaml
+locale: es
+```
+
+`locale` is the language the project operates in. It sets the document's `lang`
+attribute (which drives PDF hyphenation and the `/Lang` metadata ATS language
+detection reads), the default section headings, the word used for an open-ended end
+date, and the `--public` placeholder contact. It also selects the rules
+`cvloom check` grades by, so a Spanish CV is graded by Spanish heuristics rather
+than English ones applied to Spanish text.
+
+The terminal stays in English by design — `check` reports Spanish findings about
+Spanish prose in English.
+
+`cvloom init --locale es` writes the file for you; `cvloom list-locales` shows what
+is available and how completely each language is supported. One project operates in
+one language: a CV in a second language is a second project directory. See
+[Locales](../reference/locales.md) for the full reference.
+
+### Where section headings come from
+
+Three sources decide a heading, narrowest winning:
+
+| Source | Set by | Applied |
+|---|---|---|
+| **`section_titles` in the profile** | You, per output variant | Always wins. The only way to customise a heading |
+| **The locale pack** | `locale:` in `cvloom.yaml` | The default, in the project's language |
+| **A template suggestion** | The template's designer | *Never automatically* — `cvloom list-templates` prints it for you to paste |
+
+So `cv/executive-dark` renders "Summary" out of the box even though the design reads
+better with "Executive Summary". Running `cvloom list-templates` prints that wording
+as a `section_titles:` block; pasting it into a profile is what applies it. The
+mechanism is deliberately singular — one place to change a heading, not three.
+
+```yaml
+# profiles/executive.yaml
+template: cv/executive-dark
+section_titles:
+  summary: Executive Summary
+  skills: Core Competencies
+```
+
+Headings follow the content out of the HTML and PDF into the Markdown, plain-text
+and DOCX exports, so all four agree. They do not reach the JSON Resume export, whose
+section names are fixed by that schema.
+
+---
+
 ## Build Modes
 
 | Flag | Contact data used | When to use |
@@ -586,7 +647,7 @@ Two flags run the writing lint as part of the build:
 
 | Flag | Effect |
 |---|---|
-| `--check` | Runs all 24 lint rules after build and prints a per-axis breakdown |
+| `--check` | Runs all 25 lint rules after build and prints a per-axis breakdown |
 | `--strict N` | Same as `--check`, plus exits with code 1 if there are more than N findings |
 
 cvloom deliberately prints no single "ATS score" — the breakdown is per axis
@@ -610,3 +671,11 @@ AI commands use three environment variables:
 | `CVLOOM_AI_MODEL` | No | `"gpt-4o"` | Model identifier |
 
 See [AI Features](ai-features.md) for provider-specific setup (Ollama, LiteLLM, OpenAI).
+
+The MCP server reads one more:
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CVLOOM_PROJECT_ROOT` | No | The server's cwd | Project the MCP server operates on when a tool call names none. Overridden by a call's own `project_root` and by `cvloom-mcp --project-root`. See [MCP Server](../reference/mcp-server.md#which-project-the-server-operates-on) |
+
+It has no effect on the `cvloom` CLI, which always operates on the current directory.
