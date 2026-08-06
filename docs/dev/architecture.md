@@ -179,7 +179,7 @@ Note `project` types a *portfolio project entry* (`data/projects/*.yaml`); the p
 
 `entry_defaults(name, prop=None)` — returns the typed empty value (`""` / `[]` / `{}`) for every *optional* property a schema declares. Single source of truth for `loader.normalize_optional_fields()` and for `job_context` defaults in `builder.build()`.
 
-`validate_all(data, raise_on_error=False)` — returns `list[str]` of error messages. When `raise_on_error=True` (the default in build), raises `SchemaError` on the first failure.
+`validate_all(data, private_path="")` — returns `list[str]` of error messages. Pure: it never prints and never raises, so callers decide how to surface failures. `builder.resolve()` turns a non-empty list into `ResolveError`; `mcp_server.validate_data` returns it as JSON.
 
 ### `config.py` — project-level configuration
 

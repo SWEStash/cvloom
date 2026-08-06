@@ -191,8 +191,20 @@ def upsert_project(
 
 @mcp.tool()
 def validate_data(project_root: str | None = None) -> str:
-    """Run schema validation on all data files. Returns errors or 'valid'."""
+    """Run schema validation on the project config and all data files.
+
+    Returns errors or 'valid'.
+    """
     root = _root(project_root)
+
+    # cvloom.yaml first: a project whose config is invalid cannot build, so
+    # reporting the data as valid would tell an agent the project is healthy
+    # when `build_cv` is about to fail.
+    try:
+        builder.project_locale(root)
+    except builder.ResolveError as exc:
+        return json.dumps({"valid": False, "errors": exc.errors}, indent=2)
+
     data = loader.load_data(
         data_dir=root / "data",
         private_dir=root / "private",

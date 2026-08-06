@@ -151,7 +151,7 @@ def resolve_project(
     resolves the project's locale — the one place ``cvloom.yaml`` is read, so
     every frontend gets the same answer without asking for it.
     """
-    pack, locale_warnings = _project_locale(root)
+    pack, locale_warnings = project_locale(root)
     return resolve(
         data_dir=root / "data",
         private_dir=root / "private",
@@ -164,8 +164,12 @@ def resolve_project(
     )
 
 
-def _project_locale(root: Path) -> tuple[LocalePack, list[str]]:
+def project_locale(root: Path) -> tuple[LocalePack, list[str]]:
     """Read ``cvloom.yaml`` and load the pack it names.
+
+    Public because three entry points need it: :func:`resolve_project` and
+    :func:`build_project` reach ``resolve`` by different routes, and
+    ``mcp_server.validate_data`` validates a project without resolving one.
 
     Config problems surface as :class:`ResolveError` so callers keep catching one
     pipeline error type; ``config`` and ``locale`` stay free of it.
@@ -196,7 +200,7 @@ def build_project(
     skipped it would render with the wrong locale while ``check`` used the right
     one.
     """
-    pack, locale_warnings = _project_locale(root)
+    pack, locale_warnings = project_locale(root)
     return build(
         data_dir=root / "data",
         private_dir=root / "private",
