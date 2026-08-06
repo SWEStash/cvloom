@@ -175,7 +175,7 @@
 <h2 class="section-title">{{ section_title("education", "Education") }}</h2>
 {% for edu in education %}
 <div class="entry">
-  <h3 class="entry-title">{{ edu.degree }}{% if edu.field %} in {{ edu.field }}{% endif %}</h3>
+  <h3 class="entry-title">{{ edu | degree_line }}</h3>
   <div class="entry-meta">{{ edu.institution }}</div>
   <div class="entry-date">{{ edu.start_date | date_range(edu.end_date | default(none)) }}</div>
 </div>

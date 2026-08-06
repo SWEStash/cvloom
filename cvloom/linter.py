@@ -1242,6 +1242,44 @@ def _check_non_ascii_dashes(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
+def _check_fused_connector(resolved: ResolvedProfile) -> list[LintFinding]:
+    """wl-024: Flag an education connector that would fuse degree and field.
+
+    The connector is written verbatim, so it carries its own spacing. Unquoted
+    YAML strips it — ``connector: in`` renders ``BScinComputer Science``. Only a
+    connector padded on neither side fuses both words: ``", "`` and ``" in "``
+    are both fine.
+    """
+    if not resolved.show_sections.get("education"):
+        return []
+    findings: list[LintFinding] = []
+    for entry in resolved.data.get("education", []) or []:
+        connector = str(entry.get("connector") or "")
+        if not connector or not entry.get("degree") or not entry.get("field"):
+            continue
+        if connector[0].isspace() or connector[-1].isspace():
+            continue
+        findings.append(
+            LintFinding(
+                rule_id="wl-024",
+                severity="warning",
+                section="education",
+                entry=sections.entry_label("education", entry),
+                bullet_index=None,
+                bullet_text=sections.degree_line(entry),
+                message=(
+                    f"Connector '{connector}' has no surrounding space, so degree and "
+                    "field render fused."
+                ),
+                fix_hint=(
+                    f'Quote it with the spacing you want: connector: " {connector} ". '
+                    'Punctuation connectors such as ", " need only the trailing space.'
+                ),
+            )
+        )
+    return findings
+
+
 RULES: list[LintRule] = [
     LintRule(
         "wl-001",
@@ -1403,6 +1441,13 @@ RULES: list[LintRule] = [
         "Flag en/em dashes in content, which cvloom renders as ASCII elsewhere",
         CATEGORY_ATS_PARSE,
         _check_non_ascii_dashes,
+    ),
+    LintRule(
+        "wl-024",
+        "fused-connector",
+        "Flag an education connector that renders degree and field fused together",
+        CATEGORY_STRUCTURE,
+        _check_fused_connector,
     ),
 ]
 

@@ -203,11 +203,38 @@ def test_markdown_section_headings() -> None:
 
 def test_markdown_entry_content() -> None:
     md = to_markdown(_make_resolved())
-    assert "Senior Engineer at Acme Corp" in md
+    # Company heads the meta line, as it does in the HTML templates — no glue word.
+    assert "### Senior Engineer\n" in md
+    assert "*Acme Corp | 2021-03 - Present | Remote*" in md
+    assert " at " not in md
     assert "- Built scalable systems." in md
     assert "**Languages:**" in md
     assert "Python" in md
     assert "Go" in md
+
+
+def test_markdown_education_folds_institution_into_meta() -> None:
+    md = to_markdown(_make_resolved())
+    assert "### BSc Computer Science\n" in md
+    assert "*MIT | 2014 - 2018*" in md
+
+
+def test_education_connector_is_verbatim_across_exports() -> None:
+    edu = [{**_make_resolved().data["education"][0], "connector": " in "}]
+    resolved = _make_resolved(education=edu)
+    assert "### BSc in Computer Science\n" in to_markdown(resolved)
+    assert "BSc in Computer Science\n" in to_text(resolved)
+
+
+def test_education_connector_may_be_punctuation() -> None:
+    edu = [{**_make_resolved().data["education"][0], "connector": ", "}]
+    assert "### BSc, Computer Science\n" in to_markdown(_make_resolved(education=edu))
+
+
+def test_education_without_field_renders_degree_alone() -> None:
+    edu = [{k: v for k, v in _make_resolved().data["education"][0].items() if k != "field"}]
+    md = to_markdown(_make_resolved(education=edu))
+    assert "### BSc\n" in md
 
 
 def test_markdown_hidden_section_omitted() -> None:
@@ -282,8 +309,9 @@ def test_text_section_headings() -> None:
 
 def test_text_entry_content() -> None:
     txt = to_text(_make_resolved())
-    assert "Senior Engineer at Acme Corp" in txt
-    assert "2021-03 - Present | Remote" in txt
+    assert "Senior Engineer\n" in txt
+    assert "Acme Corp | 2021-03 - Present | Remote" in txt
+    assert " at " not in txt
     assert "· Built scalable systems." in txt
 
 

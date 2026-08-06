@@ -6,9 +6,7 @@
       "release-type": "python",
       "package-name": "cvloom",
       "changelog-path": "CHANGELOG.md",
-      "include-v-in-tag": true,
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true
+      "include-v-in-tag": true
     }
   }
 }

@@ -38,7 +38,7 @@ cvloom/
 ├── filters.py          # Jinja2 filters (md, date_range, cert_groups, …) + section_title global
 ├── links.py            # Profile-link vocabulary: network_of, link_username, normalize_url
 ├── select.py           # Per-section content selection: apply_selection()
-├── linter.py           # Writing lint: 22 categorized rules, LintFinding, lint()
+├── linter.py           # Writing lint: 24 categorized rules, LintFinding, lint()
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions

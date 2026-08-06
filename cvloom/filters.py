@@ -131,5 +131,8 @@ def register_filters(env: jinja2.Environment) -> None:
     env.filters["date_range"] = date_range
     env.filters["skill_level_bar"] = skill_level_bar
     env.filters["cert_groups"] = cert_groups
+    # Registered straight from `sections` — the exporters need the same join, and
+    # nothing about the Jinja side reshapes it.
+    env.filters["degree_line"] = sections.degree_line
     env.filters["link_anchor"] = link_anchor
     env.filters["link_icon"] = link_icon

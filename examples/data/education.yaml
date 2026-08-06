@@ -1,6 +1,9 @@
 - institution: State University
   degree: "Bachelor of Science"
   field: Computer Science
+  # Written verbatim between degree and field. Quote it — unquoted YAML strips
+  # the spaces. Omit it entirely and the two join with a single space.
+  connector: " in "
   location: "Anytown, USA"
   start_date: "2014"
   end_date: "2018"

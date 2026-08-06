@@ -134,3 +134,36 @@ def test_group_certifications_defaults_missing_type_to_credential() -> None:
 
 def test_group_certifications_empty() -> None:
     assert sections.group_certifications([]) == []
+
+
+# ── degree_line ─────────────────────────────────────────────────────
+
+
+def test_degree_line_joins_with_a_space_when_no_connector() -> None:
+    assert sections.degree_line({"degree": "BSc", "field": "Computer Science"}) == (
+        "BSc Computer Science"
+    )
+
+
+def test_degree_line_writes_the_connector_verbatim() -> None:
+    entry = {"degree": "BSc", "field": "Computer Science", "connector": " in "}
+    assert sections.degree_line(entry) == "BSc in Computer Science"
+
+
+def test_degree_line_accepts_a_punctuation_connector() -> None:
+    entry = {"degree": "MSc", "field": "Computer Science", "connector": ", "}
+    assert sections.degree_line(entry) == "MSc, Computer Science"
+
+
+def test_degree_line_treats_an_empty_connector_as_absent() -> None:
+    """`normalize_optional_fields` fills the key with "" when the data omits it."""
+    entry = {"degree": "BSc", "field": "CS", "connector": ""}
+    assert sections.degree_line(entry) == "BSc CS"
+
+
+def test_degree_line_without_field_returns_the_degree_alone() -> None:
+    assert sections.degree_line({"degree": "PhD", "connector": " in "}) == "PhD"
+
+
+def test_degree_line_missing_degree_is_not_an_error() -> None:
+    assert sections.degree_line({}) == ""

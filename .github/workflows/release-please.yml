@@ -17,8 +17,10 @@ name: release-please
 # (release-please.yml), environment `pypi`.
 #
 # Config: release-please-config.json + .release-please-manifest.json.
-# bump-minor-pre-major / bump-patch-for-minor-pre-major keep pre-1.0 semantics
-# (breaking -> MINOR, feat -> PATCH) until the manifest crosses 1.0.0.
+# Plain semver, no pre-1.0 special-casing: fix -> PATCH, feat -> MINOR,
+# breaking -> MAJOR. Note that below 1.0.0 that makes any `!` commit publish
+# 1.0.0, so a breaking marker is a deliberate declaration that the CLI and the
+# data schema are stable — not a way to flag a merely noticeable change.
 
 on:
   push:
@@ -39,6 +41,37 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
+
+      # release-please's python updater rewrites pyproject.toml and
+      # cvloom/__init__.py, but has never heard of uv.lock — which records the
+      # workspace member's own version. Left alone the lock goes stale on every
+      # release, and the next local `uv run` silently rewrites it into whatever
+      # commit happens to come next. Nothing downstream breaks (uv build reads
+      # pyproject.toml, and CI does not use --locked); it is the stray diff that
+      # is the problem. Fix it on the release PR, where the bump was made.
+      - name: Check out the release PR branch
+        if: ${{ steps.release.outputs.pr }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+
+      - name: Install uv
+        if: ${{ steps.release.outputs.pr }}
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync uv.lock to the released version
+        if: ${{ steps.release.outputs.pr }}
+        run: |
+          uv lock
+          # `if` rather than `&&`, so a clean lock is not read as a step failure.
+          if git diff --quiet uv.lock; then
+            echo "uv.lock already matches pyproject.toml — nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: sync uv.lock to the released version" uv.lock
+          git push
 
   publish:
     name: Publish to PyPI

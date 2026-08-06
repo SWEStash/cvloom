@@ -69,6 +69,7 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 | `wl-021` | unfilled-placeholders   | structure  | warning    | basics, all entry sections | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
 | `wl-022` | duplicate-links         | structure  | warning    | basics                     | Two `links` entries pointing at the same place |
 | `wl-023` | non-ascii-dashes        | ats-parse  | info       | all entry sections         | En/em dashes in content, where cvloom emits ASCII |
+| `wl-024` | fused-connector         | structure  | warning    | education                  | A `connector` that renders degree and field fused together |
 
 ---
 
@@ -480,3 +481,25 @@ depends on the embedded font subset carrying the glyph.
 **Good:** `publisher: IEEE - CACIDI`
 
 **Fix hint:** Replace with `-` so every dash in the document matches.
+
+### wl-024: fused-connector
+
+**Category:** structure | **Sections checked:** education | **Severity:** warning
+
+Fires when an education entry sets `connector`, has both a `degree` and a `field`, and the
+connector is padded on neither side.
+
+**Basis (structure):** cvloom supplies no connecting word between degree and field — the
+right one is per entry, not per language (`Licenciatura en Informática`, but
+`Ingeniero Informático`). The entry's `connector` is therefore written **verbatim**, spacing
+included, which makes unquoted YAML a silent trap: `connector: in` loses its spaces and
+renders `BScinComputer Science`. Only a connector with no space on either side fuses both
+words, so punctuation such as `", "` — correct as `MSc, Computer Science` — does not fire.
+
+**Bad:** `connector: in` → `BScinComputer Science`
+
+**Good:** `connector: " in "` → `BSc in Computer Science`
+**Good:** `connector: ", "` → `MSc, Computer Science`
+
+**Fix hint:** Quote it with the spacing you want. Punctuation connectors need only the
+trailing space.
