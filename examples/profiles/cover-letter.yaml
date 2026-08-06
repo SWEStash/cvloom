@@ -1,0 +1,19 @@
+# A cover letter is an ordinary profile — the template makes it one. It reads
+# `job_context` for the recipient and the body, and everything the letter says
+# that you did not write (the greeting, the sign-off, the date) comes from the
+# project's locale pack. Built by `cvloom build --all`, so a regression in that
+# furniture shows up here and not only in the test suite.
+template: cover-letter/standard
+output_filename: cover-letter
+
+job_context:
+  company: Acme Corp
+  role: Senior Backend Engineer
+  hiring_manager: Dana Reyes
+  notes: |
+    I am writing to apply for the **Senior Backend Engineer** role at Acme Corp.
+    The posting's emphasis on payment reliability is what caught my attention.
+
+    Most of my last four years went into distributed systems that had to stay
+    correct under load, and into the tooling that let a small team keep them
+    that way. I would welcome the chance to talk it through.

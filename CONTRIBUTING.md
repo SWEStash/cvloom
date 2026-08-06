@@ -84,10 +84,10 @@ on Python 3.11, 3.12, and 3.13.
 | `skills` | list | Each entry: category, items (list of str or {name, level}) |
 | `projects` | list | Each entry: name, description, tags, url?, start_date?, end_date?, highlights? |
 | `show` | dict | Boolean flags: work, education, skills, projects |
-| `job_context` | dict | Keys: company?, role?, hiring_manager?, notes? |
+| `job_context` | dict | Keys: company?, role?, hiring_manager?, notes?, greeting?, closing? |
 | `profile` | dict | Full profile config |
 | `public` | bool | True when running in --public mode |
-| `today` | str | Current date as "Month DD, YYYY" |
+| `today` | str | Current date, formatted by the project's locale pack |
 
 All Jinja2 filters defined in `cvloom/filters.py` are available:
 `md` (Markdown → HTML), `date_range`, `skill_level_bar`.

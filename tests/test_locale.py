@@ -8,6 +8,7 @@ hand-written list, so adding a lookup without an ``en`` default fails CI.
 from __future__ import annotations
 
 from dataclasses import fields
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -76,6 +77,23 @@ def test_en_matches_the_literals_it_replaced() -> None:
     }
     assert pack.section_titles["certifications"] == "Certifications"
     assert pack.section_titles["professional_development"] == "Professional Development"
+    assert dict(pack.cover_letter) == {
+        "greeting": "Dear",
+        "fallback_salutee": "Hiring Manager",
+        "closing": "Sincerely,",
+    }
+
+
+def test_en_date_drops_the_zero_padded_day() -> None:
+    """6.7 changed English output on purpose: `%d` padded the day, which is wrong
+    in a letter. Pinned so it cannot drift back or drift further."""
+    pack, _ = locale.load_pack("en")
+    assert pack.format_date(date(2026, 8, 6)) == "August 6, 2026"
+
+
+def test_es_date_follows_its_own_order() -> None:
+    pack, _ = locale.load_pack("es")
+    assert pack.format_date(date(2026, 8, 6)) == "6 de agosto de 2026"
 
 
 # ---------------------------------------------------------------------------
@@ -102,11 +120,7 @@ def test_unknown_locale_names_the_available_ones() -> None:
 
 
 def test_missing_key_falls_back_to_en_with_a_warning(packs_dir: Path) -> None:
-    (packs_dir / "xx.yaml").write_text(
-        "html_lang: xx\n"
-        "section_titles:\n  work: Trabajo\n"
-        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
-    )
+    (packs_dir / "xx.yaml").write_text(_pack_yaml(omit=("placeholder_contact",)))
     pack, warnings = locale.load_pack("xx")
 
     en, _ = locale.load_pack("en")
@@ -115,11 +129,7 @@ def test_missing_key_falls_back_to_en_with_a_warning(packs_dir: Path) -> None:
 
 
 def test_present_keys_are_not_overridden_by_en(packs_dir: Path) -> None:
-    (packs_dir / "xx.yaml").write_text(
-        "html_lang: xx\n"
-        "section_titles:\n  work: Trabajo\n"
-        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
-    )
+    (packs_dir / "xx.yaml").write_text(_pack_yaml(omit=("placeholder_contact",)))
     pack, _ = locale.load_pack("xx")
     assert pack.html_lang == "xx"
     assert pack.ongoing.render == "Actualidad"
@@ -131,6 +141,28 @@ def test_half_populated_ongoing_fails_schema_validation(packs_dir: Path) -> None
     """F7's named risk: `render` without `accepts` would silently degrade
     chronology ranking and open-ended date export."""
     (packs_dir / "xx.yaml").write_text("ongoing:\n  render: Actualidad\n")
+    with pytest.raises(config.ConfigError) as exc:
+        locale.load_pack("xx")
+    assert any("locales/xx.yaml" in e for e in exc.value.errors)
+
+
+def test_eleven_months_fails_at_load(packs_dir: Path) -> None:
+    """F13's named risk: a pack author who translates eleven months would
+    otherwise ship one English month, for one month of the year."""
+    (packs_dir / "xx.yaml").write_text(
+        _pack_yaml(omit=("months",)) + "months: [E, F, M, A, My, Jn, Jl, Ag, S, O, N]\n"
+    )
+    with pytest.raises(config.ConfigError) as exc:
+        locale.load_pack("xx")
+    assert any("locales/xx.yaml" in e for e in exc.value.errors)
+
+
+def test_partial_cover_letter_fails_at_load(packs_dir: Path) -> None:
+    """`load_pack`'s fallback is per top-level key, so a block with two of three
+    subkeys would inherit nothing for the third. The schema stops it first."""
+    (packs_dir / "xx.yaml").write_text(
+        _pack_yaml(omit=("cover_letter",)) + "cover_letter:\n  greeting: Estimado\n"
+    )
     with pytest.raises(config.ConfigError) as exc:
         locale.load_pack("xx")
     assert any("locales/xx.yaml" in e for e in exc.value.errors)
@@ -172,11 +204,7 @@ def test_shipped_packs_report_complete_coverage(code: str) -> None:
 
 def test_coverage_names_the_keys_a_pack_inherits(packs_dir: Path) -> None:
     """The structured form of the fallback `load_pack` reports as prose."""
-    (packs_dir / "xx.yaml").write_text(
-        "html_lang: xx\n"
-        f"section_titles:\n{_all_titles()}"
-        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
-    )
+    (packs_dir / "xx.yaml").write_text(_pack_yaml(omit=("placeholder_contact",)))
     cov = locale.pack_coverage("xx")
     assert cov.inherited_keys == ("placeholder_contact",)
     assert cov.missing_titles == ()
@@ -186,16 +214,7 @@ def test_coverage_names_the_keys_a_pack_inherits(packs_dir: Path) -> None:
 def test_coverage_names_headings_the_pack_leaves_unnamed(packs_dir: Path) -> None:
     """A gap `load_pack` does not warn about: its fallback is per top-level key,
     so a partial `section_titles` passes silently and heads a section `work`."""
-    (packs_dir / "xx.yaml").write_text(
-        "html_lang: xx\n"
-        "section_titles:\n  work: Trabajo\n"
-        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
-        "placeholder_contact:\n"
-        "  name: Your Name\n"
-        "  email: your.email@example.com\n"
-        "  phone: +1 (555) 000-0000\n"
-        "  location: City, Country\n"
-    )
+    (packs_dir / "xx.yaml").write_text(_pack_yaml(titles="  work: Trabajo\n"))
     cov = locale.pack_coverage("xx")
     assert cov.inherited_keys == ()
     assert "education" in cov.missing_titles
@@ -215,6 +234,38 @@ def test_coverage_of_an_unknown_locale_raises() -> None:
 def _all_titles() -> str:
     """Every TITLE_KEYS heading, so a fixture can isolate one gap at a time."""
     return "".join(f"  {key}: T-{key}\n" for key in sections.TITLE_KEYS)
+
+
+def _pack_yaml(*, omit: tuple[str, ...] = (), titles: str | None = None) -> str:
+    """A complete `xx` pack minus *omit*, so a fixture isolates one gap at a time.
+
+    Checked against ``PACK_KEYS`` rather than hand-maintained: a new pack key
+    fails here, naming itself, instead of silently widening every fallback
+    fixture's expected gap.
+    """
+    blocks = {
+        "html_lang": "html_lang: xx\n",
+        "section_titles": "section_titles:\n" + (_all_titles() if titles is None else titles),
+        "ongoing": "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n",
+        "placeholder_contact": (
+            "placeholder_contact:\n"
+            "  name: Your Name\n"
+            "  email: your.email@example.com\n"
+            "  phone: +1 (555) 000-0000\n"
+            "  location: City, Country\n"
+        ),
+        "cover_letter": (
+            "cover_letter:\n"
+            "  greeting: Estimado\n"
+            "  fallback_salutee: Responsable\n"
+            "  closing: Atentamente,\n"
+        ),
+        "months": "months: [E, F, M, A, My, Jn, Jl, Ag, S, O, N, D]\n",
+        "date_format": 'date_format: "{day}/{month}/{year}"\n',
+    }
+    unknown = [key for key in locale.PACK_KEYS if key not in blocks]
+    assert not unknown, f"_pack_yaml supplies no block for {unknown}"
+    return "".join(text for key, text in blocks.items() if key not in omit)
 
 
 def test_pack_mappings_are_read_only() -> None:
@@ -361,6 +412,60 @@ def test_text_exports_head_sections_in_the_locales_words(es_project: Path) -> No
     md = to_markdown(builder.resolve_project(es_project, "general", public=True))
     assert "## Experiencia" in md
     assert "## Experience" not in md
+
+
+# ---------------------------------------------------------------------------
+# Cover-letter furniture and the date (6.7)
+# ---------------------------------------------------------------------------
+
+
+def _letter(root: Path, profile: str = "letter") -> str:
+    return builder.build_project(root, profile_name=profile, public=True, skip_pdf=True).html
+
+
+def test_spanish_letter_carries_no_english_furniture(es_project: Path) -> None:
+    """The bug 6.7 exists for: a letter declaring lang="es" that said
+    `August 06, 2026` / `Dear Hiring Manager` / `Sincerely,`."""
+    (es_project / "profiles" / "letter.yaml").write_text(
+        "template: cover-letter/standard\n"
+        "job_context:\n  company: Acme\n  notes: Les escribo para expresar mi interés.\n"
+    )
+    html = _letter(es_project)
+    assert "Estimado Responsable de Contratación," in html
+    assert "Atentamente," in html
+    assert " de " in html  # the date, in the order es writes it
+    for english in ("Dear", "Hiring Manager", "Sincerely"):
+        assert english not in html
+
+
+def test_profile_greeting_beats_the_pack(es_project: Path) -> None:
+    """The gendered-salutation case F12 exists for: who is addressed is a fact
+    about the application, not about the language."""
+    (es_project / "profiles" / "letter.yaml").write_text(
+        "template: cover-letter/standard\n"
+        "job_context:\n"
+        "  company: Acme\n  hiring_manager: María López\n"
+        "  greeting: Estimada\n  closing: Un cordial saludo,\n"
+    )
+    html = _letter(es_project)
+    assert "Estimada María López," in html
+    assert "Un cordial saludo," in html
+    assert "Atentamente," not in html
+
+
+def test_english_letter_keeps_its_wording(tmp_path: Path) -> None:
+    """`en` furniture is byte-identical to what the templates hardcoded."""
+    root = make_project(
+        tmp_path,
+        extra={
+            "profiles/letter.yaml": (
+                "template: cover-letter/standard\njob_context:\n  company: Acme\n"
+            )
+        },
+    )
+    html = _letter(root)
+    assert "Dear Hiring Manager," in html
+    assert "Sincerely," in html
 
 
 def test_public_build_uses_the_packs_placeholder_contact(tmp_path: Path, packs_dir: Path) -> None:

@@ -50,7 +50,7 @@ table that implies parity — would promise coverage the tool does not have.
 
 ## The document pack
 
-Four keys, all required in `en` and all optional elsewhere. This is the whole
+Seven keys, all required in `en` and all optional elsewhere. This is the whole
 surface; there is nothing else a pack can set.
 
 | Key | What it is |
@@ -59,6 +59,9 @@ surface; there is nothing else a pack can set.
 | `section_titles` | One default heading per renameable section |
 | `ongoing` | The open-ended end date, in both directions: `render` is written into the document, `accepts` is the list parsed back out |
 | `placeholder_contact` | The stand-in identity for `--public` builds and for a project with no `private/contact.yaml` |
+| `cover_letter` | `greeting`, `fallback_salutee` and `closing` — everything a letter says that you did not write |
+| `months` | The twelve month names, January first |
+| `date_format` | How this language orders a date: a template over `{day}`, `{month}` and `{year}` |
 
 ### `ongoing` is bidirectional
 
@@ -104,6 +107,35 @@ for the profile side and
 [Custom Templates → Section Headings](../dev/custom-templates.md#section-headings)
 for the template side.
 
+## Cover-letter furniture: two sources, narrowest wins
+
+A letter is mostly your own prose. The rest — the greeting, the name you address
+when you have none, the sign-off, the date — comes from the pack, so a Spanish
+project does not build a letter that declares `lang="es"` and then says
+`Dear Hiring Manager`.
+
+The greeting and the closing take a **profile override**, because they are facts
+about the application rather than about the language:
+
+```yaml
+# profiles/cover-letter.yaml
+template: cover-letter/standard
+job_context:
+  company: Acme Corp
+  hiring_manager: Dana Reyes
+  greeting: Estimada        # the pack's default is `Estimado`
+  closing: Un cordial saludo,
+```
+
+Spanish salutations agree with the addressee — `Estimado`, `Estimada`,
+`Estimados` — and no pack can know which one your letter needs. `fallback_salutee`
+has no override on purpose: it is only reached when `hiring_manager` is unset, and
+setting `hiring_manager` is the way to say who you are writing to.
+
+The date needs nothing from you. `strftime` would read the machine's C locale,
+which is English whatever your project says, so cvloom writes the date from the
+pack's own `months` and `date_format`.
+
 ## Resolution and fallback
 
 The project's locale is read from `cvloom.yaml`; an absent file means `en`.
@@ -129,8 +161,8 @@ en      complete  24 of 25 · skips wl-025  native
 es      complete  24 of 25 · skips wl-016  native
 ```
 
-- **Document** — whether the pack supplies all four keys and every heading in its
-  own words, or leans on `en` for some of them.
+- **Document** — whether the pack supplies every key and every heading in its own
+  words, or leans on `en` for some of them.
 - **Lint rules** — how many of the writing-lint rules have an implementation for
   this language. Counts come from the rule registry, never from a literal.
 - **Lint data** — whether the grader has a lexicon for this language (`native`) or
@@ -161,6 +193,14 @@ rather than at render time. Two things to get right:
   output when the chronology rule and the JSON Resume export read it back.
 - Cover **every** key in `section_titles`. A missing one heads the section with
   its raw key, silently.
+- Translate **all twelve** `months`. The schema requires exactly twelve, so a
+  short list fails at load rather than shipping one English month for one month
+  of the year — and set `date_format` to the order the language writes
+  (`{day} de {month} de {year}` for `es`).
+
+`cover_letter.greeting` is the pack's best single default. Where a language's
+salutation agrees with who receives it, the per-application form belongs in the
+profile — see the section below.
 
 A pack that ships with cvloom must be complete: `tests/test_locale.py` is
 parametrised over every shipped pack and fails on any fallback warning.

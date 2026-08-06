@@ -32,3 +32,24 @@ placeholder_contact:
   email: ⟦your.email@example.com⟧
   phone: ⟦+1 (555) 000-0000⟧
   location: ⟦City, Country⟧
+
+cover_letter:
+  greeting: ⟦Dear⟧
+  fallback_salutee: ⟦Hiring Manager⟧
+  closing: ⟦Sincerely,⟧
+
+months:
+  - ⟦January⟧
+  - ⟦February⟧
+  - ⟦March⟧
+  - ⟦April⟧
+  - ⟦May⟧
+  - ⟦June⟧
+  - ⟦July⟧
+  - ⟦August⟧
+  - ⟦September⟧
+  - ⟦October⟧
+  - ⟦November⟧
+  - ⟦December⟧
+
+date_format: "⟦{month} {day}, {year}⟧"

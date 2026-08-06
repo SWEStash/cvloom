@@ -3,7 +3,15 @@ output_filename: cover-letter
 job_context:
   company: "Target Company"
   role: "Senior Software Engineer"
-  hiring_manager: "Hiring Manager"
+  # Who you are writing to. Left unset, the letter addresses your locale's
+  # generic salutee ("Hiring Manager" in en, "Responsable de Contratación" in
+  # es) — spelling it out here would put an English literal in every language.
+  # hiring_manager: "Dana Reyes"
+  #
+  # The greeting and sign-off come from the locale too. Override them here when
+  # the language needs it — Spanish salutations agree with the addressee:
+  # greeting: "Estimada"
+  # closing: "Un cordial saludo,"
   notes: |
     I am writing to express my interest in the **Senior Software Engineer** position
     at Target Company.

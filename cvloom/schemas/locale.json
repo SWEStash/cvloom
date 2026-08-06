@@ -52,6 +52,32 @@
         "phone": {"type": "string", "minLength": 1},
         "location": {"type": "string", "minLength": 1}
       }
+    },
+    "cover_letter": {
+      "type": "object",
+      "description": "Furniture a cover letter needs around the user's own prose. A profile's job_context.greeting / .closing override the first and last of these; fallback_salutee is reached only when job_context.hiring_manager is unset.",
+      "additionalProperties": false,
+      "required": ["greeting", "fallback_salutee", "closing"],
+      "properties": {
+        "greeting": {"type": "string", "minLength": 1},
+        "fallback_salutee": {"type": "string", "minLength": 1},
+        "closing": {"type": "string", "minLength": 1}
+      }
+    },
+    "months": {
+      "type": "array",
+      "description": "The twelve month names, January first. Written into the cover-letter date instead of strftime('%B'), which reads the C locale and is English whatever the project's locale says.",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "date_format": {
+      "type": "string",
+      "description": "str.format template over {day}, {month} and {year}, e.g. '{month} {day}, {year}' or '{day} de {month} de {year}'. Separate from months so ordering is pack content rather than a branch in code.",
+      "minLength": 1
     }
   }
 }

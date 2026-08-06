@@ -1,10 +1,16 @@
 """The escaped-English audit, run through a pseudo-locale.
 
-Every string a CV template can source from the locale pack is bracketed in
+Every string a template can source from the locale pack is bracketed in
 ``tests/fixtures/locales/qa.yaml``. Render with that pack and anything
 unbracketed came from a literal in the template or the code — which is exactly
-the failure mode 6.3 removes and that review cannot reliably catch across six
-templates.
+the failure mode 6.3 removes and that review cannot reliably catch across every
+packaged template.
+
+Both halves of the audit are derived, not listed. The templates come from
+``renderer.list_templates()`` and the strings from ``LocalePack``'s own fields,
+because the first version of this file hardcoded the six ``cv/*`` templates and
+grepped for ``<h2>`` — so the cover letters, which are in neither set, shipped
+``Dear Hiring Manager`` inside a document declaring ``lang="es"`` until 6.7.
 
 The pack is a fixture rather than a shipped locale: it is staged into a temp copy
 of ``cvloom/locales/``, so it never reaches a wheel and never shows up in
@@ -15,7 +21,9 @@ from __future__ import annotations
 
 import re
 import shutil
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
+from dataclasses import fields
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -25,14 +33,12 @@ from cvloom import loader, locale, renderer, sections
 
 _QA_FIXTURE = Path(__file__).parent / "fixtures" / "locales" / "qa.yaml"
 
-_CV_TEMPLATES = [
-    "cv/ats-clean",
-    "cv/academic",
-    "cv/modern-single",
-    "cv/executive-dark",
-    "cv/timeline-clean",
-    "cv/sidebar-compact",
-]
+# Enumerated, never listed: a hardcoded list is how the cover-letter templates
+# went two sub-phases without being audited at all (6.7). `list_templates()` is
+# what the builder itself resolves against, so a new template is audited the day
+# it lands.
+_ALL_TEMPLATES = sorted(renderer.list_templates())
+_CV_TEMPLATES = [t for t in _ALL_TEMPLATES if t.startswith("cv/")]
 
 # Every section switched on, so every heading a template can emit is exercised.
 # The work entry deliberately has no end_date: that is what makes `date_range`
@@ -146,8 +152,61 @@ def qa_pack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[locale.
     locale.load_pack.cache_clear()
 
 
-def _render(template: str, pack: locale.LocalePack) -> str:
-    return renderer.render_template(template, dict(_EVERY_SECTION_CONTEXT), locale=pack)
+# Pack fields that no template writes out verbatim: `code` is the filename,
+# `html_lang` has its own assertion below, and `date_format` is a str.format
+# template whose parts (the month names) are audited on their own.
+_NOT_RENDERED_VERBATIM = {"code", "html_lang", "date_format"}
+
+
+def _pack_strings(pack: locale.LocalePack) -> tuple[str, ...]:
+    """Every string *pack* can put into a document, derived from its fields.
+
+    Derived rather than listed for the same reason `_ALL_TEMPLATES` is: a pack
+    key nobody remembered to audit is exactly the gap 6.7 closed. A field shape
+    this does not know about fails here, naming itself, so a new key forces a
+    decision instead of being silently skipped.
+    """
+    values: list[str] = []
+    for f in fields(locale.LocalePack):
+        if f.name in _NOT_RENDERED_VERBATIM:
+            continue
+        value = getattr(pack, f.name)
+        if isinstance(value, locale.Ongoing):
+            values.append(value.render)  # `accepts` is read back out of data, never written
+        elif isinstance(value, str):
+            values.append(value)
+        elif isinstance(value, Mapping):
+            values.extend(str(v) for v in value.values())
+        elif isinstance(value, tuple):
+            values.extend(str(v) for v in value)
+        else:
+            raise AssertionError(
+                f"_pack_strings does not know how to audit LocalePack.{f.name}; "
+                "add it here or to _NOT_RENDERED_VERBATIM"
+            )
+    return tuple(values)
+
+
+# `<head>` carries the stylesheet and the browser-tab title, and Jinja copies a
+# `/* */` CSS comment through verbatim, so both reach the file without ever being
+# read by anyone looking at the document. The audit is about what a reader sees.
+_NON_DOCUMENT_RE = re.compile(r"<head\b.*?</head>|<style\b.*?</style>|<!--.*?-->", re.DOTALL | re.I)
+
+
+def _document_text(html: str) -> str:
+    """The rendered document minus its chrome: no <head>, no CSS, no comments."""
+    return _NON_DOCUMENT_RE.sub("", html)
+
+
+def _render(template: str, pack: locale.LocalePack, **overrides: Any) -> str:
+    context = {
+        **_EVERY_SECTION_CONTEXT,
+        # Sourced from the pack, so the audit sees the date the same way the
+        # builder writes it — `builder` formats `today` through the pack too.
+        "today": pack.format_date(date(2026, 3, 22)),
+        **overrides,
+    }
+    return renderer.render_template(template, context, locale=pack)
 
 
 @pytest.mark.parametrize("template", _CV_TEMPLATES)
@@ -170,6 +229,36 @@ def test_every_heading_comes_from_the_pack(template: str, qa_pack: locale.Locale
     assert headings, f"{template} rendered no section headings at all"
     escaped = [h for h in headings if not (h.startswith("⟦") and h.endswith("⟧"))]
     assert not escaped, f"{template} renders headings the locale pack does not own: {escaped}"
+
+
+@pytest.mark.parametrize("template", _ALL_TEMPLATES)
+def test_no_pack_owned_string_escapes_unbracketed(
+    template: str, qa_pack: locale.LocalePack
+) -> None:
+    """Every template, not just the six with headings, and no <h2> assumption.
+
+    The `<h2>` audit below could not see the cover letters — they are not headed
+    documents — so a Spanish letter shipped `Dear Hiring Manager` and `Sincerely,`
+    for two sub-phases. This is the assertion that would have caught it: take the
+    English the pack owns and require that wherever it appears, it appears
+    bracketed, i.e. it came from the pack rather than from a literal.
+
+    Rendered twice, because the salutee fallback is only reached when
+    `job_context.hiring_manager` is unset.
+    """
+    en, _ = locale.load_pack(locale.DEFAULT_LOCALE)
+    no_manager = {**_EVERY_SECTION_CONTEXT["job_context"], "hiring_manager": ""}
+
+    for html in (
+        _document_text(_render(template, qa_pack)),
+        _document_text(_render(template, qa_pack, job_context=no_manager)),
+    ):
+        for owned in _pack_strings(en):
+            escaped = html.count(owned) - html.count(f"⟦{owned}⟧")
+            assert not escaped, (
+                f"{template} renders {owned!r} {escaped} time(s) as a literal; "
+                "the locale pack owns that string"
+            )
 
 
 @pytest.mark.parametrize("template", _CV_TEMPLATES)

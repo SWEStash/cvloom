@@ -237,6 +237,11 @@ job_context:
     Cover letter body text or notes about the role.
 ```
 
+Two further keys, `greeting` and `closing`, override the letter furniture the
+project's locale pack supplies by default — the case they exist for is a language
+whose salutation agrees with the addressee, such as Spanish's `Estimado` /
+`Estimada`. See [Locales](locales.md#cover-letter-furniture-two-sources-narrowest-wins).
+
 ---
 
 ## Overlays

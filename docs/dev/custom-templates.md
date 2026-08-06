@@ -124,10 +124,10 @@ These variables are available in every template:
 | `show` | dict | Section visibility flags, one per orderable section. Value: `True`/`False` |
 | `section_order` | list | Ordered list of section names to render |
 | `section_titles` | dict | Heading overrides from the profile. Read it through the `section_title` global, not directly |
-| `locale` | LocalePack | The project's locale pack (`html_lang`, `section_titles`, `ongoing`, `placeholder_contact`). `base.html.j2` uses `locale.html_lang`; otherwise reach it through `section_title` and `date_range` |
-| `job_context` | dict | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`); keys always present, empty string when unset |
+| `locale` | LocalePack | The project's locale pack (`html_lang`, `section_titles`, `ongoing`, `placeholder_contact`, `cover_letter`, `months`, `date_format`). `base.html.j2` uses `locale.html_lang`; otherwise reach it through `section_title`, `date_range` and `cover_letter_text` |
+| `job_context` | dict | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`, `greeting`, `closing`); keys always present, empty string when unset |
 | `public` | bool | `True` when built with `--public` |
-| `today` | str | Current date formatted as `"Month DD, YYYY"` |
+| `today` | str | Current date, written the way the project's locale writes one |
 
 **Work entry fields:** `company`, `title`, `location`, `start_date`, `end_date`, `highlights` (list of strings), `tags`
 
@@ -272,12 +272,20 @@ because `render_template` is public API and is called directly by tests and by t
 server.
 
 **Head sections with `<h2>`.** `tests/test_locale_qa.py` is what stops English creeping
-back into a packaged template: it renders under a pseudo-locale that brackets every
-pack-sourced string and fails on any heading the pack does not own. It finds those
-headings by extracting `<h2>` elements, because that is what all six packaged templates
-use. A section headed with an `<h3>` or a styled `<div>` is not audited, so a hardcoded
-literal there would ship unnoticed. If a design genuinely needs a different element,
-widen `_H2_RE` in that test in the same change.
+back into a packaged template. It renders every template under a pseudo-locale that
+brackets every pack-sourced string, and asserts twice: no `cv/*` heading the pack does not
+own, and — across all templates, headed or not — no pack-owned string appearing
+unbracketed anywhere in the document body.
+
+The heading half finds headings by extracting `<h2>` elements, because that is what the
+six packaged CV templates use. A section headed with an `<h3>` or a styled `<div>` is not
+audited *as a heading*, though its text is still covered by the second assertion whenever
+the pack owns that wording. If a design genuinely needs a different element, widen
+`_H2_RE` in that test in the same change.
+
+The second assertion reads `<body>` only: `<head>` and `/* */` CSS comments are copied
+into the file but nobody reads them as the document. Note this means the `<title>` element
+is *not* audited — it is browser and PDF-metadata chrome, and no pack key owns it today.
 
 ---
 

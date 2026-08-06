@@ -292,7 +292,9 @@ def build(
         "section_titles": resolved.section_titles,
         "job_context": job_context,
         "public": public,
-        "today": date.today().strftime("%B %d, %Y"),
+        # Formatted from the pack, not `strftime("%B")`, which reads the C locale
+        # and so dates a Spanish letter in English.
+        "today": resolved.locale.format_date(date.today()),
     }
 
     # Render HTML

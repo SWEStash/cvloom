@@ -189,6 +189,14 @@
         },
         "notes": {
           "type": "string"
+        },
+        "greeting": {
+          "type": "string",
+          "description": "Overrides the locale pack's greeting, e.g. 'Estimada' when the addressee is a woman. Spanish salutations agree with who receives them, which is a property of the application rather than of the language."
+        },
+        "closing": {
+          "type": "string",
+          "description": "Overrides the locale pack's sign-off, e.g. 'Un cordial saludo'."
         }
       }
     },

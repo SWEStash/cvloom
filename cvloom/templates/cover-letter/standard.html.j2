@@ -52,7 +52,7 @@ h2 { display: none; }
 
 <!-- SALUTATION -->
 <div class="salutation">
-Dear {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else %}Hiring Manager{% endif %},
+{{ cover_letter_text('greeting') }} {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else %}{{ cover_letter_text('fallback_salutee') }}{% endif %},
 </div>
 
 <!-- BODY -->
@@ -75,7 +75,7 @@ Dear {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else 
 
 <!-- SIGN-OFF -->
 <div class="sign-off">
-  <div class="closing">Sincerely,</div>
+  <div class="closing">{{ cover_letter_text('closing') }}</div>
   <div class="sig-name">{{ contact.name }}</div>
   <div class="sig-links">
     {% for link in basics.links | default([]) %}<div>{{ link | link_anchor }}</div>{% endfor %}
