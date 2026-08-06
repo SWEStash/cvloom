@@ -40,7 +40,8 @@ cvloom/
 ├── filters.py          # Jinja2 filters (md, date_range, cert_groups, …) + section_title global
 ├── links.py            # Profile-link vocabulary: network_of, link_username, normalize_url
 ├── select.py           # Per-section content selection: apply_selection()
-├── linter.py           # Writing lint: 24 categorized rules, LintFinding, lint()
+├── linter.py           # Writing lint: 25 categorized rules, LintFinding, lint()
+├── linter_locales/     # Per-locale lexicons, patterns, thresholds (en, es)
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
@@ -198,7 +199,15 @@ A pack under `cvloom/locales/<code>.yaml` supplies the document-facing defaults 
 
 `ResolvedProfile.locale` carries the resolved pack so renderer, linter, export and match all read it from one place. `resolve_project()` and `build_project()` are the two entry points that know the project root, so both resolve the locale; `resolve()` and `build()` take an optional pack and stay pure.
 
-Consumers, as of 6.3: `renderer` installs the pack as a Jinja global, so `base.html.j2` reads `locale.html_lang` and `filters.section_title` / `filters.date_range` read it off the context; `loader` uses `placeholder_contact`; `linter` matches `ongoing.accepts` for chronology, date-format and tense rules and renders `ongoing.render` in a fix hint; `export._heading` uses `section_titles` so the Markdown, text and DOCX exports head sections in the same words as the PDF. The JSON Resume export needs nothing: it drops any non-ISO date, so an open-ended one becomes an omitted `endDate` whatever word wrote it.
+The pack governs the **document**. The **linter and keyword analysis** are governed
+separately, by `cvloom/linter_locales/` — Python, not the user-editable YAML, because
+`section_titles` is content the user owns while a weak-verb list is the tool's editorial
+judgement, and putting the latter in a file users edit would create a linter-configuration
+API before the configuration model has been designed. The two are keyed by the same locale
+code and resolved independently: a document pack with no linter data behind it falls back to
+English heuristics rather than failing, and says so through the skipped-rule count.
+
+Consumers, as of 6.4: `renderer` installs the pack as a Jinja global, so `base.html.j2` reads `locale.html_lang` and `filters.section_title` / `filters.date_range` read it off the context; `loader` uses `placeholder_contact`; `linter` matches `ongoing.accepts` for chronology, date-format and tense rules and renders `ongoing.render` in a fix hint; `export._heading` uses `section_titles` so the Markdown, text and DOCX exports head sections in the same words as the PDF. The JSON Resume export needs nothing: it drops any non-ISO date, so an open-ended one becomes an omitted `endDate` whatever word wrote it.
 
 The audit against English creeping back into a template is `tests/test_locale_qa.py`, which renders all six packaged templates under a pseudo-locale (`tests/fixtures/locales/qa.yaml`) that brackets every pack-sourced string, then asserts no `<h2>` came out unbracketed. The pack is a test fixture rather than a shipped locale, so it never appears in `available_locales()`.
 
@@ -251,7 +260,9 @@ missing an entry.
 
 `lint(resolved, rule_ids=None) -> list[LintFinding]`
 
-Rules are stored in a module-level list `RULES: list[LintRule]`. Each `LintRule` carries a `rule_id`, `name`, `description`, `category` (`writing`/`structure`/`ats-parse`), and a `check` callable that takes a `ResolvedProfile` and returns `list[LintFinding]`. The `lint()` function iterates the list, stamps each finding with its rule's `category`, and collects all findings. Pass `rule_ids` to run a subset.
+Rules are stored in a module-level list `RULES: list[LintRule]`. Each `LintRule` carries a `rule_id`, `name`, `description`, `category` (`writing`/`structure`/`ats-parse`), a `check` callable taking `(ResolvedProfile, LintLocale)`, and a `locales` declaration. `lint()` resolves the locale's data once via `linter_locales.pack_for()`, runs the active rules, stamps each finding with its rule's `category`, and collects them. Pass `rule_ids` to run a subset.
+
+`rules_for(code) -> (active, skipped)` is pure and does the dispatch. The registry may hold one `rule_id` twice — one entry per locale — which is how a rule whose *logic* differs between languages is expressed, and how a rule supported in only one language declares itself. A locale-specific implementation wins over the language-neutral one; a `rule_id` with no applicable implementation is skipped, and `check` prints the count and the reason so a clean run never quietly means fewer rules.
 
 `category_counts(findings) -> dict[str, int]` — tallies findings per axis. There is deliberately no single "ATS score"; see [ATS-readiness model](../reference/ats-readiness.md).
 
@@ -272,6 +283,8 @@ Compares sections, entries, word counts, and highlight counts between two resolv
 `analyze_match(resolved, jd_text) -> MatchReport`
 
 Tokenizes CV content and JD text, removes stop words, classifies keywords as matched or gap, sorts by JD frequency. `MatchReport.reorder_hints` compares JD keyword overlap per work entry and suggests reordering.
+
+The stop-word list comes from `linter_locales` keyed by `resolved.locale.code`, so a Spanish JD does not return `de / la / que / el` as its top keywords. The tokenizer matches Unicode letters rather than `[a-z]`: an ASCII-only class split `gestión` into `gesti` and `n`, which shattered the keyword set of every accented language.
 
 ### `export.py`
 
@@ -371,11 +384,16 @@ Highlights without IDs cannot be targeted by `pick`/`exclude`/`replace` but are 
 
 Adding a new rule:
 
-1. Define a function `def check_my_rule(resolved: ResolvedProfile) -> list[LintFinding]`
+1. Define a function `def check_my_rule(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]`
 2. Append a `LintRule(rule_id, name, description, category, check)` to the `RULES` list in `linter.py`
 3. Assign a stable `rule_id` in the `wl-NNN` sequence
 4. Choose a `category`: `CATEGORY_WRITING`, `CATEGORY_STRUCTURE`, or `CATEGORY_ATS_PARSE`
 5. Choose `severity`: `"warning"` or `"suggestion"`
+6. Read any lexicon, pattern or threshold off `lex` rather than a module constant, and add
+   the field to `LintLocale` plus every locale module. A rule that needs different *logic*
+   per language registers once per locale with a `locales=frozenset({...})` declaration
+   instead; one that only makes sense in one language registers with just that one, and
+   `check` reports it as skipped elsewhere.
 
 Rules that check hidden sections should respect `resolved.show_sections` — skip sections with `show_sections[section] == False`.
 

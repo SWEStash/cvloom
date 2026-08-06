@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `cvloom check` command runs 21 deterministic, rule-based checks against a resolved
+The `cvloom check` command runs 25 deterministic, rule-based checks against a resolved
 profile to catch common CV writing issues. The linter inspects highlights (bullet points) in
 the work, education, and projects sections, as well as skill items, contact info, and basics.
 
@@ -44,32 +44,91 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 
 ## Quick Reference
 
-| Rule ID  | Name                    | Category   | Severity   | Sections Checked           | What It Flags |
-|----------|-------------------------|------------|:----------:|----------------------------|---------------|
-| `wl-001` | passive-voice           | writing    | warning    | work, education, projects  | Passive voice constructions in highlights |
-| `wl-002` | missing-quantification  | writing    | warning    | work, projects             | Entries whose highlights carry no numbers at all |
-| `wl-003` | noise-skills            | writing    | warning    | skills                     | Low-value commodity skills |
-| `wl-004` | weak-action-verbs       | writing    | warning    | work, education, projects  | Highlights starting with weak verbs/phrases |
-| `wl-005` | highlight-length        | writing    | warning    | work, education, projects  | Highlights shorter than 8 or longer than 25 words |
-| `wl-006` | bullet-count            | structure  | warning    | work                       | Fewer than 3 or more than 8 highlights per role |
-| `wl-007` | first-person            | writing    | warning    | work, projects, basics     | First-person pronouns (I/my/me/mine/myself) |
-| `wl-008` | vague-buzzwords         | writing    | warning    | work, projects, basics     | Overused vague terms (e.g. "motivated", "proactive") |
-| `wl-009` | skill-count             | structure  | warning    | skills                     | Fewer than 8 or more than 25 total skills |
-| `wl-010` | profile-links           | structure  | warning    | contact                    | No LinkedIn or GitHub link present |
-| `wl-011` | page-count              | structure  | warning    | (whole CV)                 | Estimated page count exceeds 3 |
-| `wl-012` | date-format-consistency | ats-parse  | warning    | work, education            | Mixed YYYY-MM / YYYY date formats |
-| `wl-013` | tense-consistency       | writing    | warning    | work                       | Past tense in current role or present tense in past role |
-| `wl-014` | summary-length          | structure  | warning    | basics                     | Summary shorter than 20 or longer than 80 words |
-| `wl-015` | action-result           | writing    | suggestion | work, projects             | Metric present but no result-framing phrase |
-| `wl-016` | readability             | writing    | suggestion | work, projects             | Flesch-Kincaid grade outside target range 6–12 |
-| `wl-017` | tech-mentions-in-work   | ats-parse  | suggestion | work                       | Work entry highlights mention no skill item |
-| `wl-018` | education-size          | structure  | warning    | education                  | More than 6 education entries — degrees and short courses rendering with equal weight |
-| `wl-019` | chronological-order     | structure  | warning    | all dated sections         | A section not ordered newest-first |
-| `wl-020` | date-sanity             | ats-parse  | warning    | all dated sections         | End before start, dates in the future, expired credentials |
-| `wl-021` | unfilled-placeholders   | structure  | warning    | basics, all entry sections | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
-| `wl-022` | duplicate-links         | structure  | warning    | basics                     | Two `links` entries pointing at the same place |
-| `wl-023` | non-ascii-dashes        | ats-parse  | info       | all entry sections         | En/em dashes in content, where cvloom emits ASCII |
-| `wl-024` | fused-connector         | structure  | warning    | education                  | A `connector` that renders degree and field fused together |
+| Rule ID  | Name                    | Category   | Severity   | Locales   | Sections Checked           | What It Flags |
+|----------|-------------------------|------------|:----------:|:---------:|----------------------------|---------------|
+| `wl-001` | passive-voice           | writing    | warning    | all     | work, education, projects  | Passive voice constructions in highlights |
+| `wl-002` | missing-quantification  | writing    | warning    | all     | work, projects             | Entries whose highlights carry no numbers at all |
+| `wl-003` | noise-skills            | writing    | warning    | all     | skills                     | Low-value commodity skills |
+| `wl-004` | weak-action-verbs       | writing    | warning    | all     | work, education, projects  | Highlights starting with weak verbs/phrases |
+| `wl-005` | highlight-length        | writing    | warning    | all     | work, education, projects  | Highlights shorter than 8 or longer than 25 words (`en`; see Locales) |
+| `wl-006` | bullet-count            | structure  | warning    | all     | work                       | Fewer than 3 or more than 8 highlights per role |
+| `wl-007` | first-person            | writing    | warning    | `en` `es` | work, projects, basics     | Explicit first-person pronouns — the set differs per language |
+| `wl-008` | vague-buzzwords         | writing    | warning    | all     | work, projects, basics     | Overused vague terms (e.g. "motivated", "proactive") |
+| `wl-009` | skill-count             | structure  | warning    | all     | skills                     | Fewer than 8 or more than 25 total skills |
+| `wl-010` | profile-links           | structure  | warning    | all     | contact                    | No LinkedIn or GitHub link present |
+| `wl-011` | page-count              | structure  | warning    | all     | (whole CV)                 | Estimated page count exceeds 3 |
+| `wl-012` | date-format-consistency | ats-parse  | warning    | all     | work, education            | Mixed YYYY-MM / YYYY date formats |
+| `wl-013` | tense-consistency       | writing    | warning    | `en` `es` | work                       | `en`: wrong tense for the role. `es`: bullet styles mixed within a role |
+| `wl-014` | summary-length          | structure  | warning    | all     | basics                     | Summary shorter than 20 or longer than 80 words (`en`; see Locales) |
+| `wl-015` | action-result           | writing    | suggestion | all     | work, projects             | Metric present but no result-framing phrase |
+| `wl-016` | readability             | writing    | suggestion | `en`    | work, projects             | Flesch-Kincaid grade outside target range 6–12 |
+| `wl-017` | tech-mentions-in-work   | ats-parse  | suggestion | all     | work                       | Work entry highlights mention no skill item |
+| `wl-018` | education-size          | structure  | warning    | all     | education                  | More than 6 education entries — degrees and short courses rendering with equal weight |
+| `wl-019` | chronological-order     | structure  | warning    | all     | all dated sections         | A section not ordered newest-first |
+| `wl-020` | date-sanity             | ats-parse  | warning    | all     | all dated sections         | End before start, dates in the future, expired credentials |
+| `wl-021` | unfilled-placeholders   | structure  | warning    | all     | basics, all entry sections | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
+| `wl-022` | duplicate-links         | structure  | warning    | all     | basics                     | Two `links` entries pointing at the same place |
+| `wl-023` | non-ascii-dashes        | ats-parse  | info       | all     | all entry sections         | En/em dashes in content, where cvloom emits ASCII |
+| `wl-024` | fused-connector         | structure  | warning    | all     | education                  | A `connector` that renders degree and field fused together |
+| `wl-025` | missing-diacritics      | writing    | warning    | `es`    | work, education, projects, basics | High-frequency CV terms written without their accent |
+
+---
+
+## Locales
+
+A project declares its language once, in `cvloom.yaml` (see the
+[locale packs](../../cvloom/locales/en.yaml)). That governs the linter as well as
+the document: a CV written in Spanish is graded by Spanish rules, not by English
+heuristics applied to Spanish text.
+
+The **Locales** column above says which languages a rule has an implementation
+for. `all` means the rule's logic carries no language — dates, counts, ordering,
+duplicate links — and it runs everywhere unchanged. The rest fall into three
+groups:
+
+**Ported.** Same logic, different data. `wl-003`, `wl-004`, `wl-008` and `wl-015`
+carry a lexicon per language; `wl-005`, `wl-011` and `wl-014` carry thresholds.
+The word counts in the table above are the `en` values. Spanish uses 10/30 for
+highlights and 24/95 for the summary, scaled by a ratio measured from matched
+English and Spanish renders of the same CV through the same template — the same
+measurement puts about 22% *more* words on a Spanish page, since the expansion
+arrives as more short function words rather than as more page.
+
+**Redesigned.** Three rules needed more than a word list, because translating the
+English one would produce confident nonsense. `wl-007` and `wl-013` have a
+separate implementation per language; `wl-001` keeps one implementation but takes
+its constructions from the locale, since the difference there is which shapes to
+look for rather than how to judge them.
+
+- `wl-007` **inverts** in Spanish. Spanish is pro-drop, so the subject lives in
+  the conjugation and `Lideré la migración` is correct CV style. Only an explicit
+  `yo / mi / mis / mí` is a flaw, and the clitic `me` (`me encargué de`) is
+  excluded — carrying English's `me` across would flag most well-formed Spanish
+  bullets in a document.
+- `wl-001` adds the *pasiva refleja* (`se implementó`), which is more common in
+  Spanish professional prose than the periphrastic `fue implementado` and has no
+  English shape.
+- `wl-013` becomes **style consistency** in Spanish. Infinitive bullets and
+  first-person preterite bullets are both conventional; mixing them within one
+  role is the defect. English's present-vs-past distinction does not transfer,
+  because the tense of a Spanish bullet is not tied to whether the role is
+  current.
+
+**Language-specific.** `wl-016` runs only in English: Fernández Huerta and INFLESZ
+are *ease* scores on a different scale, so the Flesch-Kincaid 6–12 grade band has
+no meaning in Spanish and picking a Spanish band is a separate calibration
+question. `wl-025` runs only in Spanish.
+
+Coverage is reported rather than assumed. `cvloom check` ends with a line naming
+what ran and what did not, so a clean result never quietly means fewer rules:
+
+```
+24 of 25 rules ran · 1 skipped (no es support: wl-016 readability)
+```
+
+The lexicons themselves live in `cvloom/linter_locales/`, in Python rather than in
+a file you edit. They are the tool's editorial judgement, not your configuration —
+`section_titles` in the locale pack is content you own, a weak-verb list is not.
 
 ---
 
@@ -196,6 +255,11 @@ Flags uses of: `I`, `my`, `me`, `mine`, `myself` (case-insensitive).
 
 **Good:** "Led a team of 5 engineers to deliver the API."
 
+**In Spanish**, the rule is inverted rather than translated. Spanish is pro-drop,
+so `Lideré un equipo de 5 ingenieros` is correct — the subject is in the verb.
+Only an explicit `yo / mi / mis / mí` fires, and the clitic `me` never does:
+`Me encargué de la plataforma` is idiomatic and clean.
+
 ---
 
 ### wl-008: vague-buzzwords
@@ -284,6 +348,19 @@ The check looks at the first word of each highlight.
 
 ---
 
+**In Spanish**, `wl-013` is a different rule under the same id: **style
+consistency**. A Spanish CV may use infinitive bullets (`Diseñar y mantener la
+plataforma`) or first-person preterite ones (`Diseñé y mantuve la plataforma`) —
+both are conventional, and neither is a defect. Mixing them within one role is.
+Present-vs-past does not transfer, because the tense of a Spanish bullet is not
+tied to whether the role is current.
+
+**Bad:** `Diseñar la plataforma de datos.` + `Reduje la latencia un 40%.`
+
+**Good:** `Diseñé la plataforma de datos.` + `Reduje la latencia un 40%.`
+
+---
+
 ### wl-014: summary-length
 
 **Category:** structure | **Sections checked:** basics summary | **Severity:** warning
@@ -325,6 +402,11 @@ Flags highlights outside the target range of grade 6–12.
 
 **Basis:** Flesch-Kincaid is a well-established readability metric; the 6–12 band keeps bullets
 accessible without being simplistic.
+
+**English only.** Spanish readability is measured by Fernández Huerta or INFLESZ,
+which are *ease* scores on a different scale — the 6–12 grade band does not
+translate, and choosing a band for Spanish CV prose is a calibration question of
+its own. `check` reports the rule as skipped rather than running it anyway.
 
 **Fix hint (too complex):** Break into shorter phrases or replace multi-syllable words with simpler alternatives.
 
@@ -503,3 +585,28 @@ words, so punctuation such as `", "` — correct as `MSc, Computer Science` — 
 
 **Fix hint:** Quote it with the spacing you want. Punctuation connectors need only the
 trailing space.
+
+---
+
+### wl-025: missing-diacritics
+
+**Category:** writing | **Sections checked:** work, education, projects highlights, basics summary | **Severity:** warning | **Locale:** `es` only
+
+Flags a high-frequency CV term written without its accent — `gestion` for
+`gestión`, `analisis` for `análisis`, `tecnico` for `técnico`. The list is closed
+and every entry on it is a spelling that is not a Spanish word, so a match is a
+typo rather than a judgement call.
+
+Ambiguous pairs are deliberately absent: `publico` is a valid verb form (*yo
+publico*) and `ano` is a real word, so flagging either would cost more trust than
+the rule earns.
+
+**Basis (writing):** an unaccented `gestion` renders into the PDF exactly as
+typed, and reads to a Spanish recruiter the way `managment` reads to an English
+one. It is also the cheapest finding in the set to act on.
+
+**Bad:** "Lideré la migracion del sistema de gestion de pagos."
+
+**Good:** "Lideré la migración del sistema de gestión de pagos."
+
+**Fix hint:** Write the accent. It renders into the PDF exactly as typed.

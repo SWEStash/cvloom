@@ -47,14 +47,21 @@ def test_en_defines_every_pack_key() -> None:
         assert getattr(pack, f.name), f"en.yaml supplies no value for '{f.name}'"
 
 
-def test_en_section_titles_cover_every_title_key() -> None:
-    """The pack's headings track sections.TITLE_KEYS exactly.
+@pytest.mark.parametrize("code", locale.available_locales())
+def test_section_titles_cover_every_title_key(code: str) -> None:
+    """Every shipped pack's headings track sections.TITLE_KEYS exactly.
 
     Derived from the registry, never restated: a new renameable section without
-    an `en` heading fails here rather than rendering an empty <h2>.
+    a heading fails here rather than rendering an empty <h2>.
+
+    Parametrized over every shipped pack, not just `en`. A non-`en` pack missing
+    a key falls back to the English value with a warning — correct behaviour for
+    a pack someone else wrote, and silent shipping of an English heading in a
+    Spanish CV for one we ship ourselves.
     """
-    pack, _ = locale.load_pack("en")
+    pack, warnings = locale.load_pack(code)
     assert set(pack.section_titles) == set(sections.TITLE_KEYS)
+    assert warnings == ()
 
 
 def test_en_ongoing_is_populated_both_ways() -> None:
@@ -253,20 +260,6 @@ def test_resolve_defaults_to_en_without_a_root(tmp_path: Path) -> None:
 # Consuming the pack (6.3)
 # ---------------------------------------------------------------------------
 
-_ES_PACK = (
-    "html_lang: es\n"
-    "section_titles:\n"
-    "  work: Experiencia\n  skills: Competencias\n  education: Formación\n"
-    "  projects: Proyectos\n  publications: Publicaciones\n"
-    "  certifications: Certificaciones\n  awards: Premios\n  languages: Idiomas\n"
-    "  summary: Perfil\n  professional_development: Formación continua\n"
-    "  contact: Contacto\n"
-    "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
-    "placeholder_contact:\n"
-    "  name: Su Nombre\n  email: tu.correo@example.com\n"
-    "  phone: '+1 (555) 000-0000'\n  location: Ciudad, País\n"
-)
-
 # One work entry still open, written the way a Spanish project writes it.
 _ES_WORK = (
     "- company: Acme\n  title: Ingeniero\n  location: Remoto\n"
@@ -280,7 +273,8 @@ _ES_WORK = (
 
 @pytest.fixture
 def es_project(tmp_path: Path, packs_dir: Path) -> Path:
-    (packs_dir / "es.yaml").write_text(_ES_PACK)
+    """A project on the *shipped* es pack — no stub, so drift in it fails here."""
+    assert (packs_dir / "es.yaml").exists()
     return make_project(
         tmp_path,
         extra={"cvloom.yaml": "locale: es\n", "data/work.yaml": _ES_WORK},
@@ -326,11 +320,11 @@ def test_text_exports_head_sections_in_the_locales_words(es_project: Path) -> No
 
 def test_public_build_uses_the_packs_placeholder_contact(tmp_path: Path, packs_dir: Path) -> None:
     """--public must not fall back to an English stand-in identity."""
-    (packs_dir / "es.yaml").write_text(_ES_PACK)
+    assert (packs_dir / "es.yaml").exists()
     files = {k: v for k, v in conftest._PROJECT_FILES.items() if not k.startswith("private/")}
     root = make_project(tmp_path, files=files, extra={"cvloom.yaml": "locale: es\n"})
     result = builder.build_project(root, profile_name="general", public=True, skip_pdf=True)
-    assert "Su Nombre" in result.html
+    assert "Nombre Apellido" in result.html
     assert "Your Name" not in result.html
 
 

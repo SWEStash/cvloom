@@ -368,7 +368,7 @@ Reorder Suggestions
 ### How it works
 
 1. The profile is resolved (same pipeline as `build`)
-2. The JD file is tokenised into keywords (stop words removed)
+2. The JD file is tokenised into keywords (stop words removed, in the project's language)
 3. CV content from all visible sections is tokenised
 4. Keywords are classified as matched (in CV) or gap (missing)
 5. Results are sorted by JD frequency — most important gaps first

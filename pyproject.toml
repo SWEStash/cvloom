@@ -95,6 +95,7 @@ include = [
     "/tests",
     "/docs",
     "/examples",
+    "/examples-es",
     "/README.md",
     "/CHANGELOG.md",
     "/CONTRIBUTING.md",

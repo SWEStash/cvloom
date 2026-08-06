@@ -8,6 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from cvloom.cli import cli
+from cvloom.linter_locales import pack_for
 from cvloom.match import MatchReport, _extract_keywords, _suggest_section, analyze_match
 from cvloom.models import ResolvedProfile
 from tests.conftest import make_resolved
@@ -30,19 +31,19 @@ def _make_resolved(
 
 
 def test_extract_keywords_basic():
-    result = _extract_keywords("Python developer with Python experience")
+    result = _extract_keywords("Python developer with Python experience", pack_for("en"))
     assert result["python"] == 2
     assert result["developer"] == 1
     assert result["experience"] == 1
 
 
 def test_extract_keywords_removes_stop_words():
-    result = _extract_keywords("the and is are with for")
+    result = _extract_keywords("the and is are with for", pack_for("en"))
     assert result == {}
 
 
 def test_extract_keywords_empty():
-    assert _extract_keywords("") == {}
+    assert _extract_keywords("", pack_for("en")) == {}
 
 
 # ── analyze_match ──────────────────────────────────────────────────
@@ -210,7 +211,7 @@ def test_reorder_hints_suggests_better_order() -> None:
     )
     report = analyze_match(r, "Python FastAPI PostgreSQL microservices developer")
     assert len(report.reorder_hints) == 1
-    assert "Python Developer at B" in report.reorder_hints[0]
+    assert "Python Developer — B" in report.reorder_hints[0]
 
 
 def test_reorder_hints_empty_when_already_optimal() -> None:

@@ -1,0 +1,18 @@
+# `level` es vocabulario del esquema, no texto del documento: la plantilla lo
+# convierte en una barra, así que no aparece en el PDF en ningún idioma.
+- category: Lenguajes
+  items:
+    - name: Python
+      level: expert
+    - name: Go
+      level: advanced
+    - name: SQL
+      level: advanced
+    - name: TypeScript
+      level: intermediate
+
+- category: Infraestructura
+  items: [Kubernetes, Terraform, AWS, PostgreSQL, Kafka, Redis]
+
+- category: Prácticas
+  items: [Arquitectura orientada a eventos, Observabilidad, Integración continua]
