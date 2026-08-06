@@ -579,6 +579,29 @@ def test_check_reports_validation_errors_from_resolve(
     assert "Validation errors:" in result.output
 
 
+def test_error_messages_are_not_eaten_by_rich_markup(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Validation messages quote schema patterns and user data. Rich reads a
+    bracketed run like `[a-z]` as a style tag, so unescaped output drops it."""
+    (project_root / "cvloom.yaml").write_text("locale: English\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build"])
+    assert result.exit_code == 1
+    assert "[a-z]" in result.output
+
+
+def test_unknown_locale_is_reported_by_build(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`build` reaches `resolve` by a different path than `check` does."""
+    (project_root / "cvloom.yaml").write_text("locale: zz\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["build"])
+    assert result.exit_code == 1
+    assert "Unknown locale 'zz'" in result.output
+
+
 def test_selection_that_matches_nothing_warns(
     project_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

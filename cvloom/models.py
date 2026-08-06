@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from cvloom.locale import LocalePack, default_pack
+
 
 @dataclass
 class ResolvedProfile:
@@ -28,6 +30,14 @@ class ResolvedProfile:
 
     section_titles: dict[str, str] = field(default_factory=dict)
     """Heading text overrides from the profile. Empty means every template default stands."""
+
+    locale: LocalePack = field(default_factory=default_pack)
+    """Document-facing locale pack, resolved from the project's ``cvloom.yaml``.
+
+    Defaults to ``en`` so a ResolvedProfile built directly — in tests, or by a
+    caller using :func:`~cvloom.builder.resolve` without a project root — behaves
+    exactly as it did before locales existed.
+    """
 
 
 @dataclass

@@ -7,7 +7,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from cvloom import loader, overlays, renderer, schema, sections, select
+from cvloom import config, loader, overlays, renderer, schema, sections, select
+from cvloom import locale as locale_mod
+from cvloom.locale import LocalePack
 from cvloom.models import BuildResult, ResolvedProfile
 
 
@@ -39,10 +41,17 @@ def resolve(
     profile_name: str = "general",
     template_override: str | None = None,
     public: bool = False,
+    locale: LocalePack | None = None,
+    locale_warnings: list[str] | None = None,
 ) -> ResolvedProfile:
     """Run the pipeline up to rendering: load, filter, overlay, validate.
 
     Returns a :class:`ResolvedProfile` with fully resolved data.
+
+    *locale* defaults to the ``en`` pack. This function takes three directories
+    rather than a project root, so it cannot read ``cvloom.yaml`` itself —
+    :func:`resolve_project` resolves the pack and passes it (with any fallback
+    warnings) down, which keeps this function pure.
     """
     # Load profile
     profile_path = profiles_dir / f"{profile_name}.yaml"
@@ -122,8 +131,9 @@ def resolve(
         section_titles=section_titles,
         template_name=template_name,
         output_filename=output_filename,
-        warnings=select_warnings + overlay_warnings,
+        warnings=(locale_warnings or []) + select_warnings + overlay_warnings,
         profile_name=profile_name,
+        locale=locale if locale is not None else locale_mod.default_pack(),
     )
 
 
@@ -137,8 +147,11 @@ def resolve_project(
     """Resolve a profile using the conventional ``data/``, ``private/``,
     ``profiles/`` layout under a project *root*.
 
-    Thin wrapper over :func:`resolve` that fixes the directory convention.
+    Thin wrapper over :func:`resolve` that fixes the directory convention and
+    resolves the project's locale — the one place ``cvloom.yaml`` is read, so
+    every frontend gets the same answer without asking for it.
     """
+    pack, locale_warnings = _project_locale(root)
     return resolve(
         data_dir=root / "data",
         private_dir=root / "private",
@@ -146,7 +159,23 @@ def resolve_project(
         profile_name=profile_name,
         template_override=template_override,
         public=public,
+        locale=pack,
+        locale_warnings=locale_warnings,
     )
+
+
+def _project_locale(root: Path) -> tuple[LocalePack, list[str]]:
+    """Read ``cvloom.yaml`` and load the pack it names.
+
+    Config problems surface as :class:`ResolveError` so callers keep catching one
+    pipeline error type; ``config`` and ``locale`` stay free of it.
+    """
+    try:
+        cfg = config.load_project_config(root)
+        pack, warnings = locale_mod.load_pack(cfg.locale)
+    except config.ConfigError as exc:
+        raise ResolveError(exc.errors) from None
+    return pack, list(warnings)
 
 
 def build_project(
@@ -162,7 +191,12 @@ def build_project(
     """Build a profile using the conventional project layout under *root*.
 
     Thin wrapper over :func:`build`; *output_dir* defaults to ``root/"dist"``.
+    Resolves the project's locale for the same reason :func:`resolve_project`
+    does — this is the other entry point that knows the root, and a build that
+    skipped it would render with the wrong locale while ``check`` used the right
+    one.
     """
+    pack, locale_warnings = _project_locale(root)
     return build(
         data_dir=root / "data",
         private_dir=root / "private",
@@ -173,6 +207,8 @@ def build_project(
         public=public,
         templates_dir=templates_dir,
         skip_pdf=skip_pdf,
+        locale=pack,
+        locale_warnings=locale_warnings,
     )
 
 
@@ -217,6 +253,8 @@ def build(
     public: bool = False,
     templates_dir: Path | None = None,
     skip_pdf: bool = False,
+    locale: LocalePack | None = None,
+    locale_warnings: list[str] | None = None,
 ) -> BuildResult:
     """Full build pipeline for one profile. Returns structured result."""
     resolved = resolve(
@@ -226,6 +264,8 @@ def build(
         profile_name=profile_name,
         template_override=template_override,
         public=public,
+        locale=locale,
+        locale_warnings=locale_warnings,
     )
 
     # Same StrictUndefined contract as the data sections: cover-letter

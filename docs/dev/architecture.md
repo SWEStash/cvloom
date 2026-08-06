@@ -28,6 +28,8 @@ cvloom/
 ├── cli.py              # Click command group and all subcommands
 ├── builder.py          # Core pipeline: resolve() and build()
 ├── models.py           # ResolvedProfile, BuildResult dataclasses
+├── config.py           # cvloom.yaml project config: ProjectConfig, load_project_config()
+├── locale.py           # Locale packs: LocalePack, load_pack() with en fallback
 ├── loader.py           # YAML loading and merge, public/private contact
 ├── sections.py         # Section registry + shared CV data walk
 ├── schema.py           # JSON Schema validation (Draft 2020-12)
@@ -56,6 +58,7 @@ cvloom/
 ├── hooks/              # pre-commit PII hook, scaffolded by `init`/`sync`
 ├── scaffold/           # `init`/`sync` file operations, managed-file registry
 │   └── samples/        # Sample YAML written by `cvloom init`
+├── locales/            # Locale packs (en.yaml); document-facing defaults only
 ├── schemas/            # JSON Schema files for each data type
 └── templates/          # Built-in Jinja2 templates
     ├── base.html.j2
@@ -170,11 +173,31 @@ It also owns the shared data walk — `highlight_text`, `skill_name`, `entry_lab
 
 ### `schema.py`
 
-Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `certifications`, `awards`, `languages`, `profile`, `contact`.
+Validates data against JSON Schema files in `cvloom/schemas/`. Schema files cover: `basics`, `work`, `education`, `skills`, `project`, `publications`, `certifications`, `awards`, `languages`, `profile`, `contact`, `project-config`, `locale`.
+
+Note `project` types a *portfolio project entry* (`data/projects/*.yaml`); the project-level config file is `project-config`.
 
 `entry_defaults(name, prop=None)` — returns the typed empty value (`""` / `[]` / `{}`) for every *optional* property a schema declares. Single source of truth for `loader.normalize_optional_fields()` and for `job_context` defaults in `builder.build()`.
 
 `validate_all(data, raise_on_error=False)` — returns `list[str]` of error messages. When `raise_on_error=True` (the default in build), raises `SchemaError` on the first failure.
+
+### `config.py` — project-level configuration
+
+`cvloom.yaml` at the project root holds settings owned by the project as a whole rather than by one build profile. A profile says how one output variant renders; this says what the project *is*. Today that is one key, `locale`.
+
+`load_project_config(root)` returns a frozen `ProjectConfig`. An absent file is not an error — it yields defaults identical to cvloom's behaviour before the file existed. Anything present is validated against `schemas/project-config.json`, which sets `additionalProperties: false` so a typo'd key fails with the file path rather than being ignored. Failures raise `ConfigError`, which `builder` translates into `ResolveError` so callers keep catching one pipeline error type.
+
+### `locale.py` — locale packs
+
+A pack under `cvloom/locales/<code>.yaml` supplies the document-facing defaults cvloom would otherwise hardcode in English: `html_lang`, `section_titles`, `ongoing`, `placeholder_contact`. Packs govern the **rendered document only** — CLI and terminal output stay in English by design.
+
+`en` is an ordinary pack loaded through the same path as any other, with no privileged branch, so every build exercises the mechanism and a resolution bug surfaces in the default build rather than waiting for the first non-English user. It is also the fallback: a key missing from another pack resolves to `en`'s value and reports a warning onto `ResolvedProfile.warnings`; a key missing from `en` is an error, since nothing is left to fall back to. `tests/test_locale.py` asserts `en.yaml` covers every key the code looks up, derived from `LocalePack`'s fields and `sections.TITLE_KEYS` rather than a hand-written list.
+
+`Ongoing` binds `render` and `accepts` together because the field is bidirectional — `render` is written into the document by `filters.date_range`, `accepts` is parsed back out by the chronology lint rule and the JSON Resume export. A pack supplying only one would silently stop the other side from recognising its own output.
+
+`load_pack` is cached and its mappings are read-only: every build shares one instance.
+
+`ResolvedProfile.locale` carries the resolved pack so renderer, linter, export and match all read it from one place. `resolve_project()` and `build_project()` are the two entry points that know the project root, so both resolve the locale; `resolve()` and `build()` take an optional pack and stay pure.
 
 ### `overlays.py`
 

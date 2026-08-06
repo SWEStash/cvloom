@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "locale",
+  "title": "Locale Pack",
+  "description": "A file under cvloom/locales/ supplying the document-facing defaults cvloom would otherwise hardcode in English. Governs the rendered document only — never the terminal.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "html_lang": {
+      "type": "string",
+      "description": "Value for <html lang>. Drives WeasyPrint hyphenation and the PDF /Lang metadata that ATS language detection reads.",
+      "minLength": 2
+    },
+    "section_titles": {
+      "type": "object",
+      "description": "Default heading per section key. A profile's section_titles block overrides any of these; that profile block stays the only per-document customization mechanism.",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "ongoing": {
+      "type": "object",
+      "description": "The open-ended end date, in both directions. Bidirectional by nature: `render` is written into the document by filters.date_range, `accepts` is parsed back out by the chronology lint rule and the JSON Resume export. Both are required together — a pack supplying only one silently degrades the other side.",
+      "additionalProperties": false,
+      "required": ["render", "accepts"],
+      "properties": {
+        "render": {
+          "type": "string",
+          "description": "Written for an entry with no end date, e.g. 'Present'.",
+          "minLength": 1
+        },
+        "accepts": {
+          "type": "array",
+          "description": "Values recognised as meaning ongoing when read back from data. Matched case-insensitively; include the rendered form.",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "placeholder_contact": {
+      "type": "object",
+      "description": "Stand-in contact used by --public builds and when private/contact.yaml is absent. Carries no real identity by construction.",
+      "additionalProperties": false,
+      "required": ["name", "email", "phone", "location"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "email": {"type": "string", "minLength": 1},
+        "phone": {"type": "string", "minLength": 1},
+        "location": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

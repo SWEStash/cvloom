@@ -9,6 +9,7 @@ from typing import Any
 import click
 import yaml
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from cvloom import (
@@ -50,15 +51,19 @@ def _root() -> Path:
 
 
 def _render_resolve_error(exc: builder.ResolveError) -> None:
-    """Print a ResolveError's messages to stderr."""
+    """Print a ResolveError's messages to stderr.
+
+    Messages are escaped: they quote schema patterns and user data, and rich
+    would read a bracketed run like ``[a-z]`` as a style tag and drop it.
+    """
     _err.print("[bold red]Validation errors:[/bold red]")
     for e in exc.errors:
-        _err.print(f"  [red]✗[/red] {e}")
+        _err.print(f"  [red]✗[/red] {escape(e)}")
 
 
 def _emit_warnings(warnings: list[str]) -> None:
     for w in warnings:
-        _err.print(f"[yellow]Warning:[/yellow] {w}")
+        _err.print(f"[yellow]Warning:[/yellow] {escape(w)}")
 
 
 def _resolve(root: Path, profile: str, *, public: bool) -> ResolvedProfile:

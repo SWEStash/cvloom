@@ -14,9 +14,12 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from cvloom.models import ResolvedProfile
+if TYPE_CHECKING:
+    # Annotation-only: importing this at runtime would close the cycle
+    # models -> locale -> schema -> sections -> models.
+    from cvloom.models import ResolvedProfile
 
 
 @dataclass(frozen=True)
