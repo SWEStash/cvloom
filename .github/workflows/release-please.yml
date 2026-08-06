@@ -17,8 +17,10 @@ name: release-please
 # (release-please.yml), environment `pypi`.
 #
 # Config: release-please-config.json + .release-please-manifest.json.
-# bump-minor-pre-major / bump-patch-for-minor-pre-major keep pre-1.0 semantics
-# (breaking -> MINOR, feat -> PATCH) until the manifest crosses 1.0.0.
+# Plain semver, no pre-1.0 special-casing: fix -> PATCH, feat -> MINOR,
+# breaking -> MAJOR. Note that below 1.0.0 that makes any `!` commit publish
+# 1.0.0, so a breaking marker is a deliberate declaration that the CLI and the
+# data schema are stable — not a way to flag a merely noticeable change.
 
 on:
   push:
