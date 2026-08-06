@@ -312,8 +312,9 @@ my-cv/
 ├── profiles/           # build configs (committed)
 ├── private/            # GITIGNORED — contact.yaml, cover letters
 ├── dist/               # GITIGNORED — build output
-├── hooks/              # pre-commit PII scanner
-└── templates/          # Jinja2 templates (or use built-in)
+├── templates/          # Jinja2 templates (or use built-in)
+├── .github/workflows/  # publish-cv.yml, scaffolded by `init`
+└── .git/hooks/         # pre-commit PII scanner, installed by `init`
 ```
 
 ---

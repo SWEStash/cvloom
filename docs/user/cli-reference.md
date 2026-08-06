@@ -512,13 +512,15 @@ cvloom init [OPTIONS]
 │   ├── work.yaml
 │   ├── education.yaml
 │   ├── skills.yaml
-│   └── projects/
-│       └── example-project.yaml
+│   └── projects/          # empty — add one .yaml per project
 ├── profiles/
 │   ├── general.yaml
 │   └── cover-letter.yaml
-├── private/
-│   └── contact.yaml
+├── private/               # gitignored
+│   ├── contact.yaml
+│   └── cover-letters/
+├── dist/
+├── templates/
 └── .github/
     └── workflows/
         └── publish-cv.yml

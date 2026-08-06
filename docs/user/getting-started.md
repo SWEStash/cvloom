@@ -75,14 +75,18 @@ my-cv/
 │   ├── work.yaml             # Work history
 │   ├── education.yaml        # Education
 │   ├── skills.yaml           # Skills by category
-│   └── projects/
-│       └── example-project.yaml
+│   └── projects/             # One .yaml per project — starts empty
 ├── profiles/
 │   ├── general.yaml          # Default CV profile
 │   └── cover-letter.yaml     # Cover letter profile
-├── private/
-│   └── contact.yaml          # Your real name, email, phone (gitignored)
-├── templates/                 # Custom Jinja2 templates (optional)
+├── private/                  # GITIGNORED
+│   ├── contact.yaml          # Your real name, email, phone
+│   └── cover-letters/        # Generated cover letters
+├── dist/                     # Build output (gitignored)
+├── templates/                # Custom Jinja2 templates (optional)
+├── .github/
+│   └── workflows/
+│       └── publish-cv.yml    # GitHub Pages publish workflow
 └── .gitignore                # Protects private/ and dist/
 ```
 
