@@ -38,6 +38,26 @@ Managed files:
 | `.git/hooks/pre-commit` | PII scanner that blocks committing `private/` data |
 | `.github/workflows/publish-cv.yml` | GitHub Pages publish workflow |
 
+## Uninstalling
+
+Removing cvloom only removes the tool — your CV data lives in its own repo and is
+never touched:
+
+```bash
+uv tool uninstall cvloom      # if installed with `uv tool install`
+pipx uninstall cvloom         # if installed with pipx
+pip uninstall cvloom          # if installed with pip, in a venv
+```
+
+Two things it does *not* remove, both scoped to your data repo, not the tool:
+
+- Your `data/`, `profiles/`, and `private/` content — nothing under your project
+  directory is touched by any of the commands above.
+- The scaffolded pre-commit hook (`.git/hooks/pre-commit`) and GitHub Pages
+  workflow (`.github/workflows/publish-cv.yml`) from `cvloom init` — these are
+  plain files copied into your repo, not managed by the tool's install. Delete
+  them yourself if you no longer want them.
+
 ## Why not fork + upstream?
 
 A common instinct is to fork the cvloom repo and pull updates with a git `upstream` remote.

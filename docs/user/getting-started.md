@@ -41,6 +41,10 @@ This tutorial walks you through every feature, step by step. By the end you will
 Install cvloom with all extras:
 
 ```bash
+# Installed globally with `uv tool install cvloom`:
+uv tool install 'cvloom[ai,mcp,docx,extract]'
+
+# Working from a git clone instead? Use uv sync there:
 uv sync --all-extras
 ```
 
@@ -764,10 +768,9 @@ a rule, so you can find and split the sections by eye. `section_order`, `show: f
 Export as a `.docx` file using Word styles (Heading 1/2, List Bullet, Body Text):
 
 ```bash
-# Install the optional dependency first
-uv pip install python-docx
-# or if you have the docx extra:
-uv sync --extra docx
+# If you followed Prerequisites above, this is already installed. Otherwise:
+uv tool install 'cvloom[docx]'   # `uv tool install cvloom` global install
+uv sync --extra docx                     # dev checkout (git clone)
 
 cvloom export --format docx
 ```
@@ -833,8 +836,12 @@ cvloom ships an MCP server that lets AI assistants build CVs, create profiles, v
 ### 11.1 Install the MCP extra
 
 ```bash
-uv sync --extra mcp
+# If you followed Prerequisites above, this is already installed. Otherwise:
+uv tool install 'cvloom[mcp]'   # `uv tool install cvloom` global install
+uv sync --extra mcp                     # dev checkout (git clone)
 ```
+
+See [docs/reference/mcp-server.md](../reference/mcp-server.md#installation) for pipx/pip.
 
 ### 11.2 Connect to a client
 
@@ -897,8 +904,12 @@ cvloom includes four AI-powered commands that go beyond the rules-based tools: s
 ### 13.1 Install and configure
 
 ```bash
-uv sync --extra ai
+# If you followed Prerequisites above, this is already installed. Otherwise:
+uv tool install 'cvloom[ai]'   # `uv tool install cvloom` global install
+uv sync --extra ai                     # dev checkout (git clone)
 ```
+
+See [docs/user/ai-features.md](ai-features.md#installation) for pipx/pip.
 
 Set your provider environment variables — only `CVLOOM_AI_BASE_URL` is required:
 

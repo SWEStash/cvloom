@@ -519,9 +519,8 @@ Place custom Jinja2 templates in `templates/` at your project root — cvloom wi
 The `docx` format requires the optional `python-docx` dependency:
 
 ```bash
-uv pip install python-docx
-# or
-uv sync --extra docx
+uv tool install 'cvloom[docx]'   # `uv tool install cvloom` global install
+uv sync --extra docx                     # dev checkout (git clone)
 ```
 
 The `docx` is the **ATS-upload artifact**, not a Word rendering of your template. It
