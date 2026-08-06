@@ -78,9 +78,9 @@ class LintLocale:
 def _registry() -> dict[str, LintLocale]:
     # Imported inside the function because each locale module imports
     # ``LintLocale`` from here.
-    from cvloom.linter_locales import en
+    from cvloom.linter_locales import en, es
 
-    return {"en": en.LOCALE}
+    return {"en": en.LOCALE, "es": es.LOCALE}
 
 
 def available_locales() -> tuple[str, ...]:

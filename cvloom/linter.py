@@ -22,6 +22,7 @@ from cvloom import sections
 from cvloom.links import network_of, normalize_url
 from cvloom.linter_locales import LintLocale, pack_for
 from cvloom.linter_locales import en as en_data
+from cvloom.linter_locales import es as es_data
 from cvloom.locale import Ongoing
 from cvloom.models import ResolvedProfile
 
@@ -317,6 +318,136 @@ def _check_date_format_consistency(resolved: ResolvedProfile, lex: LintLocale) -
                     fix_hint="Use a single date format throughout (YYYY-MM recommended).",
                 )
             )
+
+    return findings
+
+
+def _opener_style_es(word: str) -> str:
+    """Classify a Spanish bullet opener as ``infinitive``, ``preterite`` or ``""``.
+
+    Only the two unambiguous styles are named. A word ending in ``-o`` is either
+    a noun or a first-person present verb (``Desarrollo`` is both) and telling
+    them apart needs a verb lexicon, so anything else classifies as unknown and
+    the rule leaves it alone rather than guessing.
+    """
+    w = word.lower().strip(".,;:")
+    if w in es_data.PRETERITE_IRREGULARS or w.endswith(("é", "í")):
+        return "preterite"
+    # A real infinitive is stressed on its final syllable and so is never
+    # written with an accent; that alone rules out `líder` and `azúcar`.
+    if (
+        len(w) > 3
+        and w.endswith(es_data.INFINITIVE_ENDINGS)
+        and w not in es_data.INFINITIVE_FALSE_POSITIVES
+        and not any(c in w for c in "áéíóú")
+    ):
+        return "infinitive"
+    return ""
+
+
+def _check_style_consistency_es(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    """wl-013 (es): One bullet style per role — infinitive or first-person preterite.
+
+    Spanish CVs legitimately use either, so neither is a defect on its own; a
+    role that mixes them is. This replaces English's present-vs-past tense check,
+    which has no Spanish equivalent worth porting: the tense of a Spanish bullet
+    is not tied to whether the role is current.
+    """
+    findings: list[LintFinding] = []
+    if not resolved.show_sections.get("work"):
+        return findings
+
+    labels = {"infinitive": "infinitive", "preterite": "first-person preterite"}
+
+    for entry in resolved.data.get("work", []):
+        company = str(entry.get("company", "?"))
+        seen: dict[str, tuple[int, str]] = {}
+        for i, hl in enumerate(entry.get("highlights", [])):
+            text = sections.highlight_text(hl)
+            words = text.lstrip("- ").split()
+            if not words:
+                continue
+            style = _opener_style_es(words[0])
+            if style and style not in seen:
+                seen[style] = (i, words[0])
+
+        if len(seen) < 2:
+            continue
+        # Report on the style that appears later, which is the one that broke
+        # the pattern the entry had already established.
+        first, second = sorted(seen.items(), key=lambda kv: kv[1][0])
+        idx, word = second[1]
+        findings.append(
+            LintFinding(
+                rule_id="wl-013",
+                severity="warning",
+                section="work",
+                entry=company,
+                bullet_index=idx,
+                bullet_text=sections.highlight_text(entry["highlights"][idx]),
+                message=(
+                    f"Mixed bullet styles in this role: {labels[first[0]]} "
+                    f'("{first[1][1]}") and {labels[second[0]]} ("{word}").'
+                ),
+                fix_hint=(
+                    "Pick one style per role and keep it. Both are conventional in "
+                    "Spanish CVs; mixing them is what reads as careless."
+                ),
+            )
+        )
+
+    return findings
+
+
+def _check_missing_diacritics_es(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    """wl-025 (es only): Flag high-frequency CV terms written without their accent.
+
+    A closed list whose unaccented spellings are not Spanish words, so a match is
+    a typo rather than a judgement call.
+    """
+    findings: list[LintFinding] = []
+
+    def test(text: str, idx: int) -> LintFinding | None:
+        match = es_data.DIACRITIC_PATTERN.search(text)
+        if not match:
+            return None
+        wrong = match.group()
+        right = es_data.DIACRITIC_TERMS[wrong.lower()]
+        if wrong[0].isupper():
+            right = right[0].upper() + right[1:]
+        return LintFinding(
+            rule_id="wl-025",
+            severity="warning",
+            section="",
+            entry="",
+            bullet_index=idx,
+            bullet_text=text,
+            message=f'Missing diacritic: "{wrong}" should be "{right}".',
+            fix_hint="Write the accent. It renders into the PDF exactly as typed.",
+        )
+
+    for section in ("work", "education", "projects"):
+        findings.extend(_check_highlights(resolved, section, "wl-025", test))
+
+    summary = str(resolved.data.get("basics", {}).get("summary", ""))
+    match = es_data.DIACRITIC_PATTERN.search(summary)
+    if match:
+        wrong = match.group()
+        right = es_data.DIACRITIC_TERMS[wrong.lower()]
+        if wrong[0].isupper():
+            right = right[0].upper() + right[1:]
+        findings.append(
+            LintFinding(
+                rule_id="wl-025",
+                severity="warning",
+                section="basics",
+                entry="summary",
+                bullet_index=None,
+                bullet_text=None,
+                message=f'Missing diacritic: "{wrong}" should be "{right}".',
+                fix_hint="Write the accent. It renders into the PDF exactly as typed.",
+            )
+        )
 
     return findings
 
@@ -1159,6 +1290,14 @@ RULES: list[LintRule] = [
         locales=frozenset({"en"}),
     ),
     LintRule(
+        "wl-013",
+        "style-consistency",
+        "One bullet style per role — infinitive or first-person preterite",
+        CATEGORY_WRITING,
+        _check_style_consistency_es,
+        locales=frozenset({"es"}),
+    ),
+    LintRule(
         "wl-014",
         "summary-length",
         "Warn if summary is too short or too long",
@@ -1279,6 +1418,14 @@ RULES: list[LintRule] = [
         "Flag en/em dashes in content, which cvloom renders as ASCII elsewhere",
         CATEGORY_ATS_PARSE,
         _check_non_ascii_dashes,
+    ),
+    LintRule(
+        "wl-025",
+        "missing-diacritics",
+        "Flag high-frequency CV terms written without their accent",
+        CATEGORY_WRITING,
+        _check_missing_diacritics_es,
+        locales=frozenset({"es"}),
     ),
     LintRule(
         "wl-024",
