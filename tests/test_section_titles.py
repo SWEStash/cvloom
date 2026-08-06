@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cvloom import renderer, sections
+from cvloom import renderer, sections, templates_meta
 from cvloom.filters import cert_groups
 from tests.test_renderer import _FULL_CONTEXT
 
@@ -19,8 +19,8 @@ _CV_TEMPLATES = [
 
 
 @pytest.mark.parametrize("template", _CV_TEMPLATES)
-def test_headings_default_to_the_templates_own_wording(template: str) -> None:
-    """An empty override map must not flatten the templates into one voice."""
+def test_headings_default_to_the_locale_pack(template: str) -> None:
+    """With no override, every template heads a section with the pack's wording."""
     html = renderer.render_template(template, {**_FULL_CONTEXT, "section_titles": {}})
     assert "Education" in html
 
@@ -45,25 +45,31 @@ def test_missing_section_titles_key_still_renders(template: str) -> None:
     assert "Education" in renderer.render_template(template, ctx)
 
 
-def test_executive_dark_keeps_its_own_skills_wording() -> None:
-    """The design's vocabulary is a default, not something the feature overwrites."""
+def test_executive_darks_own_wording_is_now_a_suggestion() -> None:
+    """The pack's flat default wins; the design's vocabulary is opt-in.
+
+    Two mechanisms competing for the same heading is what F7's amendment
+    removed. `templates_meta.suggested_titles` carries "Core Competencies" now,
+    and a profile applies it — see `test_templates_meta.py`.
+    """
     html = renderer.render_template("cv/executive-dark", {**_FULL_CONTEXT, "section_titles": {}})
-    assert "Core Competencies" in html
-    assert ">Skills<" not in html
+    assert "Core Competencies" not in html
+    assert ">Skills<" in html
+
+    suggested = templates_meta.TEMPLATES["cv/executive-dark"].suggested_titles
+    ctx = {**_FULL_CONTEXT, "section_titles": dict(suggested)}
+    assert "Core Competencies" in renderer.render_template("cv/executive-dark", ctx)
 
 
 def test_cert_groups_yields_a_stable_key_per_group() -> None:
-    """Reverse-mapping the visible heading would break once it is overridden."""
+    """The visible heading belongs to the pack and the profile, not to the filter."""
     groups = cert_groups(
         [
             {"name": "CKA", "issuer": "CNCF", "type": "certification"},
             {"name": "FP in Scala", "issuer": "Coursera", "type": "course"},
         ]
     )
-    assert [(key, heading) for key, heading, _ in groups] == [
-        ("certifications", sections.CREDENTIAL_HEADING),
-        ("professional_development", sections.COURSEWORK_HEADING),
-    ]
+    assert [key for key, _ in groups] == ["certifications", "professional_development"]
 
 
 def test_every_title_key_is_accepted_by_the_profile_schema() -> None:

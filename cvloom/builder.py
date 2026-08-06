@@ -53,6 +53,8 @@ def resolve(
     :func:`resolve_project` resolves the pack and passes it (with any fallback
     warnings) down, which keeps this function pure.
     """
+    pack = locale if locale is not None else locale_mod.default_pack()
+
     # Load profile
     profile_path = profiles_dir / f"{profile_name}.yaml"
     profile = loader.load_profile(profile_path)
@@ -79,7 +81,7 @@ def resolve(
     sections_cfg: dict[str, bool] = profile.get("sections", {}) or {}
 
     # Load data
-    data = loader.load_data(data_dir=data_dir, private_dir=private_dir, public=public)
+    data = loader.load_data(data_dir=data_dir, private_dir=private_dir, public=public, locale=pack)
 
     # Narrow each section the profile names. Selection runs before anything
     # normalizes or patches the data, so overlays only ever see what survives.
@@ -133,7 +135,7 @@ def resolve(
         output_filename=output_filename,
         warnings=(locale_warnings or []) + select_warnings + overlay_warnings,
         profile_name=profile_name,
-        locale=locale if locale is not None else locale_mod.default_pack(),
+        locale=pack,
     )
 
 
@@ -294,7 +296,9 @@ def build(
     }
 
     # Render HTML
-    html = renderer.render_template(resolved.template_name, context, templates_dir=templates_dir)
+    html = renderer.render_template(
+        resolved.template_name, context, templates_dir=templates_dir, locale=resolved.locale
+    )
 
     # Write outputs
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -14,20 +14,20 @@ from cvloom.models import ResolvedProfile
 from cvloom.sections import highlight_text as _hl
 from cvloom.sections import skill_name as _skill_name
 
-# Registry headings plus `skills`, whose shape is bespoke and so is not in it.
-_SECTION_HEADINGS: dict[str, str] = {
-    **{s.name: s.heading for s in sections.SECTIONS},
-    "skills": "Skills",
-}
+# Keys these exports head a block with. `basics` is absent: its summary is headed
+# by the `summary` key, and its contact details head nothing.
+_HEADED_SECTIONS: frozenset[str] = frozenset({*(s.name for s in sections.SECTIONS), "skills"})
 
 
-def _heading(resolved: ResolvedProfile, key: str, default: str) -> str:
-    """Return the heading for *key*: the profile's override, else *default*.
+def _heading(resolved: ResolvedProfile, key: str) -> str:
+    """Return the heading for *key*: the profile's override, else the locale pack.
 
-    Mirrors the `section_title` Jinja global that does this job for the templates.
+    Mirrors the `section_title` Jinja global that does this job for the templates,
+    including its source of defaults — otherwise a Spanish project would get a
+    Spanish PDF and an English DOCX.
     """
     override = resolved.section_titles.get(key)
-    return str(override) if override else default
+    return str(override) if override else resolved.locale.section_titles[key]
 
 
 def _section_heading(resolved: ResolvedProfile, section: str) -> str | None:
@@ -36,8 +36,7 @@ def _section_heading(resolved: ResolvedProfile, section: str) -> str | None:
     ``None`` means "not a section these exports render", which is how the callers
     skip over anything in `section_order` without a heading of its own.
     """
-    default = _SECTION_HEADINGS.get(section)
-    return None if default is None else _heading(resolved, section, default)
+    return _heading(resolved, section) if section in _HEADED_SECTIONS else None
 
 
 def _map_profiles(links: list[dict[str, Any]] | None) -> list[dict[str, str]]:
@@ -380,7 +379,7 @@ def to_markdown(resolved: ResolvedProfile) -> str:
         lines += [
             "---",
             "",
-            f"## {_heading(resolved, 'summary', 'Summary')}",
+            f"## {_heading(resolved, 'summary')}",
             "",
             str(basics["summary"]),
             "",
@@ -504,7 +503,7 @@ def to_text(resolved: ResolvedProfile) -> str:
     blocks.append("\n".join(header).rstrip())
 
     if basics.get("summary"):
-        blocks.append(_text_block(_heading(resolved, "summary", "Summary"), str(basics["summary"])))
+        blocks.append(_text_block(_heading(resolved, "summary"), str(basics["summary"])))
 
     for section in resolved.section_order:
         if not resolved.show_sections.get(section, False):
@@ -656,7 +655,7 @@ def export_docx(resolved: ResolvedProfile, output_path: Path) -> None:
         doc.add_paragraph(" | ".join(parts), style="Subtitle")
 
     if basics.get("summary"):
-        doc.add_heading(_heading(resolved, "summary", "Summary"), level=1)
+        doc.add_heading(_heading(resolved, "summary"), level=1)
         doc.add_paragraph(str(basics["summary"]), style="Body Text")
 
     for section in resolved.section_order:

@@ -4,7 +4,6 @@ import jinja2
 import pytest
 
 from cvloom.filters import (
-    date_range,
     icon,
     link_anchor,
     link_icon,
@@ -19,6 +18,16 @@ def _render(source: str, **ctx: object) -> str:
     env = jinja2.Environment(autoescape=jinja2.select_autoescape(["html", "j2"]))
     register_filters(env)
     return env.from_string(source).render(**ctx)
+
+
+def _date_range(start: str, end: str | None, sep: str = "-", **ctx: object) -> str:
+    """Call the `date_range` filter the way a template does.
+
+    It reads the locale pack off the Jinja context for the open-ended end date,
+    so it has to be exercised through a render rather than called directly. Pass
+    `locale=` to render under a pack other than the `en` fallback.
+    """
+    return _render("{{ start | date_range(end, sep=sep) }}", start=start, end=end, sep=sep, **ctx)
 
 
 @pytest.mark.parametrize(
@@ -62,11 +71,11 @@ def test_md_to_html_multiline():
 
 
 def test_date_range_with_end():
-    assert date_range("2020-01", "2022-03") == "2020-01 - 2022-03"
+    assert _date_range("2020-01", "2022-03") == "2020-01 - 2022-03"
 
 
 def test_date_range_no_end():
-    assert date_range("2020-01", None) == "2020-01 - Present"
+    assert _date_range("2020-01", None) == "2020-01 - Present"
 
 
 def test_skill_level_bar_expert():
@@ -81,11 +90,11 @@ def test_skill_level_bar_empty():
 
 def test_date_range_collapses_identical_dates():
     """A degree known only by its completion year must not render "2017 – 2017"."""
-    assert date_range("2017", "2017") == "2017"
+    assert _date_range("2017", "2017") == "2017"
 
 
 def test_date_range_keeps_distinct_dates():
-    assert date_range("2019", "2022") == "2019 - 2022"
+    assert _date_range("2019", "2022") == "2019 - 2022"
 
 
 # ── link_anchor ──────────────────────────────────────────────────────
@@ -180,12 +189,22 @@ def test_link_icon_survives_autoescape():
 
 def test_date_range_accepts_an_ascii_separator():
     """ASCII-first templates pass sep="-" so the whole line stays ASCII."""
-    assert date_range("2020-01", "2022-03", sep="-") == "2020-01 - 2022-03"
+    assert _date_range("2020-01", "2022-03", sep="-") == "2020-01 - 2022-03"
 
 
 def test_date_range_ascii_separator_still_collapses_identical_dates():
-    assert date_range("2017", "2017", sep="-") == "2017"
+    assert _date_range("2017", "2017", sep="-") == "2017"
 
 
 def test_date_range_ascii_separator_handles_present():
-    assert date_range("2020-01", None, sep="-") == "2020-01 - Present"
+    assert _date_range("2020-01", None, sep="-") == "2020-01 - Present"
+
+
+def test_date_range_open_end_comes_from_the_locale_pack():
+    """ "Present" is the `en` pack's word, not the filter's."""
+    from dataclasses import replace
+
+    from cvloom import locale
+
+    pack = replace(locale.default_pack(), ongoing=locale.Ongoing("Actualidad", ("Actualidad",)))
+    assert _date_range("2020-01", None, locale=pack) == "2020-01 - Actualidad"

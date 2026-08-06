@@ -935,6 +935,36 @@ def list_templates() -> None:
         if meta is not None and meta.caveat:
             _console.print(f"\n[dim]{name}:[/dim] {meta.caveat}")
 
+    _print_suggested_titles()
+
+
+def _print_suggested_titles() -> None:
+    """Print each template's suggested headings as a pasteable profile block.
+
+    Section headings come from the locale pack, one flat default per key, and a
+    profile's `section_titles` is the only way to change them. A template that
+    reads better with different wording says so here rather than hardcoding it,
+    and this is where a user finds out — most install from PyPI and never open a
+    packaged template.
+    """
+    suggesting = [
+        (name, info)
+        for name in renderer.list_templates()
+        if (info := templates_meta.info_for(name)) is not None and info.suggested_titles
+    ]
+    if not suggesting:
+        return
+
+    _console.print(
+        "\n[dim]Headings come from your locale. These templates read better with "
+        "wording of their own — paste the block into a profile to use it.[/dim]"
+    )
+    for name, meta in suggesting:
+        _console.print(f"\n[dim]{name}:[/dim]")
+        _console.print("[dim]  section_titles:[/dim]")
+        for key, title in meta.suggested_titles.items():
+            _console.print(f"[dim]    {key}: {title}[/dim]")
+
 
 # ---------------------------------------------------------------------------
 # ai

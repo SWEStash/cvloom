@@ -100,7 +100,7 @@ def test_group_certifications_credentials_only() -> None:
     groups = sections.group_certifications(
         [{"name": "CKA", "type": "certification"}, {"name": "Licence", "type": "license"}]
     )
-    assert [heading for heading, _ in groups] == ["Certifications"]
+    assert [key for key, _ in groups] == ["certifications"]
     assert len(groups[0][1]) == 2
 
 
@@ -111,7 +111,7 @@ def test_group_certifications_coursework_only() -> None:
             {"name": "Nano", "type": "micro-credential"},
         ]
     )
-    assert [heading for heading, _ in groups] == ["Professional Development"]
+    assert [key for key, _ in groups] == ["professional_development"]
 
 
 def test_group_certifications_mixed_puts_credentials_first() -> None:
@@ -121,7 +121,7 @@ def test_group_certifications_mixed_puts_credentials_first() -> None:
             {"name": "Cert", "type": "certification"},
         ]
     )
-    assert [heading for heading, _ in groups] == ["Certifications", "Professional Development"]
+    assert [key for key, _ in groups] == ["certifications", "professional_development"]
     assert groups[0][1][0]["name"] == "Cert"
     assert groups[1][1][0]["name"] == "Course"
 
@@ -129,7 +129,7 @@ def test_group_certifications_mixed_puts_credentials_first() -> None:
 def test_group_certifications_defaults_missing_type_to_credential() -> None:
     """Existing data has no `type`; it must keep rendering as a certification."""
     groups = sections.group_certifications([{"name": "Legacy cert"}])
-    assert [heading for heading, _ in groups] == ["Certifications"]
+    assert [key for key, _ in groups] == ["certifications"]
 
 
 def test_group_certifications_empty() -> None:

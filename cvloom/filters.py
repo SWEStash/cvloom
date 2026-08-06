@@ -7,6 +7,19 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 
 from cvloom import icons, links, sections
+from cvloom import locale as locale_mod
+from cvloom.locale import LocalePack
+
+
+def _locale_of(ctx: jinja2.runtime.Context) -> LocalePack:
+    """The pack a template is rendering under.
+
+    ``renderer`` installs it as a Jinja global, so this only falls back for a
+    caller that built its own environment.
+    """
+    pack = ctx.get("locale")
+    return pack if isinstance(pack, LocalePack) else locale_mod.default_pack()
+
 
 # html=False escapes raw HTML in the source instead of passing it through, which
 # is what makes the rendered output safe to mark as Markup below. CommonMark
@@ -28,13 +41,18 @@ def md_to_html(text: str) -> Markup:
     return Markup(rendered)
 
 
-def date_range(start: str, end: str | None, sep: str = "-") -> str:
-    """Format a date range, substituting 'Present' for a missing end date.
+@jinja2.pass_context
+def date_range(ctx: jinja2.runtime.Context, start: str, end: str | None, sep: str = "-") -> str:
+    """Format a date range, substituting the locale's word for a missing end date.
 
     Identical endpoints collapse to a single date: "2017", not "2017 - 2017".
     *sep* is an ASCII hyphen, and every output uses the same character.
+
+    The open-ended word comes from the pack rather than a literal, and is read off
+    the context so a caller that supplied no locale still renders — the renderer
+    puts the ``en`` pack there by default.
     """
-    end_str = end if end else "Present"
+    end_str = end if end else _locale_of(ctx).ongoing.render
     if end_str == start:
         return start
     return f"{start} {sep} {end_str}"
@@ -100,27 +118,31 @@ def link_icon(link: dict[str, str], fill: str = "currentColor") -> Markup:
     return icon(name if name in icons.ICON_PATHS else icons.FALLBACK, fill)
 
 
-def cert_groups(entries: list[dict[str, str]]) -> list[tuple[str, str, list[dict[str, str]]]]:
-    """Yield ``(title_key, default_heading, entries)`` per certification group.
+def cert_groups(entries: list[dict[str, str]]) -> list[tuple[str, list[dict[str, str]]]]:
+    """Yield ``(title_key, entries)`` per certification group.
 
-    The key is stable so a template can look up a profile's `section_titles`
-    override without reverse-mapping the visible heading text.
+    `certifications` renders as two headed groups, so the key is what a template
+    passes to `section_title` — the visible heading belongs to the locale pack and
+    to a profile's overrides, not to this filter.
     """
-    return [
-        (sections.CERT_GROUP_KEYS[heading], heading, group)
-        for heading, group in sections.group_certifications(entries)
-    ]
+    return sections.group_certifications(entries)
 
 
 @jinja2.pass_context
-def section_title(ctx: jinja2.runtime.Context, key: str, default: str) -> str:
-    """Resolve a section heading: the profile's override, else the template's own.
+def section_title(ctx: jinja2.runtime.Context, key: str, default: str | None = None) -> str:
+    """Resolve a section heading: profile override, else locale pack, else *default*.
 
-    Reads `section_titles` off the Jinja context, so a template still renders when
-    the caller supplies none. Templates pass their own wording as *default*.
+    The packaged templates pass no *default* — the pack owns the wording, and
+    per-template wording is a suggestion surfaced by `list-templates` that a user
+    applies through `profile.section_titles`. *default* stays available for a
+    user's own template using a key the pack does not carry.
+
+    Both `section_titles` and `locale` are read off the Jinja context, so a
+    template still renders when the caller supplies neither.
     """
     overrides = ctx.get("section_titles") or {}
-    return str(overrides.get(key) or default)
+    pack_title = _locale_of(ctx).section_titles.get(key)
+    return str(overrides.get(key) or pack_title or default or key)
 
 
 def register_filters(env: jinja2.Environment) -> None:

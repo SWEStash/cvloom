@@ -153,7 +153,7 @@
 
 {% macro sidebar_skills() %}
 {% if show.skills and skills %}
-<h2 class="section-title">{{ section_title("skills", "Skills") }}</h2>
+<h2 class="section-title">{{ section_title("skills") }}</h2>
 {% for group in skills %}
 <div class="skill-group">
   <div class="skill-group-title">{{ group.category }}</div>
@@ -172,7 +172,7 @@
 
 {% macro sidebar_education() %}
 {% if show.education and education %}
-<h2 class="section-title">{{ section_title("education", "Education") }}</h2>
+<h2 class="section-title">{{ section_title("education") }}</h2>
 {% for edu in education %}
 <div class="entry">
   <h3 class="entry-title">{{ edu | degree_line }}</h3>
@@ -187,7 +187,7 @@
 
 {% macro main_work() %}
 {% if show.work and work %}
-<h2 class="section-title">{{ section_title("work", "Experience") }}</h2>
+<h2 class="section-title">{{ section_title("work") }}</h2>
 {% for job in work %}
 <div class="entry">
   <div class="entry-header">
@@ -210,7 +210,7 @@
 
 {% macro main_projects() %}
 {% if show.projects and projects %}
-<h2 class="section-title">{{ section_title("projects", "Projects") }}</h2>
+<h2 class="section-title">{{ section_title("projects") }}</h2>
 {% for proj in projects %}
 <div class="entry">
   <div class="entry-header">
@@ -234,7 +234,7 @@
 
 {% macro main_publications() %}
 {% if show.publications and publications %}
-<h2 class="section-title">{{ section_title("publications", "Publications") }}</h2>
+<h2 class="section-title">{{ section_title("publications") }}</h2>
 {% for pub in publications %}
 <div class="entry">
   <h3 class="entry-title">{% if pub.url %}<a href="{{ pub.url }}">{{ pub.name }}</a>{% else %}{{ pub.name }}{% endif %}</h3>
@@ -250,8 +250,8 @@
 
 {% macro sidebar_certifications() %}
 {% if show.certifications and certifications %}
-{% for title_key, heading, group in certifications | cert_groups %}
-<h2 class="section-title">{{ section_title(title_key, heading) }}</h2>
+{% for title_key, group in certifications | cert_groups %}
+<h2 class="section-title">{{ section_title(title_key) }}</h2>
 {% for cert in group %}
 <div class="entry">
   <h3 class="entry-title">{% if cert.url %}<a href="{{ cert.url }}">{{ cert.name }}</a>{% else %}{{ cert.name }}{% endif %}</h3>
@@ -266,7 +266,7 @@
 
 {% macro main_awards() %}
 {% if show.awards and awards %}
-<h2 class="section-title">{{ section_title("awards", "Awards") }}</h2>
+<h2 class="section-title">{{ section_title("awards") }}</h2>
 {% for award in awards %}
 <div class="entry">
   <div class="entry-header">
@@ -282,7 +282,7 @@
 
 {% macro sidebar_languages() %}
 {% if show.languages and languages %}
-<h2 class="section-title">{{ section_title("languages", "Languages") }}</h2>
+<h2 class="section-title">{{ section_title("languages") }}</h2>
 <div class="languages">
   {%- for lang in languages -%}
   <div>
@@ -320,7 +320,7 @@
     <h1>{{ contact.name }}</h1>
     <div class="headline">{{ basics.headline }}</div>
 
-    <h2 class="section-title">{{ section_title("contact", "Contact") }}</h2>
+    <h2 class="section-title">{{ section_title("contact") }}</h2>
     <ul class="contact-list">
       {% if contact.email is defined %}<li><span class="contact-label">{{ icon("envelope", icon_fill) }}Email</span><span class="contact-value">{{ contact.email }}</span></li>{% endif %}
       {% if contact.phone is defined %}<li><span class="contact-label">{{ icon("phone", icon_fill) }}Phone</span><span class="contact-value">{{ contact.phone }}</span></li>{% endif %}

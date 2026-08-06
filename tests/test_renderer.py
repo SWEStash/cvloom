@@ -246,7 +246,9 @@ def test_render_executive_dark_template() -> None:
     assert "Jane" in html
     assert "Engineer" in html
     assert "Acme" in html
-    assert "Executive Summary" in html
+    # The pack's flat "Summary", not the template's old "Executive Summary" —
+    # that wording is a `templates_meta` suggestion a profile opts into now.
+    assert "Summary" in html
 
 
 def test_render_timeline_clean_template() -> None:

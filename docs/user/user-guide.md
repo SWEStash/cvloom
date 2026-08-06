@@ -386,7 +386,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `sections` | All `true` | Map of `section_name: true/false` to show or hide sections |
 | `select` | — | Per-section content selection; see [Selecting Content](../reference/profiles-and-overlays.md#selecting-content) |
 | `section_order` | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
-| `section_titles` | Template's own wording | Rename section headings — text only, styling stays in the template. See [Section Headings](../reference/profiles-and-overlays.md#section-headings) |
+| `section_titles` | The project locale's wording | Rename section headings — text only, styling stays in the template. See [Section Headings](../reference/profiles-and-overlays.md#section-headings) |
 | `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 
