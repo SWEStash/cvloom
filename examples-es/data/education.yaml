@@ -1,0 +1,20 @@
+# Orden cronológico inverso, lo más reciente primero — wl-019 lo comprueba.
+- institution: Universidad de Ejemplo
+  degree: Máster
+  # `connector` se escribe literalmente, con sus espacios (decisión F9): cvloom
+  # no aporta palabras de enlace porque la forma correcta depende de la entrada.
+  # "Máster en Ciencia de Datos" lleva una; "Ingeniería Informática" ninguna.
+  connector: " en "
+  field: Ciencia de Datos
+  location: "Valencia, España"
+  start_date: "2017-09"
+  end_date: "2018-06"
+
+- institution: Universidad de Ejemplo
+  degree: Ingeniería Informática
+  location: "Valencia, España"
+  start_date: "2012-09"
+  end_date: "2017-06"
+  highlights:
+    - id: proyecto-fin-de-carrera
+      text: Desarrollé un planificador de tareas distribuido como proyecto final y obtuve matrícula de honor.

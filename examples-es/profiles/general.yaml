@@ -1,0 +1,6 @@
+template: cv/ats-clean
+output_filename: cv
+sections:
+  work: true
+  education: true
+  skills: true

@@ -1,0 +1,3 @@
+# Este proyecto opera en español. Es la única diferencia estructural con
+# ../examples/, que no declara locale y por lo tanto usa `en`.
+locale: es

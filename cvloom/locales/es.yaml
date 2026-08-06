@@ -1,0 +1,52 @@
+# Spanish locale pack.
+#
+# Governs the rendered document only — CLI and terminal output stay in English
+# by design (decision F8). Select it with `locale: es` in cvloom.yaml.
+#
+# One project, one language: this pack does not translate anything. You write
+# data/ in Spanish and cvloom stops injecting English into the document. Two
+# languages means two project directories — see examples-es/ next to examples/.
+
+html_lang: es
+
+# Conventional Spanish CV headings. `Experiencia` and `Formación` are what
+# Spanish-language recruiters and job boards expect; a profile's own
+# `section_titles` block overrides any of these when a particular template or
+# sector reads better with different wording ("Experiencia profesional",
+# "Formación académica").
+section_titles:
+  work: Experiencia
+  skills: Competencias
+  education: Formación
+  projects: Proyectos
+  publications: Publicaciones
+  certifications: Certificaciones
+  awards: Premios
+  languages: Idiomas
+  summary: Perfil
+  professional_development: Formación continua
+  contact: Contacto
+
+# `Actualidad` is the form Spanish CVs render. `accepts` is wider than `render`
+# on purpose: it is what the chronology lint rule and the JSON Resume export read
+# back out of the data, and a user who wrote `Presente` or `Actual` means the
+# same thing. Matched case-insensitively.
+ongoing:
+  render: Actualidad
+  accepts:
+    - Actualidad
+    - Presente
+    - Actual
+
+# Stand-in identity for --public builds and for a project with no
+# private/contact.yaml.
+#
+# El teléfono es el mismo número reservado que usa `en`, no uno con formato
+# español: cvloom/hooks/pre-commit sólo reconoce los rangos reservados
+# internacionales, y un ejemplo con forma española haría saltar el aviso de PII
+# a todo el que copie este pack. Un número de relleno no es idioma.
+placeholder_contact:
+  name: Nombre Apellido
+  email: tu.correo@example.com
+  phone: +1 (555) 000-0000
+  location: Ciudad, País

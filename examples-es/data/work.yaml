@@ -1,0 +1,27 @@
+- company: Acme Corp
+  title: Ingeniera de Backend Senior
+  location: Remoto
+  start_date: "2021-03"
+  end_date: Actualidad
+  highlights:
+    - id: migracion-microservicios
+      text: Lideré la migración del monolito a microservicios y reduje el tiempo de despliegue un 60%.
+    - id: pipeline-eventos
+      text: Diseñé una plataforma de eventos con Kafka que procesa 50.000 mensajes por segundo.
+    - id: mentoria
+      text: Formé a tres ingenieros junior y establecí los estándares de código del equipo.
+  tags: [python, kafka, microservicios, aws]
+
+- company: Globex
+  title: Ingeniera de Software
+  location: "Madrid, España"
+  start_date: "2018-06"
+  end_date: "2021-02"
+  highlights:
+    - id: api-rest
+      text: Construí una API REST con FastAPI y PostgreSQL que atiende a 2 millones de usuarios diarios.
+    - id: latencia
+      text: Reduje la latencia p99 de 800 ms a 120 ms optimizando consultas e introduciendo caché.
+    - id: integracion-continua
+      text: Implanté la integración continua y acorté el ciclo de publicación de dos semanas a dos días.
+  tags: [python, postgresql, redis, fastapi]
