@@ -157,6 +157,12 @@ def test_every_heading_comes_from_the_pack(template: str, qa_pack: locale.Locale
     Every section heading in the six packaged templates is an ``<h2>``, so the
     set of ``<h2>`` texts is the complete set of headings a build can emit. An
     unbracketed one is a literal that survived — the audit's whole point.
+
+    That equivalence is the audit's one assumption, and it is not enforced
+    anywhere: a template heading a section with an ``<h3>`` or a styled ``<div>``
+    would fall outside this regex and could ship a hardcoded English literal
+    unnoticed. `docs/dev/custom-templates.md` states the constraint for template
+    authors; widen the pattern here if a design ever needs to break it.
     """
     raw = _H2_RE.findall(_render(template, qa_pack))
     headings = [re.sub(r"<[^>]+>", "", h).strip() for h in raw]
