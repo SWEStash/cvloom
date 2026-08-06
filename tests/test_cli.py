@@ -302,6 +302,73 @@ def test_init_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     assert "# clobbered" not in basics.read_text()
 
 
+def test_init_defaults_to_en(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    CliRunner().invoke(cli, ["init"])
+    assert "locale: en" in (tmp_path / "cvloom.yaml").read_text()
+
+
+def test_init_writes_the_requested_locale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["init", "--locale", "es"])
+    assert result.exit_code == 0
+    assert "locale: es" in (tmp_path / "cvloom.yaml").read_text()
+
+
+def test_init_rejects_a_locale_with_no_pack(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The config schema validates `locale` by pattern, so `es-MX` satisfies it
+    and then dies at load. `init` has to check the packs, and has to refuse
+    before scaffolding anything."""
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["init", "--locale", "es-MX"])
+    assert result.exit_code == 1
+    assert "es-MX" in result.output
+    assert "en, es" in result.output
+    assert not (tmp_path / "data").exists()
+
+
+def test_init_does_not_clobber_an_existing_locale_choice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    CliRunner().invoke(cli, ["init", "--locale", "es"])
+    result = CliRunner().invoke(cli, ["init"])
+    assert result.exit_code == 0
+    assert "locale: es" in (tmp_path / "cvloom.yaml").read_text()
+
+
+def test_sync_leaves_the_projects_locale_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """cvloom.yaml is deliberately not a ManagedFile: its content is the user's
+    choice, so `sync --force` must not reset the project to `en`."""
+    monkeypatch.chdir(tmp_path)
+    CliRunner().invoke(cli, ["init", "--locale", "es"])
+    CliRunner().invoke(cli, ["sync", "--force"])
+    assert "locale: es" in (tmp_path / "cvloom.yaml").read_text()
+
+
+def test_scaffolded_current_role_renders_in_the_projects_language(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The acceptance criterion, at unit scale: `init --locale es` then `build`
+    must produce a Spanish document with no edits. A scaffolded `end_date:
+    Present` would put the English word into a Spanish CV, because `es` does not
+    accept it as the open-ended sentinel — so the sample omits end_date and lets
+    the pack supply the word.
+    """
+    monkeypatch.chdir(tmp_path)
+    CliRunner().invoke(cli, ["init", "--locale", "es"])
+    result = CliRunner().invoke(cli, ["build", "--public", "--skip-pdf"])
+    assert result.exit_code == 0
+    html = (tmp_path / "dist" / "cv.html").read_text()
+    assert 'lang="es"' in html
+    assert "Actualidad" in html
+    assert "Present" not in html
+
+
 # ── sync command ───────────────────────────────────────────────────
 
 
@@ -423,6 +490,109 @@ def test_list_templates_surfaces_suggested_section_titles() -> None:
     assert "section_titles:" in result.output
     assert "summary: Executive Summary" in result.output
     assert "skills: Core Competencies" in result.output
+
+
+# ── list-locales command ──────────────────────────────────────────────────
+
+
+@pytest.fixture
+def wide_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop rich wrapping table cells, so a test can assert on one row.
+
+    Without it the console falls back to 80 columns under CliRunner and a long
+    coverage cell spills onto the next line, breaking row-scoped assertions for
+    reasons that have nothing to do with the behaviour under test.
+    """
+    monkeypatch.setenv("COLUMNS", "200")
+
+
+def test_list_locales_lists_every_shipped_pack() -> None:
+    from cvloom import locale
+
+    result = CliRunner().invoke(cli, ["list-locales"])
+    assert result.exit_code == 0
+    for code in locale.available_locales():
+        assert code in result.output
+
+
+def test_list_locales_reports_rule_coverage_from_the_registry() -> None:
+    """Counts are derived, never literals — a new rule must not need a doc edit."""
+    from cvloom import linter
+
+    active, skipped = linter.rules_for("es")
+    result = CliRunner().invoke(cli, ["list-locales"])
+    assert f"{len(active)} of {len(active) + len(skipped)}" in result.output
+    assert skipped[0].rule_id in result.output
+
+
+def test_list_locales_marks_the_projects_own_locale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "data").mkdir()
+    (tmp_path / "cvloom.yaml").write_text("locale: es\n")
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["list-locales"])
+    assert result.exit_code == 0
+    assert "this project" in result.output
+
+
+def test_list_locales_marks_a_project_with_no_config_as_en(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wide_output: None
+) -> None:
+    """Absence of cvloom.yaml *is* `en`, so the marker belongs on the en row."""
+    (tmp_path / "data").mkdir()
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["list-locales"])
+    en_row = next(line for line in result.output.splitlines() if line.strip().startswith("en"))
+    assert "this project" in en_row
+
+
+def test_list_locales_outside_a_project_marks_nothing_and_offers_init(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty directory is not an `en` project — it is not a project."""
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cli, ["list-locales"])
+    assert result.exit_code == 0
+    assert "this project" not in result.output
+    assert "--locale" in result.output
+
+
+def test_list_locales_does_not_call_a_partial_pack_complete(
+    packs_dir: Path, wide_output: None
+) -> None:
+    """The honest-reporting requirement. Both shipped packs are complete, so the
+    degraded row only exists under a staged pack — but it is the row that decides
+    whether the table can be trusted."""
+    (packs_dir / "xx.yaml").write_text(
+        "html_lang: xx\n"
+        "section_titles:\n  work: Trabajo\n"
+        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
+    )
+    result = CliRunner().invoke(cli, ["list-locales"])
+    assert result.exit_code == 0
+    xx_row = next(line for line in result.output.splitlines() if "xx" in line)
+    assert "complete" not in xx_row
+    assert "placeholder_contact" in xx_row or "unnamed" in xx_row
+
+
+def test_list_locales_flags_a_pack_with_no_linter_data(packs_dir: Path, wide_output: None) -> None:
+    """The two axes are independent: a document pack does not imply a grader.
+
+    `linter_locales.pack_for` falls back to `en` silently, so if this row claimed
+    parity the table would promise coverage the tool does not have.
+    """
+    from cvloom import linter_locales
+
+    (packs_dir / "xx.yaml").write_text(
+        "html_lang: xx\n"
+        "section_titles:\n  work: Trabajo\n"
+        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
+    )
+    assert "xx" not in linter_locales.available_locales()
+    result = CliRunner().invoke(cli, ["list-locales"])
+    xx_row = next(line for line in result.output.splitlines() if "xx" in line)
+    assert "fallback" in xx_row
 
 
 def test_risky_template_recommends_the_docx_export(capsys: pytest.CaptureFixture[str]) -> None:

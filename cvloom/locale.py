@@ -21,7 +21,7 @@ from typing import Any
 
 import yaml
 
-from cvloom import schema
+from cvloom import schema, sections
 from cvloom.config import DEFAULT_LOCALE, ConfigError
 
 _LOCALES_DIR = Path(__file__).parent / "locales"
@@ -61,7 +61,7 @@ class LocalePack:
 
 # Keys a pack file supplies, derived from LocalePack rather than restated. `code`
 # is the filename, not file content, so it is not among them.
-_PACK_KEYS: tuple[str, ...] = tuple(f.name for f in fields(LocalePack) if f.name != "code")
+PACK_KEYS: tuple[str, ...] = tuple(f.name for f in fields(LocalePack) if f.name != "code")
 
 
 def available_locales() -> list[str]:
@@ -131,14 +131,14 @@ def load_pack(code: str) -> tuple[LocalePack, tuple[str, ...]]:
 
     if code != DEFAULT_LOCALE:
         base = _read_pack_file(DEFAULT_LOCALE)
-        for key in _PACK_KEYS:
+        for key in PACK_KEYS:
             if key not in raw and key in base:
                 raw[key] = base[key]
                 warnings.append(
                     f"Locale '{code}' does not define '{key}'; using the {DEFAULT_LOCALE} value."
                 )
 
-    missing = [key for key in _PACK_KEYS if key not in raw]
+    missing = [key for key in PACK_KEYS if key not in raw]
     if missing:
         raise ConfigError(
             [
@@ -154,3 +154,43 @@ def load_pack(code: str) -> tuple[LocalePack, tuple[str, ...]]:
 def default_pack() -> LocalePack:
     """Return the ``en`` pack — the default for a project with no ``cvloom.yaml``."""
     return load_pack(DEFAULT_LOCALE)[0]
+
+
+@dataclass(frozen=True)
+class PackCoverage:
+    """How much of the document surface a pack supplies in its own words.
+
+    Both gaps are silent at render time, which is why they are reported: an
+    inherited top-level key puts English into an otherwise translated document,
+    and a missing title makes :func:`cvloom.filters.section_title` fall through
+    to the raw key, heading a section ``work``.
+    """
+
+    code: str
+    inherited_keys: tuple[str, ...]
+    missing_titles: tuple[str, ...]
+
+    @property
+    def is_complete(self) -> bool:
+        return not self.inherited_keys and not self.missing_titles
+
+
+def pack_coverage(code: str) -> PackCoverage:
+    """Report what *code*'s pack file defines itself and what it leaves to ``en``.
+
+    Read from the pack file rather than from a loaded :class:`LocalePack`, which
+    has already had the gaps filled in. ``load_pack`` reports the same top-level
+    gaps as warnings, but those are prose meant for a user; this is the structured
+    form ``list-locales`` tabulates. Nested title gaps have no warning at all —
+    the fallback in ``load_pack`` is per top-level key.
+
+    Raises :class:`~cvloom.config.ConfigError` for an unknown or malformed code.
+    """
+    raw = _read_pack_file(code)
+    inherited = () if code == DEFAULT_LOCALE else tuple(k for k in PACK_KEYS if k not in raw)
+    titles = raw.get("section_titles") or {}
+    return PackCoverage(
+        code=code,
+        inherited_keys=inherited,
+        missing_titles=tuple(k for k in sections.TITLE_KEYS if k not in titles),
+    )

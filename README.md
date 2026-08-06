@@ -52,7 +52,9 @@ example.
 | | Rename any section heading, styling untouched | `section_titles:` in profile |
 | | Build every profile in one run | `cvloom build --all` |
 | | Public mode with placeholder contact data | `--public` |
-| **Analyse** | Writing lint — 22 rules across writing / structure / ats-parse axes | `cvloom check` |
+| **Localise** | Write and grade the CV in your own language — English and Spanish | `locale:` in `cvloom.yaml` |
+| | Scaffold a project in a language | `cvloom init --locale es` |
+| **Analyse** | Writing lint — 25 rules across writing / structure / ats-parse axes | `cvloom check` |
 | | Per-axis lint breakdown inline after build (no fake "ATS score") | `--check` / `--strict N` |
 | | Per-section word breakdown and trim guidance | `cvloom trim` |
 | | Side-by-side profile comparison | `cvloom diff A B` |
@@ -65,7 +67,8 @@ example.
 | **Inspect** | List projects with tag filtering | `cvloom list-projects` |
 | | List all build profiles | `cvloom list-profiles` |
 | | List templates with their PDF text-extraction rating | `cvloom list-templates` |
-| **Integrate** | Agent-safe MCP server — 16 tools over a schema-validated, PII-fenced data model | `cvloom-mcp` |
+| | List locales with their document and lint-rule coverage | `cvloom list-locales` |
+| **Integrate** | Agent-safe MCP server — 17 tools over a schema-validated, PII-fenced data model | `cvloom-mcp` |
 | | Publish to GitHub Pages — reusable, opt-in workflow scaffolded by `init` | `publish-cv.yml` |
 | **Safety** | PII compartmentalisation + pre-commit scanner + `--public` builds | `private/` + hook |
 
@@ -85,19 +88,22 @@ cd cvloom
 uv sync --all-extras
 ```
 
-The repo root is the tool itself; a runnable demo CV lives in [`examples/`](examples/), and
-[`examples-es/`](examples-es/) is the same project in Spanish — a separate directory
-because a cvloom project operates in one language
+The repo root is the tool itself; a runnable demo CV lives in [`examples/`](examples/)
 (`cd examples && cvloom build --profile general --public`).
+[`examples-es/`](examples-es/) is the same project in Spanish — a separate directory
+because a cvloom project operates in one language. See
+[Locales](docs/reference/locales.md).
 
 ### Initialise a new CV project
 
 ```bash
 mkdir my-cv && cd my-cv
-cvloom init
+cvloom init                # or: cvloom init --locale es
 ```
 
-Scaffolds the directory structure, creates sample YAML files, and installs the pre-commit PII scanner.
+Scaffolds the directory structure, creates sample YAML files, writes `cvloom.yaml`, and installs
+the pre-commit PII scanner. `cvloom list-locales` shows the languages available and how completely
+each is supported.
 
 ### Upgrade
 
@@ -112,6 +118,8 @@ See [Keeping your instance updated](docs/user/keeping-updated.md); check the
 ### Edit your content
 
 ```
+cvloom.yaml              # project settings — `locale:` is the language it operates in
+
 data/
 ├── basics.yaml          # headline, summary, public links
 ├── work.yaml            # work history
@@ -262,7 +270,7 @@ Because tailoring is declarative config, two variants are **diffable** (`cvloom 
 
 ## MCP Server
 
-cvloom includes an MCP server exposing 16 tools for LLM-driven CV management. Data stays local — nothing leaves your machine.
+cvloom includes an MCP server exposing 17 tools for LLM-driven CV management. Data stays local — nothing leaves your machine.
 
 ```bash
 uv tool install 'cvloom[mcp]'   # see docs/reference/mcp-server.md#installation for pipx/pip/dev-checkout
@@ -299,12 +307,14 @@ See [docs/reference/mcp-server.md](docs/reference/mcp-server.md) for setup with 
 ```
 my-cv/
 ├── .gitignore          # private/ is LINE 1
+├── cvloom.yaml         # project settings — the language it operates in
 ├── data/               # CV content (committed, PII-free)
 ├── profiles/           # build configs (committed)
 ├── private/            # GITIGNORED — contact.yaml, cover letters
 ├── dist/               # GITIGNORED — build output
-├── hooks/              # pre-commit PII scanner
-└── templates/          # Jinja2 templates (or use built-in)
+├── templates/          # Jinja2 templates (or use built-in)
+├── .github/workflows/  # publish-cv.yml, scaffolded by `init`
+└── .git/hooks/         # pre-commit PII scanner, installed by `init`
 ```
 
 ---
@@ -326,10 +336,11 @@ my-cv/
 
 | Guide | What's covered |
 |---|---|
-| [Writing Lint Rules](docs/reference/ats-linter-rules.md) | All 22 rules with categories, examples, and fix hints |
+| [Writing Lint Rules](docs/reference/ats-linter-rules.md) | All 25 rules with categories, examples, and fix hints |
 | [ATS-readiness model](docs/reference/ats-readiness.md) | The three honest axes, and why there is no single "ATS score" |
-| [MCP Server](docs/reference/mcp-server.md) | Setup, all 16 tools, and example workflows |
+| [MCP Server](docs/reference/mcp-server.md) | Setup, all 17 tools, and example workflows |
 | [Profiles and Overlays](docs/reference/profiles-and-overlays.md) | Full overlay system reference |
+| [Locales](docs/reference/locales.md) | Running a project in your own language — pack keys, coverage, adding a locale |
 
 ### Developer Guides
 

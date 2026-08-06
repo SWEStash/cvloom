@@ -14,9 +14,11 @@ from rich.table import Table
 
 from cvloom import (
     builder,
+    config,
     export,
     importer,
     linter,
+    linter_locales,
     projects,
     renderer,
     scaffold,
@@ -25,6 +27,9 @@ from cvloom import (
 )
 from cvloom import (
     extract as extract_mod,
+)
+from cvloom import (
+    locale as locale_mod,
 )
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
@@ -221,6 +226,22 @@ def _lint_coverage(code: str) -> str:
         names = ", ".join(f"{r.rule_id} {r.name}" for r in skipped)
         line += f" · {len(skipped)} skipped (no {code} support: {names})"
     return line
+
+
+def _rule_cell(code: str) -> str:
+    """Render rule coverage for *code* in a table cell's worth of space.
+
+    The same partition `_lint_coverage` reports, minus the rule names — a locale
+    with a dozen skips would not fit, and `check` is where the full list belongs.
+    """
+    active, skipped = linter.rules_for(code)
+    total = len(active) + len(skipped)
+    cell = f"{len(active)} of {total}"
+    if len(skipped) == 1:
+        cell += f" · skips {skipped[0].rule_id}"
+    elif skipped:
+        cell += f" · {len(skipped)} skipped"
+    return cell
 
 
 @cli.command()
@@ -772,11 +793,32 @@ def match(profile: str, jd: str) -> None:
 
 @cli.command()
 @click.option("--force", is_flag=True, default=False, help="Overwrite existing files.")
-def init(force: bool) -> None:
+@click.option(
+    "--locale",
+    "locale_code",
+    default=config.DEFAULT_LOCALE,
+    show_default=True,
+    help="Language this project operates in. See `cvloom list-locales`.",
+)
+def init(force: bool, locale_code: str) -> None:
     """Scaffold project structure, install pre-commit hook, verify .gitignore."""
     root = _root()
+
+    # Checked against the shipped packs, not against the config schema, which
+    # validates `locale` by pattern only: `es-MX` satisfies the schema and then
+    # fails at load with "Unknown locale". Better to refuse before scaffolding a
+    # project that cannot build than after.
+    if locale_code not in locale_mod.available_locales():
+        available = ", ".join(locale_mod.available_locales())
+        _err.print(
+            f"[bold red]Unknown locale '{escape(locale_code)}'.[/bold red] "
+            f"Available locales: {available}"
+        )
+        raise SystemExit(1)
+
     scaffold.init_gitignore(root)
     scaffold.init_directories(root)
+    scaffold.init_config(root, locale_code, force)
     scaffold.init_data_files(root, force)
     scaffold.init_profile(root, force)
     scaffold.init_private(root, force)
@@ -784,7 +826,10 @@ def init(force: bool) -> None:
         scaffold.scaffold_managed(mf, root, force)
     _console.print("\n[bold green]✓ cvloom project initialised.[/bold green]")
     _console.print("  Next steps:")
-    _console.print("  1. Edit files in [bold]data/[/bold] with your CV content.")
+    _console.print(
+        f"  1. Edit files in [bold]data/[/bold] with your CV content, in"
+        f" [bold]{locale_code}[/bold] (set by cvloom.yaml)."
+    )
     _console.print("  2. Add your contact details to [bold]private/contact.yaml[/bold].")
     _console.print("  3. Run [bold]cvloom build[/bold].")
     _console.print(
@@ -984,6 +1029,93 @@ def _print_suggested_titles() -> None:
         _console.print("[dim]  section_titles:[/dim]")
         for key, title in meta.suggested_titles.items():
             _console.print(f"[dim]    {key}: {title}[/dim]")
+
+
+# ---------------------------------------------------------------------------
+# list-locales
+# ---------------------------------------------------------------------------
+
+
+def _active_locale() -> str | None:
+    """The locale of the project we are standing in, or None if there isn't one.
+
+    A project with no `cvloom.yaml` is still a project, and an `en` one — absence
+    of the file *is* the default. So the test for "is there a project here" is
+    `data/`, not the config file, or every empty directory would report itself as
+    an `en` project.
+
+    Degrades silently rather than erroring: `list-locales` answers "what does
+    cvloom support", which is true in an empty directory, and it should not
+    become the one inspect command that needs a project.
+    """
+    root = _root()
+    if not (root / "data").is_dir() and not (root / config.CONFIG_FILENAME).exists():
+        return None
+    try:
+        return config.load_project_config(root).locale
+    except config.ConfigError:
+        return None
+
+
+def _document_cell(code: str) -> str:
+    """Render document-pack coverage for *code*, naming what it does not own."""
+    try:
+        cov = locale_mod.pack_coverage(code)
+    except config.ConfigError:
+        return "[red]unreadable[/red]"
+    if cov.is_complete:
+        return "complete"
+
+    parts = []
+    if cov.inherited_keys:
+        defined = len(locale_mod.PACK_KEYS) - len(cov.inherited_keys)
+        parts.append(f"{defined} of {len(locale_mod.PACK_KEYS)} keys")
+        parts.append(f"en: {', '.join(cov.inherited_keys)}")
+    if cov.missing_titles:
+        parts.append(f"{len(cov.missing_titles)} heading(s) unnamed")
+    return "[yellow]" + " · ".join(parts) + "[/yellow]"
+
+
+@cli.command("list-locales")
+def list_locales() -> None:
+    """List the locales cvloom ships, and how completely each is supported."""
+    native = linter_locales.available_locales()
+    active = _active_locale()
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
+    table.add_column("Locale")
+    table.add_column("Document")
+    table.add_column("Lint rules")
+    table.add_column("Lint data")
+
+    for code in locale_mod.available_locales():
+        label = f"[bold]{code}[/bold]"
+        if code == active:
+            label += " [dim](this project)[/dim]"
+        table.add_row(
+            label,
+            _document_cell(code),
+            _rule_cell(code),
+            "native" if code in native else "[yellow]en fallback[/yellow]",
+        )
+
+    _console.print(table)
+    _console.print(
+        "\n[dim]'Document' is what the locale pack writes into the CV — the lang "
+        "attribute, section headings, the open-ended date word, and the --public "
+        "placeholder contact. 'Lint data' is a separate axis: the lexicons and "
+        "thresholds `cvloom check` grades with.[/dim]"
+    )
+    _console.print(
+        "[dim]The two are resolved independently, so 'en fallback' means a CV in "
+        "that language is written correctly and then graded by English "
+        "heuristics — not that it is not graded at all.[/dim]"
+    )
+    if active is None:
+        _console.print(
+            "\n[dim]Set a project's language with `locale:` in cvloom.yaml, or "
+            "scaffold one with `cvloom init --locale CODE`.[/dim]"
+        )
 
 
 # ---------------------------------------------------------------------------

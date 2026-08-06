@@ -29,7 +29,7 @@ cvloom/
 ├── builder.py          # Core pipeline: resolve() and build()
 ├── models.py           # ResolvedProfile, BuildResult dataclasses
 ├── config.py           # cvloom.yaml project config: ProjectConfig, load_project_config()
-├── locale.py           # Locale packs: LocalePack, load_pack() with en fallback
+├── locale.py           # Locale packs: LocalePack, load_pack() with en fallback, pack_coverage()
 ├── loader.py           # YAML loading and merge, public/private contact
 ├── sections.py         # Section registry + shared CV data walk
 ├── schema.py           # JSON Schema validation (Draft 2020-12)
@@ -47,7 +47,7 @@ cvloom/
 ├── match.py            # Keyword gap analysis from job descriptions
 ├── export.py           # to_json_resume(), markdown, text, docx exporters
 ├── importer.py         # from_json_resume(); PII-aware split into data/ + private/
-├── mcp_server.py       # FastMCP server exposing 16 tools
+├── mcp_server.py       # FastMCP server exposing 17 tools
 ├── ai/
 │   ├── provider.py     # Config loading, OpenAI-compatible client, cv_to_text()
 │   ├── prompts.py      # System prompts and CV context block helpers
@@ -59,7 +59,7 @@ cvloom/
 ├── hooks/              # pre-commit PII hook, scaffolded by `init`/`sync`
 ├── scaffold/           # `init`/`sync` file operations, managed-file registry
 │   └── samples/        # Sample YAML written by `cvloom init`
-├── locales/            # Locale packs (en.yaml); document-facing defaults only
+├── locales/            # Locale packs (en.yaml, es.yaml); document-facing defaults only
 ├── schemas/            # JSON Schema files for each data type
 └── templates/          # Built-in Jinja2 templates
     ├── base.html.j2
@@ -112,6 +112,8 @@ Click command group with all top-level commands. Each command:
 3. Formats and prints output using `rich`
 
 The `ai` subgroup is defined here and delegates to `ai/analyzer.py`, `ai/cover.py`, `ai/suggest.py`, `ai/align.py`.
+
+The `list-*` commands are the disclosure surface: `list-templates` prints per-template parse risk, and `list-locales` prints per-locale coverage on both the document and lint axes. Neither needs a project root. `_lint_coverage()` and `_rule_cell()` both partition through `linter.rules_for()`; the counts are never literals.
 
 ### `builder.py`
 
@@ -211,6 +213,15 @@ Consumers, as of 6.4: `renderer` installs the pack as a Jinja global, so `base.h
 
 The audit against English creeping back into a template is `tests/test_locale_qa.py`, which renders all six packaged templates under a pseudo-locale (`tests/fixtures/locales/qa.yaml`) that brackets every pack-sourced string, then asserts no `<h2>` came out unbracketed. The pack is a test fixture rather than a shipped locale, so it never appears in `available_locales()`.
 
+`pack_coverage(code) -> PackCoverage` is the structured form of the gaps, and is what
+`cvloom list-locales` and the `list_locales` MCP tool tabulate. It reads the pack *file*
+rather than a loaded `LocalePack`, which has already had its gaps filled. It reports two
+things `load_pack` cannot: `inherited_keys` is the structured version of the fallback
+warnings, and `missing_titles` has no warning at all, because `load_pack`'s fallback is
+per top-level key — a pack that defines `section_titles` but omits one heading inherits
+nothing, and `filters.section_title` falls through to the raw key. The user-facing
+reference is `docs/reference/locales.md`.
+
 ### `overlays.py`
 
 Applies profile overlays after loading. Three overlay types:
@@ -307,9 +318,18 @@ copy of the official schema (`tests/fixtures/jsonresume-schema.json`).
 
 FastMCP server. Each tool function:
 
-1. Resolves `project_root` (defaults to `Path.cwd()`)
+1. Resolves the root through `_root()`
 2. Calls the appropriate domain function
 3. Returns a JSON string
+
+`_root()` resolves four sources, narrowest winning: the per-call `project_root` argument,
+the `--project-root` flag (parsed in `main()` into module state, since the tools are plain
+decorated functions with no server object to hang it on), `CVLOOM_PROJECT_ROOT`, then
+`Path.cwd()`. Both server-level mechanisms ship because MCP clients disagree about whether
+they can pass `args` or `env`, and the widely-copied `{"command": "cvloom-mcp", "args": []}`
+config has no `--directory` equivalent. Getting the root wrong now applies another
+project's *settings* and not just its data, which is why `validate_data` and `check_cv`
+both report the locale they resolved under.
 
 AI tools check `ai.provider.is_configured()` and return `{"error": "..."}` if not set rather than raising.
 

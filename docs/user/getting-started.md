@@ -57,26 +57,36 @@ Create a fresh project directory and initialize it:
 ```bash
 mkdir my-cv
 cd my-cv
-cvloom init
+cvloom init          # or: cvloom init --locale es
 ```
+
+`--locale` sets the language the project operates in — the CV's headings, its `lang`
+attribute, and the rules `cvloom check` grades it by. It defaults to `en`, and
+`cvloom list-locales` shows what is available. One project operates in one language;
+see [Locales](../reference/locales.md).
 
 This creates the following structure:
 
 ```
 my-cv/
+├── cvloom.yaml               # Project settings — `locale:` (committed)
 ├── data/
 │   ├── basics.yaml           # Headline, summary, public links
 │   ├── work.yaml             # Work history
 │   ├── education.yaml        # Education
 │   ├── skills.yaml           # Skills by category
-│   └── projects/
-│       └── example-project.yaml
+│   └── projects/             # One .yaml per project — starts empty
 ├── profiles/
 │   ├── general.yaml          # Default CV profile
 │   └── cover-letter.yaml     # Cover letter profile
-├── private/
-│   └── contact.yaml          # Your real name, email, phone (gitignored)
-├── templates/                 # Custom Jinja2 templates (optional)
+├── private/                  # GITIGNORED
+│   ├── contact.yaml          # Your real name, email, phone
+│   └── cover-letters/        # Generated cover letters
+├── dist/                     # Build output (gitignored)
+├── templates/                # Custom Jinja2 templates (optional)
+├── .github/
+│   └── workflows/
+│       └── publish-cv.yml    # GitHub Pages publish workflow
 └── .gitignore                # Protects private/ and dist/
 ```
 
@@ -154,7 +164,7 @@ Edit `data/work.yaml`. Notice two formats for highlights — plain strings and `
   title: Senior Backend Engineer
   location: Remote
   start_date: "2021-03"
-  end_date: Present
+  # no end_date — a current role; cvloom supplies your locale's word for it
   highlights:
     - id: microservices
       text: "Led migration of monolith to 12 microservices, reducing deploy time by 60%."
@@ -181,7 +191,7 @@ Edit `data/work.yaml`. Notice two formats for highlights — plain strings and `
 
 **Tips:**
 
-- `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. Use `Present` for current roles.
+- `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. **Omit `end_date` for a current role** — cvloom fills in your project's word for it (`Present` in `en`, `Actualidad` in `es`), so this stays right in any language. Writing `end_date: Present` also works in an English project; see [Locales](../reference/locales.md#ongoing-is-bidirectional).
 - `tags` are used for filtering in profiles (covered in Scenario 7).
 - A work entry with no `tags` is dropped by a profile that narrows `work` via `select`; profiles that do not name the section keep everything.
 
@@ -240,7 +250,7 @@ description: >
   and built-in rate limiting.
 url: https://github.com/janesmith/portfolio-api
 start_date: "2023-06"
-end_date: Present
+# no end_date — still active
 highlights:
   - id: stars
     text: "800+ GitHub stars with contributions from 15 external developers."
@@ -862,7 +872,7 @@ claude mcp add cvloom -- cvloom-mcp
 }
 ```
 
-The MCP server exposes 16 tools: 12 core tools (`list_profiles`, `list_projects`, `get_section`, `build_cv`, `create_profile`, `upsert_project`, `validate_data`, `export_json_resume`, `check_cv`, `trim_report`, `diff_profiles`, `match_jd`) plus 4 AI tools (`ai_review_cv`, `ai_generate_cover`, `ai_suggest_improvements`, `ai_align_to_jd`) that require `--extra ai`.
+The MCP server exposes 17 tools: 13 core tools (`list_profiles`, `list_projects`, `list_locales`, `get_section`, `build_cv`, `create_profile`, `upsert_project`, `validate_data`, `export_json_resume`, `check_cv`, `trim_report`, `diff_profiles`, `match_jd`) plus 4 AI tools (`ai_review_cv`, `ai_generate_cover`, `ai_suggest_improvements`, `ai_align_to_jd`) that require `--extra ai`.
 
 For the full tool reference and example workflows, see [MCP Server](../reference/mcp-server.md).
 
@@ -1024,6 +1034,7 @@ You have now used every major feature of cvloom. Here are some things to explore
 | [CLI Reference](cli-reference.md) | Every command, flag, and option |
 | [User Guide](user-guide.md) | Complete config and features manual |
 | [Profiles and Overlays](../reference/profiles-and-overlays.md) | Deep dive into the profile and overlay system |
+| [Locales](../reference/locales.md) | Running a project in your own language; pack keys, coverage, adding a locale |
 | [Writing Lint Rules](../reference/ats-linter-rules.md) | Full rule reference with categories and examples |
 | [ATS-readiness model](../reference/ats-readiness.md) | The three honest axes; why there is no single "ATS score" |
 | [MCP Server](../reference/mcp-server.md) | MCP tool reference and workflow examples |

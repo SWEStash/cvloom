@@ -76,8 +76,8 @@ Parseability of the *rendered PDF* (tagged text, single-column, standard heading
 
 ## Locales
 
-A project declares its language once, in `cvloom.yaml` (see the
-[locale packs](../../cvloom/locales/en.yaml)). That governs the linter as well as
+A project declares its language once, in `cvloom.yaml` (see [Locales](locales.md)).
+That governs the linter as well as
 the document: a CV written in Spanish is graded by Spanish rules, not by English
 heuristics applied to Spanish text.
 

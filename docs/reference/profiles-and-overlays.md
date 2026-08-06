@@ -183,8 +183,8 @@ section_titles:
 ```
 
 A key you leave out gets the wording from your project's locale pack — `Experience`,
-`Skills`, `Education` in `en`, set by `locale:` in `cvloom.yaml`. Three sources decide a
-heading, narrowest winning:
+`Skills`, `Education` in `en`, set by `locale:` in `cvloom.yaml` (see
+[Locales](locales.md)). Three sources decide a heading, narrowest winning:
 
 1. **`section_titles` in this profile** — yours, per output variant. The only mechanism.
 2. **The locale pack** — one flat default per key, in the project's language.

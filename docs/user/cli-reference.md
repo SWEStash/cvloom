@@ -23,6 +23,7 @@ All commands assume you are in a cvloom project directory (one created by `cvloo
 - [list-projects](#list-projects)
 - [list-profiles](#list-profiles)
 - [list-templates](#list-templates)
+- [list-locales](#list-locales)
 - [ai](#ai)
 
 ---
@@ -498,24 +499,28 @@ cvloom init [OPTIONS]
 | Flag | Default | Description |
 |---|---|---|
 | `--force` | off | Overwrite existing files if they already exist |
+| `--locale` | `en` | Language the project operates in. Must be a locale cvloom ships — see [`list-locales`](#list-locales) |
 
 ### What it creates
 
 ```
 .
 ├── .gitignore
+├── cvloom.yaml
 ├── data/
 │   ├── basics.yaml
 │   ├── work.yaml
 │   ├── education.yaml
 │   ├── skills.yaml
-│   └── projects/
-│       └── example-project.yaml
+│   └── projects/          # empty — add one .yaml per project
 ├── profiles/
 │   ├── general.yaml
 │   └── cover-letter.yaml
-├── private/
-│   └── contact.yaml
+├── private/               # gitignored
+│   ├── contact.yaml
+│   └── cover-letters/
+├── dist/
+├── templates/
 └── .github/
     └── workflows/
         └── publish-cv.yml
@@ -525,12 +530,19 @@ It also installs the pre-commit PII hook (see [PII Safety](pii-safety.md)) and s
 GitHub Pages [publish workflow](github-pages-setup.md). Both are *managed files* — refresh them
 after a tool upgrade with [`cvloom sync`](#sync).
 
+`cvloom.yaml` is **not** a managed file. It carries your own choices, so `sync` leaves it
+alone; only `init --force` rewrites it. An unknown locale is rejected before anything is
+written, so a failed `init --locale` leaves the directory untouched.
+
 ### Examples
 
 ```bash
 # Scaffold a fresh project
 mkdir my-cv && cd my-cv
 cvloom init
+
+# Scaffold a project that operates in Spanish
+cvloom init --locale es
 
 # Re-scaffold, overwriting existing files
 cvloom init --force
@@ -683,6 +695,48 @@ using. `unrated` means cvloom has no measurement: the cover-letter and project-s
 templates are not documents an ATS parses, and a template of your own has never been
 measured. It does not mean "safe". See
 [ATS-readiness](../reference/ats-readiness.md) for the measurements behind the ratings.
+
+---
+
+## `list-locales`
+
+List the languages cvloom ships and how completely each is supported.
+
+```bash
+cvloom list-locales
+```
+
+This command takes no options. It reads the packaged locale packs, so it works outside a
+project directory — inside one, the project's own locale is marked.
+
+### Sample Output
+
+```
+ Locale             Document  Lint rules               Lint data
+ en (this project)  complete  24 of 25 · skips wl-025  native
+ es                 complete  24 of 25 · skips wl-016  native
+```
+
+| Column | Meaning |
+|---|---|
+| `Document` | Whether the locale pack supplies all four of its keys, and every section heading, in its own words — or leans on `en` for some of them. |
+| `Lint rules` | How many writing-lint rules have an implementation for this language. Counts come from the rule registry, never from a literal. |
+| `Lint data` | Whether the grader has a lexicon for this language (`native`), or is applying English heuristics to it (`en fallback`). |
+
+The two coverage figures are **independent**. A locale can have a complete document pack
+and no linter data, which means a correctly-written CV graded by English rules — reported
+as `en fallback` rather than hidden, because a table implying parity would promise
+coverage the tool does not have.
+
+Both shipped locales are complete on both axes. The rule skips are properties of the
+rules rather than gaps in the locale: `wl-016` (readability) is English-only and `wl-025`
+(missing diacritics) is Spanish-only. See
+[Locales](../reference/locales.md) for the full reference and
+[Writing Lint Rules → Locales](../reference/ats-linter-rules.md#locales) for the per-rule
+breakdown.
+
+Set a project's language with `locale:` in `cvloom.yaml`, or scaffold one with
+[`cvloom init --locale`](#init).
 
 ---
 

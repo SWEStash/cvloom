@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from cvloom import mcp_server
 from cvloom.mcp_server import (
     ai_align_to_jd,
     ai_generate_cover,
@@ -18,6 +19,7 @@ from cvloom.mcp_server import (
     diff_profiles,
     export_json_resume,
     get_section,
+    list_locales,
     list_profiles,
     list_projects,
     match_jd,
@@ -251,14 +253,35 @@ def test_resolve_failure_returns_real_details_not_exit_code(project_dir: str) ->
 
 def test_check_cv_returns_findings(project_dir: str) -> None:
     result = json.loads(check_cv(profile="general", project_root=project_dir))
-    assert isinstance(result, list)
+    assert isinstance(result["findings"], list)
 
 
 def test_check_cv_with_rule_filter(project_dir: str) -> None:
     result = json.loads(check_cv(profile="general", rule_ids=["wl-001"], project_root=project_dir))
-    assert isinstance(result, list)
-    for finding in result:
+    for finding in result["findings"]:
         assert finding["rule_id"] == "wl-001"
+
+
+def test_check_cv_reports_the_coverage_behind_its_findings(project_dir: str) -> None:
+    """An empty `findings` list under a locale that skipped rules is a weaker
+    result than one under a locale that ran them all. Without the counts an agent
+    cannot tell the two apart, and reads a partial pass as a clean one.
+    """
+    from cvloom import linter
+
+    result = json.loads(check_cv(profile="general", project_root=project_dir))
+    active, skipped = linter.rules_for("en")
+    assert result["locale"] == "en"
+    assert result["rules_run"] == len(active)
+    assert result["rules_total"] == len(active) + len(skipped)
+    assert [r["rule_id"] for r in result["rules_skipped"]] == [r.rule_id for r in skipped]
+
+
+def test_check_cv_reports_the_projects_own_locale(tmp_path: Path) -> None:
+    make_project(tmp_path, extra={"cvloom.yaml": "locale: es\n"})
+    result = json.loads(check_cv(profile="general", project_root=str(tmp_path)))
+    assert result["locale"] == "es"
+    assert "wl-016" in [r["rule_id"] for r in result["rules_skipped"]]
 
 
 # ── trim_report tests ─────────────────────────────────────────────
@@ -517,3 +540,99 @@ def test_valid_config_is_a_no_op(project_dir: str) -> None:
     (Path(project_dir) / "cvloom.yaml").write_text("locale: en\n")
     result = json.loads(validate_data(project_root=project_dir))
     assert result["valid"] is True
+
+
+def test_validate_data_names_the_locale_it_validated_under(project_dir: str) -> None:
+    """Which project's settings were applied is not inferable from `valid: true`."""
+    (Path(project_dir) / "cvloom.yaml").write_text("locale: es\n")
+    result = json.loads(validate_data(project_root=project_dir))
+    assert result["locale"] == "es"
+
+
+# ── project root precedence ───────────────────────────────────────
+#
+# Four levels, argument → --project-root → CVLOOM_PROJECT_ROOT → cwd. The two
+# server-level ones exist because clients disagree about whether they can pass
+# args or env; the tests below pin the ordering between them.
+
+
+def test_env_var_supplies_the_root_when_no_argument_is_given(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(_elsewhere(tmp_path))
+    monkeypatch.setenv(mcp_server.ROOT_ENV_VAR, project_dir)
+    result = json.loads(list_profiles())
+    assert any(p["name"] == "general" for p in result)
+
+
+def test_argument_beats_the_env_var(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The per-call argument is the narrowest source and must win outright."""
+    monkeypatch.setenv(mcp_server.ROOT_ENV_VAR, str(_elsewhere(tmp_path)))
+    result = json.loads(list_profiles(project_root=project_dir))
+    assert any(p["name"] == "general" for p in result)
+
+
+def test_pinned_root_beats_the_env_var(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(mcp_server.ROOT_ENV_VAR, str(_elsewhere(tmp_path)))
+    monkeypatch.setattr(mcp_server, "_pinned_root", Path(project_dir))
+    result = json.loads(list_profiles())
+    assert any(p["name"] == "general" for p in result)
+
+
+def test_argument_beats_the_pinned_root(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_server, "_pinned_root", _elsewhere(tmp_path))
+    result = json.loads(list_profiles(project_root=project_dir))
+    assert any(p["name"] == "general" for p in result)
+
+
+def test_cwd_is_the_last_resort(project_dir: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(mcp_server.ROOT_ENV_VAR, raising=False)
+    monkeypatch.setattr(mcp_server, "_pinned_root", None)
+    monkeypatch.chdir(project_dir)
+    result = json.loads(list_profiles())
+    assert any(p["name"] == "general" for p in result)
+
+
+# ── list_locales tool ─────────────────────────────────────────────
+
+
+def test_list_locales_covers_every_shipped_pack() -> None:
+    from cvloom import locale
+
+    rows = json.loads(list_locales())
+    assert [r["code"] for r in rows] == locale.available_locales()
+
+
+def test_list_locales_reports_both_axes_separately() -> None:
+    """A document pack does not imply linter data; the table must not merge them."""
+    from cvloom import linter, linter_locales
+
+    rows = {r["code"]: r for r in json.loads(list_locales())}
+    active, skipped = linter.rules_for("es")
+    assert rows["es"]["document_complete"] is True
+    assert rows["es"]["rules_run"] == len(active)
+    assert rows["es"]["rules_skipped"] == [r.rule_id for r in skipped]
+    assert rows["es"]["lint_data"] == (
+        "native" if "es" in linter_locales.available_locales() else "en fallback"
+    )
+
+
+def test_list_locales_marks_the_projects_own_locale(tmp_path: Path) -> None:
+    make_project(tmp_path, extra={"cvloom.yaml": "locale: es\n"})
+    rows = {r["code"]: r for r in json.loads(list_locales(project_root=str(tmp_path)))}
+    assert rows["es"]["active"] is True
+    assert rows["en"]["active"] is False
+
+
+def test_list_locales_survives_a_broken_project_config(tmp_path: Path) -> None:
+    """It answers "what does cvloom support", which is true regardless of the
+    project standing in front of it — so a bad cvloom.yaml must not break it."""
+    make_project(tmp_path, extra={"cvloom.yaml": "local: es\n"})
+    rows = json.loads(list_locales(project_root=str(tmp_path)))
+    assert not any(r["active"] for r in rows)

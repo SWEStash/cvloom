@@ -8,15 +8,38 @@ Two builders that were previously copy-pasted across the suite:
   the ResolvedProfile shape lives in exactly one place.
 - :func:`make_project` — an on-disk ``data/`` + ``private/`` + ``profiles/``
   project tree in ``tmp_path`` for the CLI / MCP / loader integration tests.
+
+Plus :func:`packs_dir`, a writable copy of the shipped locale packs, shared by
+the locale tests and the CLI tests that render pack coverage.
 """
 
 from __future__ import annotations
 
+import shutil
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from cvloom import sections
+import pytest
+
+from cvloom import locale, sections
 from cvloom.models import ResolvedProfile
+
+
+@pytest.fixture
+def packs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Redirect pack loading at a writable copy of the shipped locales.
+
+    ``load_pack`` is cached, so the cache is cleared on the way in and out —
+    otherwise a stub written here would leak into the rest of the suite.
+    """
+    staged = tmp_path / "locales"
+    shutil.copytree(locale._LOCALES_DIR, staged)
+    monkeypatch.setattr(locale, "_LOCALES_DIR", staged)
+    locale.load_pack.cache_clear()
+    yield staged
+    locale.load_pack.cache_clear()
+
 
 _DEFAULT_BASICS: dict[str, Any] = {"headline": "Engineer", "summary": "A summary."}
 _DEFAULT_CONTACT: dict[str, Any] = {"name": "Test", "email": "t@example.com"}

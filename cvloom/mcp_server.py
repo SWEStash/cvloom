@@ -11,8 +11,10 @@ Agent-safety guarantees (see docs/reference/mcp-server.md):
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -41,7 +43,17 @@ except ModuleNotFoundError:
             pass
 
 
-from cvloom import builder, linter, loader, projects, schema, sections
+from cvloom import (
+    builder,
+    config,
+    linter,
+    linter_locales,
+    loader,
+    locale,
+    projects,
+    schema,
+    sections,
+)
 from cvloom import trim as trim_mod
 from cvloom.diff import compare
 from cvloom.export import to_json_resume
@@ -50,8 +62,35 @@ from cvloom.match import analyze_match
 mcp = FastMCP("cvloom")
 
 
+ROOT_ENV_VAR = "CVLOOM_PROJECT_ROOT"
+
+# Set by main() from --project-root. Module state because the tool functions are
+# plain functions registered with a decorator; there is no server object to hang
+# it on, and every tool already routes through _root().
+_pinned_root: Path | None = None
+
+
 def _root(project_root: str | None) -> Path:
-    return Path(project_root) if project_root else Path.cwd()
+    """Resolve the project to operate on, narrowest source winning.
+
+    Four levels, because pinning the root is worth getting right: reading config
+    from the wrong root now applies another project's *settings*, not just its
+    data. Per-call argument → ``--project-root`` → ``CVLOOM_PROJECT_ROOT`` → cwd.
+
+    Both server-level mechanisms ship because clients disagree about which they
+    support: the widely-copied ``{"command": "cvloom-mcp", "args": []}`` config
+    has no ``--directory`` equivalent and needs the env var, while a client that
+    exposes only ``args`` needs the flag. The cwd fallback is last and is
+    arbitrary for a desktop client, which is the gap the other three close.
+    """
+    if project_root:
+        return Path(project_root)
+    if _pinned_root is not None:
+        return _pinned_root
+    from_env = os.environ.get(ROOT_ENV_VAR)
+    if from_env:
+        return Path(from_env)
+    return Path.cwd()
 
 
 @mcp.tool()
@@ -77,6 +116,44 @@ def list_projects(
     except FileNotFoundError:
         return json.dumps({"error": "No data/projects/ directory found."})
     return json.dumps([dataclasses.asdict(s) for s in summaries], indent=2)
+
+
+@mcp.tool()
+def list_locales(project_root: str | None = None) -> str:
+    """List the locales cvloom ships and how completely each is supported.
+
+    Two independent axes. ``document`` is what the locale pack writes into the CV
+    (lang attribute, section headings, the open-ended date word, the --public
+    placeholder contact). ``lint`` is the lexicons and thresholds ``check_cv``
+    grades with — a locale with a document pack but no linter data is written
+    correctly and then graded by English heuristics, which is what
+    ``lint_data: "en fallback"`` means.
+    """
+    root = _root(project_root)
+    try:
+        active = config.load_project_config(root).locale
+    except config.ConfigError:
+        active = None
+
+    native = linter_locales.available_locales()
+    rows = []
+    for code in locale.available_locales():
+        cov = locale.pack_coverage(code)
+        rules, skipped = linter.rules_for(code)
+        rows.append(
+            {
+                "code": code,
+                "active": code == active,
+                "document_complete": cov.is_complete,
+                "inherited_from_en": list(cov.inherited_keys),
+                "headings_unnamed": list(cov.missing_titles),
+                "rules_run": len(rules),
+                "rules_total": len(rules) + len(skipped),
+                "rules_skipped": [r.rule_id for r in skipped],
+                "lint_data": "native" if code in native else "en fallback",
+            }
+        )
+    return json.dumps(rows, indent=2)
 
 
 @mcp.tool()
@@ -201,7 +278,7 @@ def validate_data(project_root: str | None = None) -> str:
     # reporting the data as valid would tell an agent the project is healthy
     # when `build_cv` is about to fail.
     try:
-        builder.project_locale(root)
+        pack, _ = builder.project_locale(root)
     except builder.ResolveError as exc:
         return json.dumps({"valid": False, "errors": exc.errors}, indent=2)
 
@@ -215,8 +292,8 @@ def validate_data(project_root: str | None = None) -> str:
         private_path=str(root / "private" / "contact.yaml"),
     )
     if errors:
-        return json.dumps({"valid": False, "errors": errors}, indent=2)
-    return json.dumps({"valid": True})
+        return json.dumps({"valid": False, "locale": pack.code, "errors": errors}, indent=2)
+    return json.dumps({"valid": True, "locale": pack.code})
 
 
 @mcp.tool()
@@ -246,28 +323,40 @@ def check_cv(
     rule_ids: list[str] | None = None,
     project_root: str | None = None,
 ) -> str:
-    """Run the writing lint on a profile. Returns lint findings as JSON.
+    """Run the writing lint on a profile. Returns coverage and findings as JSON.
 
     Each finding carries a ``category`` (writing / structure / ats-parse); there
     is no single "ATS score". See docs/reference/ats-readiness.md.
+
+    ``findings`` is wrapped rather than returned bare because not every rule runs
+    in every language: an empty list under a locale that skipped rules is a
+    weaker result than one under a locale that ran them all, and ``rules_run`` /
+    ``rules_skipped`` are what tell those two apart.
     """
     root = _root(project_root)
     try:
         resolved = builder.resolve_project(root, profile, public=True)
         findings = linter.lint(resolved, rule_ids=rule_ids)
+        active, skipped = linter.rules_for(resolved.locale.code)
         return json.dumps(
-            [
-                {
-                    "rule_id": f.rule_id,
-                    "category": f.category,
-                    "severity": f.severity,
-                    "section": f.section,
-                    "entry": f.entry,
-                    "message": f.message,
-                    "fix_hint": f.fix_hint,
-                }
-                for f in findings
-            ],
+            {
+                "locale": resolved.locale.code,
+                "rules_run": len(active),
+                "rules_total": len(active) + len(skipped),
+                "rules_skipped": [{"rule_id": r.rule_id, "name": r.name} for r in skipped],
+                "findings": [
+                    {
+                        "rule_id": f.rule_id,
+                        "category": f.category,
+                        "severity": f.severity,
+                        "section": f.section,
+                        "entry": f.entry,
+                        "message": f.message,
+                        "fix_hint": f.fix_hint,
+                    }
+                    for f in findings
+                ],
+            },
             indent=2,
         )
     except builder.ResolveError as e:
@@ -493,6 +582,21 @@ def ai_align_to_jd(
 
 def main() -> None:
     """Entry point for the MCP server."""
+    global _pinned_root
+
+    parser = argparse.ArgumentParser(prog="cvloom-mcp", description="cvloom MCP server.")
+    parser.add_argument(
+        "--project-root",
+        default=None,
+        help=(
+            "Project to operate on when a tool call does not name one. "
+            f"Overrides {ROOT_ENV_VAR}; overridden by a tool's own project_root."
+        ),
+    )
+    args = parser.parse_args()
+    if args.project_root:
+        _pinned_root = Path(args.project_root)
+
     if not _MCP_AVAILABLE:
         sys.stderr.write(
             "cvloom-mcp requires the optional 'mcp' dependency, which is not installed.\n"

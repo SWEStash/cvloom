@@ -2,7 +2,7 @@
 
 [Back to README](../../README.md)
 
-The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard that lets AI assistants interact with external tools and data sources through a structured interface. cvloom ships an MCP server that exposes 16 typed tools, so an LLM can query your CV data, build tailored outputs, create profiles, validate schemas, and run AI-powered analysis — all without leaving the conversation.
+The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard that lets AI assistants interact with external tools and data sources through a structured interface. cvloom ships an MCP server that exposes 17 typed tools, so an LLM can query your CV data, build tailored outputs, create profiles, validate schemas, and run AI-powered analysis — all without leaving the conversation.
 
 ## Installation
 
@@ -92,24 +92,42 @@ session rather than just this project — but then pin the project explicitly, a
 
 ### Which project the server operates on
 
-Every tool takes an optional `project_root`. When omitted the server falls back to its own
-**current working directory**, which is whatever directory the MCP client launched it in —
-not the directory you happen to be chatting about.
+Four sources, narrowest winning:
 
-That default is right for Claude Code started inside a cvloom project, and wrong for Claude
-Desktop, which has no project notion. Pick one:
+| Source | How |
+|---|---|
+| 1. Per-call argument | `project_root` on any tool call |
+| 2. Server flag | `cvloom-mcp --project-root /path/to/your-cv-project` |
+| 3. Environment | `CVLOOM_PROJECT_ROOT=/path/to/your-cv-project` |
+| 4. Current working directory | The fallback — whatever directory the client launched the server in |
 
-- **Pin the working directory** at launch — `uvx --directory /path/to/your-cv-project …`, as
-  in the config above. Best when you have one CV project.
-- **Pass `project_root` on every call** and tell the assistant the absolute path once at the
-  start of the conversation. Best when you juggle several.
+The cwd fallback is right for Claude Code started inside a cvloom project, and arbitrary
+for Claude Desktop, which has no project notion. Pick whichever of the first three your
+client supports:
 
-Without either, the tools will read a `data/` directory that isn't yours — usually surfacing
-as an empty `list_profiles` or a `data/work.yaml not found` error.
+- **`--project-root`** fills the `"args": []` slot in the config above. Explicit and
+  greppable.
+- **`CVLOOM_PROJECT_ROOT`** goes in the client's `env` block. This is the one that works
+  with the plain `{"command": "cvloom-mcp", "args": []}` config, which has no
+  `--directory` equivalent.
+- **`uvx --directory /path/to/your-cv-project …`** pins the cwd instead, if you launch
+  through `uvx`.
+- **Pass `project_root` on every call** and tell the assistant the absolute path once at
+  the start of the conversation. Best when you juggle several projects — it overrides all
+  of the above per call.
+
+Both server-level mechanisms exist because clients disagree about which they support: some
+expose only `env`, some only `args`.
+
+Getting this wrong is worth avoiding: the tools will read a `data/` directory that isn't
+yours — usually surfacing as an empty `list_profiles` or a `data/work.yaml not found`
+error — and, since `cvloom.yaml` is read from the same root, they will apply another
+project's *settings* rather than only its data. `validate_data` and `check_cv` both report
+the locale they resolved, so you can confirm which project answered.
 
 ## Tool reference
 
-All tools accept an optional `project_root` parameter (string). When omitted, the server uses the current working directory. All tools return JSON strings.
+All tools accept an optional `project_root` parameter (string). When omitted, the server resolves the root as described in [Which project the server operates on](#which-project-the-server-operates-on). All tools return JSON strings.
 
 ### Core tools (always available)
 
@@ -117,13 +135,14 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 |------|-----------|---------|-------------|
 | `list_profiles` | `project_root?` | Array of profile objects (`name`, `template`, `output_filename`, `select`, `job_context`) | Lists all profiles found in `profiles/*.yaml`. |
 | `list_projects` | `project_root?`, `tags?` (string array) | Array of project objects (`name`, `description`, `tags`) | Lists projects from `data/projects/*.yaml`. When `tags` is provided, only projects matching at least one tag are returned. |
+| `list_locales` | `project_root?` | Array of locale objects (`code`, `active`, `document_complete`, `inherited_from_en`, `headings_unnamed`, `rules_run`, `rules_total`, `rules_skipped`, `lint_data`) | Lists the locales cvloom ships and how completely each is supported. Two independent axes: the document pack and the linter data. `lint_data: "en fallback"` means a CV in that language is written correctly and then graded by English heuristics. See [Locales](locales.md). |
 | `get_section` | `section` (string), `project_root?` | Section data (object or array) | Reads raw YAML for a section. Valid values: `basics`, `skills`, `contact`, and every entry-list section — `work`, `education`, `projects`, `publications`, `certifications`, `awards`, `languages`. |
 | `build_cv` | `profile?` (default `"general"`), `public?` (bool), `skip_pdf?` (bool), `project_root?` | `{html_path, pdf_path, words, pages, section_word_counts}` | Builds the CV for the given profile. Set `public` to use placeholder contact info. |
 | `create_profile` | `name` (string), `config` (object), `project_root?` | `{created: path}` or `{error, details}` | Validates `config` against the profile schema and writes it to `profiles/{name}.yaml`. |
 | `upsert_project` | `project` (object), `project_root?` | `{written: path}` or `{error, details}` | Validates `project` against the project schema and writes it to `data/projects/{slug}.yaml`. Creates or overwrites. |
-| `validate_data` | `project_root?` | `{valid: true}` or `{valid: false, errors: [...]}` | Runs schema validation against `cvloom.yaml` and all data files in the project. Config is checked first: a project whose config is invalid cannot build, so reporting the data as valid would be misleading. |
+| `validate_data` | `project_root?` | `{valid, locale}`, or `{valid: false, errors: [...]}` when `cvloom.yaml` itself is invalid (no locale resolved yet) | Runs schema validation against `cvloom.yaml` and all data files in the project. Config is checked first: a project whose config is invalid cannot build, so reporting the data as valid would be misleading. `locale` names which project's settings were applied — not inferable from `valid: true` alone. |
 | `export_json_resume` | `profile?` (default `"general"`), `public?` (bool, default **true**), `project_root?` | Full JSON Resume object | Resolves the given profile and exports it in [JSON Resume](https://jsonresume.org) format. **PII fence:** `public` defaults to `true` (email/phone stripped); pass `public=false` to include real contact PII. |
-| `check_cv` | `profile?` (default `"general"`), `rule_ids?` (string array), `project_root?` | Array of finding objects (`rule_id`, `category`, `severity`, `section`, `entry`, `message`, `fix_hint`) | Runs the writing lint on the resolved profile; each finding carries a `category` (`writing`/`structure`/`ats-parse`). Optionally filter by rule IDs. |
+| `check_cv` | `profile?` (default `"general"`), `rule_ids?` (string array), `project_root?` | `{locale, rules_run, rules_total, rules_skipped: [...], findings: [...]}`; each finding has `rule_id`, `category`, `severity`, `section`, `entry`, `message`, `fix_hint` | Runs the writing lint on the resolved profile; each finding carries a `category` (`writing`/`structure`/`ats-parse`). Optionally filter by rule IDs. Findings are wrapped in coverage because not every rule runs in every language: an empty `findings` list under a locale that skipped rules is a weaker result than one under a locale that ran them all. |
 | `trim_report` | `profile?` (default `"general"`), `target_pages?` (int, default 3), `project_root?` | `{total_words, estimated_pages, words_to_cut, sections: [...], recommendations: [...]}` | Per-section word count breakdown with actionable trim recommendations. |
 | `diff_profiles` | `profile_a` (string), `profile_b` (string), `project_root?` | `{template_a, template_b, sections_only_in_a, sections_only_in_b, entries_only_in_a, entries_only_in_b, word_count_a, word_count_b, highlight_count_a, highlight_count_b}` | Compares two profiles: sections, entries, word counts, and highlight counts. |
 | `match_jd` | `jd_text` (string), `profile?` (default `"general"`), `project_root?` | `{coverage, jd_word_count, matched: [...], gaps: [...], top_jd_keywords: [...]}` | Keyword gap analysis comparing CV content against a job description. |

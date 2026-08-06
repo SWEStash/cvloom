@@ -7,8 +7,6 @@ hand-written list, so adding a lookup without an ``en`` default fails CI.
 
 from __future__ import annotations
 
-import shutil
-from collections.abc import Iterator
 from dataclasses import fields
 from pathlib import Path
 
@@ -19,20 +17,8 @@ from cvloom.export import to_json_resume, to_markdown
 from tests import conftest
 from tests.conftest import make_project
 
-
-@pytest.fixture
-def packs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    """Redirect pack loading at a writable copy of the shipped locales.
-
-    ``load_pack`` is cached, so the cache is cleared on the way in and out —
-    otherwise a stub written here would leak into the rest of the suite.
-    """
-    staged = tmp_path / "locales"
-    shutil.copytree(locale._LOCALES_DIR, staged)
-    monkeypatch.setattr(locale, "_LOCALES_DIR", staged)
-    locale.load_pack.cache_clear()
-    yield staged
-    locale.load_pack.cache_clear()
+# `packs_dir` — a writable copy of the shipped locales — lives in conftest.py:
+# the CLI tests that render pack coverage need the same staging.
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +156,65 @@ def test_key_missing_from_en_is_an_error(packs_dir: Path) -> None:
         locale.load_pack("en")
     assert "en.yaml" in exc.value.errors[0]
     assert "section_titles" in exc.value.errors[0]
+
+
+# ---------------------------------------------------------------------------
+# Coverage reporting (what `list-locales` tabulates)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("code", locale.available_locales())
+def test_shipped_packs_report_complete_coverage(code: str) -> None:
+    """A pack we ship ourselves inherits nothing and names every heading."""
+    cov = locale.pack_coverage(code)
+    assert cov.is_complete, f"{code}: {cov.inherited_keys} {cov.missing_titles}"
+
+
+def test_coverage_names_the_keys_a_pack_inherits(packs_dir: Path) -> None:
+    """The structured form of the fallback `load_pack` reports as prose."""
+    (packs_dir / "xx.yaml").write_text(
+        "html_lang: xx\n"
+        f"section_titles:\n{_all_titles()}"
+        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
+    )
+    cov = locale.pack_coverage("xx")
+    assert cov.inherited_keys == ("placeholder_contact",)
+    assert cov.missing_titles == ()
+    assert not cov.is_complete
+
+
+def test_coverage_names_headings_the_pack_leaves_unnamed(packs_dir: Path) -> None:
+    """A gap `load_pack` does not warn about: its fallback is per top-level key,
+    so a partial `section_titles` passes silently and heads a section `work`."""
+    (packs_dir / "xx.yaml").write_text(
+        "html_lang: xx\n"
+        "section_titles:\n  work: Trabajo\n"
+        "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
+        "placeholder_contact:\n"
+        "  name: Your Name\n"
+        "  email: your.email@example.com\n"
+        "  phone: +1 (555) 000-0000\n"
+        "  location: City, Country\n"
+    )
+    cov = locale.pack_coverage("xx")
+    assert cov.inherited_keys == ()
+    assert "education" in cov.missing_titles
+    assert "work" not in cov.missing_titles
+
+
+def test_en_never_reports_inherited_keys() -> None:
+    """en is the fallback source; it cannot inherit from itself."""
+    assert locale.pack_coverage("en").inherited_keys == ()
+
+
+def test_coverage_of_an_unknown_locale_raises() -> None:
+    with pytest.raises(config.ConfigError):
+        locale.pack_coverage("zz")
+
+
+def _all_titles() -> str:
+    """Every TITLE_KEYS heading, so a fixture can isolate one gap at a time."""
+    return "".join(f"  {key}: T-{key}\n" for key in sections.TITLE_KEYS)
 
 
 def test_pack_mappings_are_read_only() -> None:
