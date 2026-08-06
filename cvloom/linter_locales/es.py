@@ -206,10 +206,15 @@ PRETERITE_IRREGULARS = frozenset(
 
 # ── wl-015: metric and result framing ───────────────────────────────
 
-# Spanish writes 50.000 rather than 50,000 and reaches for € as often as $, so
-# the English pattern would miss both the amount and its currency.
+# Spanish writes 50.000 rather than 50,000, reaches for € as often as $, and —
+# unlike English — puts the currency symbol *after* the amount (`40.000 €`). The
+# English pattern would miss the amount, the currency and their order.
 _METRIC = re.compile(
-    r"\d+\s*%|\d+\s*x\b|[€$]\s*[\d.,]+|\d+\s*(?:k|mil|millones|millón|M)\b",
+    r"\d+\s*%"
+    r"|\d+\s*x\b"
+    r"|[€$]\s*[\d.,]+"
+    r"|[\d.,]+\s*[€$]"
+    r"|\d+\s*(?:k|mil|miles|millones|millón|M)\b",
     re.IGNORECASE,
 )
 

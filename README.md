@@ -85,7 +85,9 @@ cd cvloom
 uv sync --all-extras
 ```
 
-The repo root is the tool itself; a runnable demo CV lives in [`examples/`](examples/)
+The repo root is the tool itself; a runnable demo CV lives in [`examples/`](examples/), and
+[`examples-es/`](examples-es/) is the same project in Spanish — a separate directory
+because a cvloom project operates in one language
 (`cd examples && cvloom build --profile general --public`).
 
 ### Initialise a new CV project
