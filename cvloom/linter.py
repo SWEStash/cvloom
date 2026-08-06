@@ -20,6 +20,8 @@ from typing import Any
 
 from cvloom import sections
 from cvloom.links import network_of, normalize_url
+from cvloom.linter_locales import LintLocale, pack_for
+from cvloom.linter_locales import en as en_data
 from cvloom.locale import Ongoing
 from cvloom.models import ResolvedProfile
 
@@ -48,153 +50,31 @@ class LintFinding:
 
 @dataclass
 class LintRule:
-    """A registered lint rule."""
+    """A registered lint rule.
+
+    *locales* declares which locales this implementation is written for; ``None``
+    means every locale, which is the case for a rule whose logic is language
+    neutral. The registry may hold the same ``rule_id`` more than once, one
+    entry per locale — that is how a rule whose *logic* differs between
+    languages (not merely its word list) is expressed, and it is also how a rule
+    supported in only one language declares itself. See :func:`rules_for`.
+    """
 
     rule_id: str
     name: str
     description: str
     category: str
-    check: Callable[[ResolvedProfile], list[LintFinding]]
+    check: Callable[[ResolvedProfile, LintLocale], list[LintFinding]]
+    locales: frozenset[str] | None = None
 
 
 # ── Built-in rules ──────────────────────────────────────────────────
 
-# Common passive voice constructions (auxiliary + past participle pattern).
-_PASSIVE_RE = re.compile(
-    r"\b(?:was|were|been|being|is|are)\s+"
-    r"(?:also\s+)?"
-    r"([a-z]+(?:ed|en|wn|lt|ht|pt|nt))\b",
-    re.IGNORECASE,
-)
-
-# Words that match the passive participle pattern but are adjectives/non-participles.
-_PASSIVE_FALSE_POSITIVES = {
-    "present",
-    "recent",
-    "absent",
-    "current",
-    "different",
-    "important",
-    "efficient",
-    "excellent",
-    "sufficient",
-    "consistent",
-    "persistent",
-    "resilient",
-    "intelligent",
-    "confident",
-    "competent",
-    "relevant",
-    "elegant",
-    "frequent",
-    "urgent",
-    "ancient",
-    "silent",
-    "content",
-    "evident",
-    "dependent",
-    "independent",
-    "spent",
-    "sent",
-    "went",
-    "bent",
-    "lent",
-    "meant",
-    "dealt",
-    "felt",
-    "built",
-    "knelt",
-    "prevalent",
-    "prominent",
-    "transparent",
-    "coherent",
-    "concurrent",
-    "existent",
-    "inherent",
-    "latent",
-    "potent",
-    "reluctant",
-    "apparent",
-    "brilliant",
-    "compliant",
-    "diligent",
-    "proficient",
-    "sufficient",
-    "emergent",
-    "equivalent",
-    "fluent",
-}
-
-_WEAK_OPENERS = [
-    "helped",
-    "assisted",
-    "worked on",
-    "was responsible for",
-    "participated in",
-    "was involved in",
-    "contributed to",
-]
-
-_NOISE_SKILLS = {
-    "microsoft office",
-    "microsoft word",
-    "microsoft excel",
-    "microsoft powerpoint",
-    "google docs",
-    "google sheets",
-    "google slides",
-    "ms office",
-    "ms word",
-}
-
-_MIN_HIGHLIGHT_WORDS = 8
-_MAX_HIGHLIGHT_WORDS = 25
-
-# "I" is case-sensitive here: lowercase "i" is never the pronoun, and matching
-# it case-insensitively turned every stray initial into a finding.
-_FIRST_PERSON_RE = re.compile(r"\b(?:my|me|mine|myself)\b", re.IGNORECASE)
-_PRONOUN_I_RE = re.compile(r"\bI\b")
-
-# Present-tense verbs whose -ed ending makes the past-tense heuristic misfire.
-_PRESENT_TENSE_ED = frozenset(
-    {
-        "embed",
-        "exceed",
-        "proceed",
-        "succeed",
-        "precede",
-        "concede",
-        "recede",
-        "feed",
-        "need",
-        "breed",
-        "speed",
-        "seed",
-        "heed",
-        "bleed",
-        "plead",
-        "spread",
-        "shed",
-    }
-)
-
-_VAGUE_BUZZWORDS_RE = re.compile(
-    r"\b(?:"
-    r"motivated|detail-oriented|team player|hardworking|"
-    r"passionate|dynamic|results-driven|go-getter|"
-    r"synergy|proactive|self-starter|innovative"
-    r")\b",
-    re.IGNORECASE,
-)
-
 _MIN_BULLETS = 3
 _MAX_BULLETS = 8
-_MIN_SKILLS = 8
-_MAX_SKILLS = 25
 # Past this, an education section is almost always a degree list plus a tail of
 # short courses/certs, which reads better as a separate certifications section.
 _MAX_EDUCATION_ENTRIES = 6
-_WORDS_PER_PAGE = 500
 
 from cvloom.trim import MAX_PAGES as _MAX_PAGES  # noqa: E402  (one ceiling, one place)
 
@@ -205,129 +85,19 @@ _DATE_YYYY_RE = re.compile(r"^\d{4}$")
 # lookahead spares Markdown links, whose "[label](url)" is not a placeholder.
 _PLACEHOLDER_RE = re.compile(r"\[[^\][]{1,40}\](?!\()")
 
-_IRREGULAR_PAST = frozenset(
-    {
-        "led",
-        "built",
-        "ran",
-        "wrote",
-        "grew",
-        "drove",
-        "won",
-        "taught",
-        "brought",
-        "became",
-        "came",
-        "cut",
-        "drew",
-        "went",
-        "had",
-        "held",
-        "kept",
-        "lost",
-        "made",
-        "met",
-        "paid",
-        "put",
-        "read",
-        "said",
-        "sat",
-        "sold",
-        "took",
-        "told",
-        "thought",
-        "set",
-        "got",
-        "left",
-        "sent",
-        "spent",
-        "began",
-        "broke",
-        "chose",
-        "found",
-        "gave",
-        "knew",
-        "saw",
-        "spoke",
-        "stood",
-        "wore",
-    }
-)
-
-_PRESENT_TENSE_VERBS = frozenset(
-    {
-        "design",
-        "develop",
-        "build",
-        "lead",
-        "manage",
-        "implement",
-        "create",
-        "write",
-        "run",
-        "analyze",
-        "architect",
-        "deploy",
-        "maintain",
-        "optimize",
-        "own",
-        "deliver",
-        "drive",
-        "grow",
-        "scale",
-        "migrate",
-        "integrate",
-        "coordinate",
-        "mentor",
-        "review",
-        "define",
-        "establish",
-        "improve",
-        "reduce",
-        "increase",
-        "support",
-        "enable",
-        "handle",
-        "oversee",
-        "operate",
-        "automate",
-        "monitor",
-        "evaluate",
-        "collaborate",
-    }
-)
-
-_RESULT_FRAMING_RE = re.compile(
-    r"\b(?:enabling|resulting|achieving|allowing|saving|delivering|"
-    r"generating|helping|driving|growing|scaling|improving|"
-    r"reducing|increasing|thereby|which|through|via)\b",
-    re.IGNORECASE,
-)
-
-_METRIC_RE = re.compile(
-    r"\d+\s*%|\d+\s*x\b|\$\s*[\d,]+|\d+\s*[kmb]\b",
-    re.IGNORECASE,
-)
-
-_MIN_SUMMARY_WORDS = 20
-_MAX_SUMMARY_WORDS = 80
-
-_VOWEL_RE = re.compile(r"[aeiouy]+")
-_WORD_ALPHA_RE = re.compile(r"\b[a-zA-Z]+\b")
-_FK_MIN_GRADE = 6
-_FK_MAX_GRADE = 12
+_NON_ASCII_DASHES = {"\u2013": "en dash", "\u2014": "em dash", "\u2212": "minus sign"}
 
 
 def _count_syllables(word: str) -> int:
     w = word.lower()
     if len(w) > 2 and w.endswith("e") and w[-2] not in "aeiouy":
         w = w[:-1]
-    return max(1, len(_VOWEL_RE.findall(w)))
+    return max(1, len(en_data.VOWEL.findall(w)))
 
 
 def _fk_grade(text: str) -> float:
     """Flesch-Kincaid Grade Level for a single-sentence highlight."""
-    words = _WORD_ALPHA_RE.findall(text)
+    words = en_data.WORD_ALPHA.findall(text)
     if not words:
         return 0.0
     syllables = sum(_count_syllables(w) for w in words)
@@ -357,23 +127,35 @@ def _check_highlights(
     return findings
 
 
-def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
-    """wl-001: Flag passive voice constructions in highlights."""
+def _check_passive_voice(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    """wl-001: Flag passive voice constructions in highlights.
+
+    The locale supplies the constructions rather than one being assumed: English
+    has a single auxiliary+participle shape, while Spanish needs both the
+    periphrastic ``fue implementado`` and the *pasiva refleja* ``se implementó``,
+    which is the more common of the two in professional prose and has no English
+    equivalent. Each pattern captures the verb, so the false-positive list works
+    the same way for every locale.
+    """
     findings: list[LintFinding] = []
+    hint = "Rewrite using an active verb (e.g. {}).".format(
+        ", ".join(f"'{v}'" for v in lex.strong_verb_examples[:3])
+    )
 
     def test(text: str, idx: int) -> LintFinding | None:
-        match = _PASSIVE_RE.search(text)
-        if match and match.group(1).lower() not in _PASSIVE_FALSE_POSITIVES:
-            return LintFinding(
-                rule_id="wl-001",
-                severity="warning",
-                section="",
-                entry="",
-                bullet_index=idx,
-                bullet_text=text,
-                message=f'Passive voice detected: "{match.group()}"',
-                fix_hint="Rewrite using an active verb (e.g. 'Designed', 'Built', 'Led').",
-            )
+        for pattern in lex.passive_patterns:
+            match = pattern.search(text)
+            if match and match.group(1).lower() not in lex.passive_false_positives:
+                return LintFinding(
+                    rule_id="wl-001",
+                    severity="warning",
+                    section="",
+                    entry="",
+                    bullet_index=idx,
+                    bullet_text=text,
+                    message=f'Passive voice detected: "{match.group()}"',
+                    fix_hint=hint,
+                )
         return None
 
     for section in ("work", "education", "projects"):
@@ -381,7 +163,7 @@ def _check_passive_voice(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_missing_quantification(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_missing_quantification(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-002: Flag entries whose highlights carry no numbers at all.
 
     Reported per entry rather than per bullet.
@@ -412,7 +194,7 @@ def _check_missing_quantification(resolved: ResolvedProfile) -> list[LintFinding
     return findings
 
 
-def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_noise_skills(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-003: Flag low-value 'noise' skills."""
     findings: list[LintFinding] = []
     if not resolved.show_sections.get("skills"):
@@ -422,7 +204,7 @@ def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
         category = group.get("category", "?")
         for item in group.get("items", []):
             name = sections.skill_name(item)
-            if name.lower() in _NOISE_SKILLS:
+            if name.lower() in lex.noise_skills:
                 findings.append(
                     LintFinding(
                         rule_id="wl-003",
@@ -438,13 +220,16 @@ def _check_noise_skills(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_weak_action_verbs(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-004: Flag highlights starting with weak action verbs."""
     findings: list[LintFinding] = []
+    hint = "Start with a strong action verb: {}.".format(
+        ", ".join(f"'{v}'" for v in lex.strong_verb_examples)
+    )
 
     def test(text: str, idx: int) -> LintFinding | None:
         lower = text.lower().lstrip("- ").strip()
-        for weak in _WEAK_OPENERS:
+        for weak in lex.weak_openers:
             if lower.startswith(weak):
                 return LintFinding(
                     rule_id="wl-004",
@@ -454,8 +239,7 @@ def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
                     bullet_index=idx,
                     bullet_text=text,
                     message=f'Weak opener: "{weak}".',
-                    fix_hint="Start with a strong action verb: 'Designed', 'Implemented', "
-                    "'Reduced', 'Delivered', 'Architected'.",
+                    fix_hint=hint,
                 )
         return None
 
@@ -464,13 +248,13 @@ def _check_weak_action_verbs(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_highlight_length(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-005: Flag highlights that are too short or too long."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
         word_count = len(text.split())
-        if word_count < _MIN_HIGHLIGHT_WORDS:
+        if word_count < lex.min_highlight_words:
             return LintFinding(
                 rule_id="wl-005",
                 severity="warning",
@@ -478,10 +262,10 @@ def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="",
                 bullet_index=idx,
                 bullet_text=text,
-                message=f"Highlight too short ({word_count} words, min {_MIN_HIGHLIGHT_WORDS}).",
+                message=f"Highlight too short ({word_count} words, min {lex.min_highlight_words}).",
                 fix_hint="Add context, impact, or metrics to make this bullet more substantial.",
             )
-        if word_count > _MAX_HIGHLIGHT_WORDS:
+        if word_count > lex.max_highlight_words:
             return LintFinding(
                 rule_id="wl-005",
                 severity="warning",
@@ -489,7 +273,9 @@ def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="",
                 bullet_index=idx,
                 bullet_text=text,
-                message=f"Highlight too long ({word_count} words, maximum {_MAX_HIGHLIGHT_WORDS}).",
+                message=(
+                    f"Highlight too long ({word_count} words, maximum {lex.max_highlight_words})."
+                ),
                 fix_hint="Split into two bullets or tighten the language.",
             )
         return None
@@ -499,7 +285,7 @@ def _check_highlight_length(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_date_format_consistency(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-012: Flag mixed date formats (YYYY-MM vs YYYY) within each section."""
     findings: list[LintFinding] = []
 
@@ -535,8 +321,8 @@ def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFindin
     return findings
 
 
-def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
-    """wl-013: Present tense for current roles, past tense for previous."""
+def _check_tense_consistency_en(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    """wl-013 (en): Present tense for current roles, past tense for previous."""
     findings: list[LintFinding] = []
 
     if not resolved.show_sections.get("work"):
@@ -553,8 +339,8 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
                 continue
             first_word = text.lstrip("- ").split()[0].lower() if text.split() else ""
             is_past = (
-                first_word.endswith("ed") and first_word not in _PRESENT_TENSE_ED
-            ) or first_word in _IRREGULAR_PAST
+                first_word.endswith("ed") and first_word not in en_data.PRESENT_TENSE_ED
+            ) or first_word in en_data.IRREGULAR_PAST
 
             if is_current and is_past:
                 findings.append(
@@ -569,7 +355,7 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
                         fix_hint="Use present tense for current roles (e.g. 'Design', 'Lead').",
                     )
                 )
-            elif not is_current and first_word in _PRESENT_TENSE_VERBS:
+            elif not is_current and first_word in en_data.PRESENT_TENSE_VERBS:
                 findings.append(
                     LintFinding(
                         rule_id="wl-013",
@@ -586,13 +372,13 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_summary_length(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-014: Warn if summary is too short or too long."""
     summary = resolved.data.get("basics", {}).get("summary", "")
     if not summary:
         return []
     word_count = len(summary.split())
-    if word_count < _MIN_SUMMARY_WORDS:
+    if word_count < lex.min_summary_words:
         return [
             LintFinding(
                 rule_id="wl-014",
@@ -601,11 +387,14 @@ def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="summary",
                 bullet_index=None,
                 bullet_text=None,
-                message=f"Summary too short ({word_count} words, minimum {_MIN_SUMMARY_WORDS}).",
-                fix_hint="Expand to 20–80 words to give context and grab recruiter attention.",
+                message=f"Summary too short ({word_count} words, minimum {lex.min_summary_words}).",
+                fix_hint=(
+                    f"Expand to {lex.min_summary_words}–{lex.max_summary_words} words to "
+                    "give context and grab recruiter attention."
+                ),
             )
         ]
-    if word_count > _MAX_SUMMARY_WORDS:
+    if word_count > lex.max_summary_words:
         return [
             LintFinding(
                 rule_id="wl-014",
@@ -614,19 +403,22 @@ def _check_summary_length(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="summary",
                 bullet_index=None,
                 bullet_text=None,
-                message=f"Summary too long ({word_count} words, maximum {_MAX_SUMMARY_WORDS}).",
-                fix_hint="Tighten to 80 words or fewer; recruiters skim the summary.",
+                message=f"Summary too long ({word_count} words, maximum {lex.max_summary_words}).",
+                fix_hint=(
+                    f"Tighten to {lex.max_summary_words} words or fewer; "
+                    "recruiters skim the summary."
+                ),
             )
         ]
     return []
 
 
-def _check_action_result(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_action_result(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-015: Flag highlights with a quantified metric but no result framing."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
-        if _METRIC_RE.search(text) and not _RESULT_FRAMING_RE.search(text):
+        if lex.metric_pattern.search(text) and not lex.result_framing_pattern.search(text):
             return LintFinding(
                 rule_id="wl-015",
                 severity="suggestion",
@@ -645,7 +437,7 @@ def _check_action_result(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_bullet_count(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-006: Warn if a work entry has too few or too many highlights."""
     findings: list[LintFinding] = []
     if not resolved.show_sections.get("work"):
@@ -682,17 +474,17 @@ def _check_bullet_count(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _has_first_person(text: str) -> bool:
-    """True when *text* actually uses a first-person pronoun.
+def _has_first_person_en(text: str, lex: LintLocale) -> bool:
+    """True when *text* actually uses an English first-person pronoun.
 
     A bare "I" is only a pronoun when it is not a roman numeral. "Algorithms I"
     and "Phase II" are a course level and a project stage, and both follow a
     capitalised noun — whereas the pronoun opens a clause or follows a
     lowercase word.
     """
-    if _FIRST_PERSON_RE.search(text):
+    if lex.first_person_pattern.search(text):
         return True
-    for match in _PRONOUN_I_RE.finditer(text):
+    for match in en_data.PRONOUN_I.finditer(text):
         preceding = text[: match.start()].rstrip()
         if not preceding:
             return True
@@ -701,12 +493,28 @@ def _has_first_person(text: str) -> bool:
     return False
 
 
-def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
+def _has_first_person_es(text: str, lex: LintLocale) -> bool:
+    """True when *text* uses an explicit Spanish first-person pronoun.
+
+    Spanish is pro-drop, so the subject lives in the conjugation: ``Lideré la
+    migración`` is correct CV style, not a first-person flaw. Only an explicit
+    pronoun counts, and the pattern deliberately excludes the clitic ``me``
+    (``me encargué de``), which is both first-person and entirely idiomatic.
+    Porting English's list would flag every well-formed Spanish bullet.
+    """
+    return bool(lex.first_person_pattern.search(text))
+
+
+def _check_first_person(
+    resolved: ResolvedProfile,
+    lex: LintLocale,
+    detect: Callable[[str, LintLocale], bool],
+) -> list[LintFinding]:
     """wl-007: Flag first-person pronouns in highlights and summary."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
-        if _has_first_person(text):
+        if detect(text, lex):
             return LintFinding(
                 rule_id="wl-007",
                 severity="warning",
@@ -723,7 +531,7 @@ def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
         findings.extend(_check_highlights(resolved, section, "wl-007", test))
 
     summary = resolved.data.get("basics", {}).get("summary", "")
-    if summary and _has_first_person(summary):
+    if summary and detect(summary, lex):
         findings.append(
             LintFinding(
                 rule_id="wl-007",
@@ -740,12 +548,20 @@ def _check_first_person(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_first_person_en(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    return _check_first_person(resolved, lex, _has_first_person_en)
+
+
+def _check_first_person_es(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    return _check_first_person(resolved, lex, _has_first_person_es)
+
+
+def _check_vague_buzzwords(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-008: Flag vague buzzwords in highlights and summary."""
     findings: list[LintFinding] = []
 
     def test(text: str, idx: int) -> LintFinding | None:
-        m = _VAGUE_BUZZWORDS_RE.search(text)
+        m = lex.buzzwords_pattern.search(text)
         if m:
             return LintFinding(
                 rule_id="wl-008",
@@ -764,7 +580,7 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
 
     summary = resolved.data.get("basics", {}).get("summary", "")
     if summary:
-        m = _VAGUE_BUZZWORDS_RE.search(summary)
+        m = lex.buzzwords_pattern.search(summary)
         if m:
             findings.append(
                 LintFinding(
@@ -782,12 +598,12 @@ def _check_vague_buzzwords(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_skill_count(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-009: Warn if total skills are below minimum or above maximum."""
     if not resolved.show_sections.get("skills"):
         return []
     total = sum(len(group.get("items", [])) for group in resolved.data.get("skills", []))
-    if total < _MIN_SKILLS:
+    if total < lex.min_skills:
         return [
             LintFinding(
                 rule_id="wl-009",
@@ -796,11 +612,11 @@ def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="total",
                 bullet_index=None,
                 bullet_text=None,
-                message=f"Only {total} skill(s) listed (minimum {_MIN_SKILLS}).",
-                fix_hint="Add more skills to reach at least 8.",
+                message=f"Only {total} skill(s) listed (minimum {lex.min_skills}).",
+                fix_hint=f"Add more skills to reach at least {lex.min_skills}.",
             )
         ]
-    if total > _MAX_SKILLS:
+    if total > lex.max_skills:
         return [
             LintFinding(
                 rule_id="wl-009",
@@ -809,14 +625,14 @@ def _check_skill_count(resolved: ResolvedProfile) -> list[LintFinding]:
                 entry="total",
                 bullet_index=None,
                 bullet_text=None,
-                message=f"{total} skills listed (maximum {_MAX_SKILLS}).",
-                fix_hint="Trim to the most relevant 25 skills.",
+                message=f"{total} skills listed (maximum {lex.max_skills}).",
+                fix_hint=f"Trim to the most relevant {lex.max_skills} skills.",
             )
         ]
     return []
 
 
-def _check_education_size(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_education_size(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-018: Warn if the education section has grown into a course list."""
     if not resolved.show_sections.get("education"):
         return []
@@ -883,7 +699,7 @@ def _entry_rank(
     return None
 
 
-def _check_chronological_order(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_chronological_order(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-019: Flag sections not ordered newest-first."""
     findings: list[LintFinding] = []
     for section in sections.SECTIONS:
@@ -932,7 +748,7 @@ def _out_of_order(
     return findings
 
 
-def _check_date_sanity(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_date_sanity(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-020: Flag impossible dates and expired credentials."""
     findings: list[LintFinding] = []
     today = date.today()
@@ -1000,7 +816,7 @@ def _check_date_sanity(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_unfilled_placeholders(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_unfilled_placeholders(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-021: Flag scaffold placeholders left in the content."""
     findings: list[LintFinding] = []
 
@@ -1040,7 +856,7 @@ def _check_unfilled_placeholders(resolved: ResolvedProfile) -> list[LintFinding]
     return findings
 
 
-def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_profile_links(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-010: Warn if no LinkedIn or GitHub link is present."""
     links = resolved.data.get("basics", {}).get("links", [])
     if any(network_of(str(link.get("url", ""))) for link in links):
@@ -1059,7 +875,7 @@ def _check_profile_links(resolved: ResolvedProfile) -> list[LintFinding]:
     ]
 
 
-def _check_duplicate_links(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_duplicate_links(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-022: Warn if two `links` entries point at the same place.
 
     Compared after normalisation, so ``https://www.github.com/me/`` and
@@ -1090,7 +906,7 @@ def _check_duplicate_links(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_page_count(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-011: Warn if estimated page count exceeds 2 (skipped for academic templates)."""
     if "academic" in resolved.template_name:
         return []
@@ -1112,7 +928,7 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
                 texts.append(name)
 
     total_words = sum(len(t.split()) for t in texts)
-    estimated_pages = max(1, round(total_words / _WORDS_PER_PAGE))
+    estimated_pages = max(1, round(total_words / lex.words_per_page))
 
     if estimated_pages > _MAX_PAGES:
         return [
@@ -1130,12 +946,17 @@ def _check_page_count(resolved: ResolvedProfile) -> list[LintFinding]:
     return []
 
 
-def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
-    """wl-016: Flag highlights with Flesch-Kincaid grade level outside 6–12."""
+def _check_readability(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
+    """wl-016 (en only): Flag highlights with Flesch-Kincaid grade outside 6–12.
+
+    Not ported: Fernández Huerta and INFLESZ are *ease* scores on a different
+    scale, so the 6–12 grade band carries no meaning in Spanish, and choosing a
+    band for Spanish CV prose is a calibration question of its own.
+    """
 
     def test(text: str, idx: int) -> LintFinding | None:
         grade = _fk_grade(text)
-        if grade > _FK_MAX_GRADE:
+        if grade > en_data.FK_MAX_GRADE:
             return LintFinding(
                 rule_id="wl-016",
                 severity="suggestion",
@@ -1144,7 +965,7 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
                 bullet_index=idx,
                 bullet_text=text,
                 message=(
-                    f"Readability grade {grade:.1f} exceeds target (≤{_FK_MAX_GRADE});"
+                    f"Readability grade {grade:.1f} exceeds target (≤{en_data.FK_MAX_GRADE});"
                     " simplify sentence structure."
                 ),
                 fix_hint=(
@@ -1152,7 +973,7 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
                     " with simpler alternatives."
                 ),
             )
-        if grade < _FK_MIN_GRADE:
+        if grade < en_data.FK_MIN_GRADE:
             return LintFinding(
                 rule_id="wl-016",
                 severity="suggestion",
@@ -1161,7 +982,7 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
                 bullet_index=idx,
                 bullet_text=text,
                 message=(
-                    f"Readability grade {grade:.1f} is below target (≥{_FK_MIN_GRADE});"
+                    f"Readability grade {grade:.1f} is below target (≥{en_data.FK_MIN_GRADE});"
                     " add context or detail."
                 ),
                 fix_hint=(
@@ -1176,7 +997,7 @@ def _check_readability(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_tech_mentions_in_work(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-017: Flag work entries whose highlights mention no skill item."""
     skill_names: set[str] = set()
     for group in resolved.data.get("skills", []):
@@ -1215,10 +1036,8 @@ def _check_tech_mentions_in_work(resolved: ResolvedProfile) -> list[LintFinding]
 
 # ── Rule registry ───────────────────────────────────────────────────
 
-_NON_ASCII_DASHES = {"\u2013": "en dash", "\u2014": "em dash", "\u2212": "minus sign"}
 
-
-def _check_non_ascii_dashes(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_non_ascii_dashes(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-023: Flag en/em dashes in content.
 
     cvloom renders every range and separator it controls as an ASCII hyphen, so a
@@ -1250,7 +1069,7 @@ def _check_non_ascii_dashes(resolved: ResolvedProfile) -> list[LintFinding]:
     return findings
 
 
-def _check_fused_connector(resolved: ResolvedProfile) -> list[LintFinding]:
+def _check_fused_connector(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-024: Flag an education connector that would fuse degree and field.
 
     The connector is written verbatim, so it carries its own spacing. Unquoted
@@ -1336,7 +1155,8 @@ RULES: list[LintRule] = [
         "tense-consistency",
         "Present tense for current roles, past tense for previous",
         CATEGORY_WRITING,
-        _check_tense_consistency,
+        _check_tense_consistency_en,
+        locales=frozenset({"en"}),
     ),
     LintRule(
         "wl-014",
@@ -1364,7 +1184,16 @@ RULES: list[LintRule] = [
         "first-person",
         "Flag first-person pronouns in highlights and summary",
         CATEGORY_WRITING,
-        _check_first_person,
+        _check_first_person_en,
+        locales=frozenset({"en"}),
+    ),
+    LintRule(
+        "wl-007",
+        "first-person",
+        "Flag explicit first-person pronouns in highlights and summary",
+        CATEGORY_WRITING,
+        _check_first_person_es,
+        locales=frozenset({"es"}),
     ),
     LintRule(
         "wl-008",
@@ -1400,6 +1229,7 @@ RULES: list[LintRule] = [
         "Flesch-Kincaid grade level per highlight (target 6–12)",
         CATEGORY_WRITING,
         _check_readability,
+        locales=frozenset({"en"}),
     ),
     LintRule(
         "wl-017",
@@ -1463,19 +1293,47 @@ RULES: list[LintRule] = [
 # ── Public API ──────────────────────────────────────────────────────
 
 
+def rules_for(code: str) -> tuple[list[LintRule], list[LintRule]]:
+    """Split :data:`RULES` into those that run under *code* and those skipped.
+
+    A locale-specific implementation wins over the language-neutral one for the
+    same ``rule_id``; a ``rule_id`` with no applicable implementation is skipped
+    and reported, since a clean ``check`` that silently ran fewer rules claims
+    more than it earned. Pure, so callers can report coverage without linting.
+    """
+    active: dict[str, LintRule] = {}
+    seen: list[str] = []
+    for rule in RULES:
+        if rule.rule_id not in seen:
+            seen.append(rule.rule_id)
+        if rule.locales is None:
+            active.setdefault(rule.rule_id, rule)
+        elif code in rule.locales:
+            active[rule.rule_id] = rule
+    return (
+        [active[rid] for rid in seen if rid in active],
+        [next(r for r in RULES if r.rule_id == rid) for rid in seen if rid not in active],
+    )
+
+
 def lint(
     resolved: ResolvedProfile,
     rule_ids: list[str] | None = None,
 ) -> list[LintFinding]:
     """Run lint rules against *resolved* profile data.
 
+    Rules with no implementation for the profile's locale are skipped; use
+    :func:`rules_for` to report which.
+
     If *rule_ids* is given, only those rules are executed.
     """
+    lex = pack_for(resolved.locale.code)
+    active, _ = rules_for(resolved.locale.code)
     findings: list[LintFinding] = []
-    for rule in RULES:
+    for rule in active:
         if rule_ids and rule.rule_id not in rule_ids:
             continue
-        rule_findings = rule.check(resolved)
+        rule_findings = rule.check(resolved, lex)
         for finding in rule_findings:
             finding.category = rule.category
         findings.extend(rule_findings)

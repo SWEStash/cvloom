@@ -206,6 +206,23 @@ def _lint_breakdown(findings: list[linter.LintFinding]) -> str:
     return ", ".join(f"{cat}: {n}" for cat, n in counts.items())
 
 
+def _lint_coverage(code: str) -> str:
+    """Render which rules ran under *code*, and which could not.
+
+    Partial per-locale coverage is a documentation problem rather than a
+    correctness one — ``check`` gates nothing — but a clean run that quietly
+    skipped rules claims more than it earned, so say so. Counts come from the
+    registry, never a literal.
+    """
+    active, skipped = linter.rules_for(code)
+    total = len(active) + len(skipped)
+    line = f"{len(active)} of {total} rules ran"
+    if skipped:
+        names = ", ".join(f"{r.rule_id} {r.name}" for r in skipped)
+        line += f" · {len(skipped)} skipped (no {code} support: {names})"
+    return line
+
+
 @cli.command()
 @click.option(
     "--profile",
@@ -428,8 +445,10 @@ def check(profile: str) -> None:
     resolved = _resolve(root, profile, public=True)
     findings = linter.lint(resolved)
     _warn_template_parse_risk(resolved.template_name)
+    coverage = _lint_coverage(resolved.locale.code)
     if not findings:
         _console.print("[green]✓ No writing issues found.[/green]")
+        _console.print(f"[dim]{coverage}[/dim]")
         return
 
     table = Table(
@@ -459,6 +478,7 @@ def check(profile: str) -> None:
     _console.print(
         f"\n[yellow]{len(findings)} issue(s) found.[/yellow] [dim]{_lint_breakdown(findings)}[/dim]"
     )
+    _console.print(f"[dim]{coverage}[/dim]")
     raise SystemExit(1)
 
 
