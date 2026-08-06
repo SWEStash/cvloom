@@ -270,6 +270,14 @@ callables, so a template renders fine when a caller supplies neither — which m
 because `render_template` is public API and is called directly by tests and by the MCP
 server.
 
+**Head sections with `<h2>`.** `tests/test_locale_qa.py` is what stops English creeping
+back into a packaged template: it renders under a pseudo-locale that brackets every
+pack-sourced string and fails on any heading the pack does not own. It finds those
+headings by extracting `<h2>` elements, because that is what all six packaged templates
+use. A section headed with an `<h3>` or a styled `<div>` is not audited, so a hardcoded
+literal there would ship unnoticed. If a design genuinely needs a different element,
+widen `_H2_RE` in that test in the same change.
+
 ---
 
 ## Separator Convention
