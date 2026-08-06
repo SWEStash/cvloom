@@ -142,7 +142,7 @@ Optional AI-powered analysis layered on top of the rules-based tools. Works with
 ### Setup
 
 ```bash
-uv sync --extra ai
+uv tool install 'cvloom[ai]'   # see docs/user/ai-features.md#installation for pipx/pip/dev-checkout
 
 export CVLOOM_AI_BASE_URL=http://localhost:11434/v1   # Ollama, LiteLLM, OpenAI, etc.
 export CVLOOM_AI_API_KEY=ollama                        # or your real key
@@ -263,7 +263,7 @@ Because tailoring is declarative config, two variants are **diffable** (`cvloom 
 cvloom includes an MCP server exposing 16 tools for LLM-driven CV management. Data stays local — nothing leaves your machine.
 
 ```bash
-uv sync --extra mcp
+uv tool install 'cvloom[mcp]'   # see docs/reference/mcp-server.md#installation for pipx/pip/dev-checkout
 cvloom-mcp
 ```
 

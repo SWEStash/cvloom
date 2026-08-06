@@ -143,7 +143,8 @@ One file per engine, not one merged file: they read the document by different me
 they disagree, and the disagreements are where layout defects hide. `construction` is raw
 content-stream order (what Apache Tika and PDFBox do by default) and `structure` follows the
 PDF tag tree; between them they bracket what any reader can conclude. `poppler` needs the
-system `pdftotext` binary; the rest come with `uv sync --extra extract`.
+system `pdftotext` binary; the rest come with the `extract` extra
+(`uv tool install 'cvloom[extract]'`, or `uv sync --extra extract` in a dev checkout).
 
 If the profile's template is not rated safe for PDF text extraction, a note is printed
 with the specific caveat — see [list-templates](#list-templates):
@@ -425,7 +426,8 @@ cvloom export --format markdown
 # Export as plain text
 cvloom export --format text
 
-# Export as Word document (requires python-docx: uv pip install python-docx)
+# Export as Word document (requires the docx extra: uv tool install 'cvloom[docx]',
+# or uv sync --extra docx in a dev checkout)
 cvloom export --format docx
 
 # Specific profile to a custom path
@@ -686,7 +688,9 @@ measured. It does not mean "safe". See
 
 ## `ai`
 
-AI-powered analysis commands. Require `uv sync --extra ai` and `CVLOOM_AI_BASE_URL` to be set.
+AI-powered analysis commands. Require the `ai` extra
+(`uv tool install 'cvloom[ai]'`, or `uv sync --extra ai` in a dev checkout —
+see [ai-features.md#installation](ai-features.md#installation)) and `CVLOOM_AI_BASE_URL` to be set.
 
 ```bash
 cvloom ai config                                              # check provider status

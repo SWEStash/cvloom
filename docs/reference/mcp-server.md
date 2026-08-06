@@ -6,15 +6,30 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open s
 
 ## Installation
 
-The MCP server requires the optional `mcp` dependency group:
+The MCP server requires the optional `mcp` dependency group. Which command adds
+it depends on how you installed cvloom:
 
 ```bash
-# Install with the mcp extra
-uv sync --extra mcp
-
-# Or install as a standalone tool
+# Installed globally with `uv tool install cvloom` (the default in the README):
 uv tool install 'cvloom[mcp]'
+
+# Installed with pipx:
+pipx install --force 'cvloom[mcp]'
+
+# Installed with pip, in a venv:
+pip install --upgrade 'cvloom[mcp]'
+
+# Working from a git clone (dev checkout, has its own pyproject.toml):
+uv sync --extra mcp
 ```
+
+`uv sync --extra mcp` only works inside a cloned cvloom repo — it reads the
+project's own `pyproject.toml`, which isn't present when cvloom was installed
+as a packaged tool. Running it elsewhere fails with `No pyproject.toml found`.
+
+> Reinstalling replaces the extras list rather than adding to it — want both
+> MCP and AI features? Install them together: `uv tool install 'cvloom[mcp,ai]'`.
+> See the [uv tool docs](https://docs.astral.sh/uv/guides/tools/) for details.
 
 ## Starting the server
 

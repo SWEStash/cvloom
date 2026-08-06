@@ -6,11 +6,33 @@ cvloom includes optional AI-powered analysis that works with any OpenAI-compatib
 
 ## Installation
 
-The AI features require the optional `ai` dependency group:
+The AI features require the optional `ai` dependency group. Which command adds it
+depends on how you installed cvloom:
 
 ```bash
+# Installed globally with `uv tool install cvloom` (the default in the README):
+uv tool install 'cvloom[ai]'
+
+# Installed with pipx:
+pipx install --force 'cvloom[ai]'
+
+# Installed with pip, in a venv:
+pip install --upgrade 'cvloom[ai]'
+
+# Working from a git clone (dev checkout, has its own pyproject.toml):
 uv sync --extra ai
 ```
+
+`uv sync --extra ai` only works inside a cloned cvloom repo — it reads the
+project's own `pyproject.toml`, which isn't present when cvloom was installed
+as a packaged tool. Running it elsewhere fails with `No pyproject.toml found`.
+If you're not sure which you have, `cvloom --version` running standalone (no
+git repo needed) means you installed the package; if you cloned the repo to
+hack on cvloom itself, you're in the dev checkout case.
+
+> Reinstalling replaces the extras list rather than adding to it — installing a
+> second extra later means listing both, e.g. `uv tool install 'cvloom[ai,mcp]'`.
+> See the [uv tool docs](https://docs.astral.sh/uv/guides/tools/) for details.
 
 ## Configuration
 
