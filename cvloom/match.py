@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from cvloom import sections
+from cvloom.linter_locales import LintLocale, pack_for
 from cvloom.models import ResolvedProfile
 
 # ── Data structures ────────────────────────────────────────────────
@@ -34,155 +35,19 @@ class MatchReport:
     reorder_hints: list[str] = field(default_factory=list)
 
 
-# ── Stop words ─────────────────────────────────────────────────────
-
-_STOP_WORDS: set[str] = {
-    "a",
-    "about",
-    "above",
-    "after",
-    "again",
-    "against",
-    "all",
-    "am",
-    "an",
-    "and",
-    "any",
-    "are",
-    "as",
-    "at",
-    "be",
-    "because",
-    "been",
-    "before",
-    "being",
-    "below",
-    "between",
-    "both",
-    "but",
-    "by",
-    "can",
-    "could",
-    "did",
-    "do",
-    "does",
-    "doing",
-    "down",
-    "during",
-    "each",
-    "few",
-    "for",
-    "from",
-    "further",
-    "get",
-    "got",
-    "had",
-    "has",
-    "have",
-    "having",
-    "he",
-    "her",
-    "here",
-    "hers",
-    "herself",
-    "him",
-    "himself",
-    "his",
-    "how",
-    "i",
-    "if",
-    "in",
-    "into",
-    "is",
-    "it",
-    "its",
-    "itself",
-    "just",
-    "me",
-    "might",
-    "more",
-    "most",
-    "must",
-    "my",
-    "myself",
-    "no",
-    "nor",
-    "not",
-    "now",
-    "of",
-    "off",
-    "on",
-    "once",
-    "only",
-    "or",
-    "other",
-    "our",
-    "ours",
-    "ourselves",
-    "out",
-    "over",
-    "own",
-    "s",
-    "same",
-    "shall",
-    "she",
-    "should",
-    "so",
-    "some",
-    "such",
-    "t",
-    "than",
-    "that",
-    "the",
-    "their",
-    "theirs",
-    "them",
-    "themselves",
-    "then",
-    "there",
-    "these",
-    "they",
-    "this",
-    "those",
-    "through",
-    "to",
-    "too",
-    "under",
-    "until",
-    "up",
-    "us",
-    "very",
-    "was",
-    "we",
-    "were",
-    "what",
-    "when",
-    "where",
-    "which",
-    "while",
-    "who",
-    "whom",
-    "why",
-    "will",
-    "with",
-    "would",
-    "you",
-    "your",
-    "yours",
-    "yourself",
-    "yourselves",
-}
-
 # ── Token extraction ───────────────────────────────────────────────
 
-_TOKEN_RE = re.compile(r"\b[a-z][a-z0-9+#]*\b", re.IGNORECASE)
+# Unicode letters, not [a-z]: an ASCII-only class splits `gestión` into
+# `gesti` and `n`, which silently shatters the keyword set of every accented
+# language. `+` and `#` stay inside the class so `c++` and `c#` survive.
+_TOKEN_RE = re.compile(r"\b[^\W\d_][\w+#]*\b", re.UNICODE)
 
 
-def _extract_keywords(text: str) -> dict[str, int]:
+def _extract_keywords(text: str, lex: LintLocale) -> dict[str, int]:
     """Tokenise *text* and return non-stop-word frequency counts."""
     counts: dict[str, int] = {}
     for token in _TOKEN_RE.findall(text.lower()):
-        if token not in _STOP_WORDS and len(token) > 1:
+        if token not in lex.stop_words and len(token) > 1:
             counts[token] = counts.get(token, 0) + 1
     return counts
 
@@ -190,13 +55,14 @@ def _extract_keywords(text: str) -> dict[str, int]:
 def _extract_cv_keywords(
     data: dict[str, Any],
     show_sections: dict[str, bool],
+    lex: LintLocale,
 ) -> dict[str, set[str]]:
     """Walk visible CV sections and return ``{keyword: {sections...}}``."""
     result: dict[str, set[str]] = {}
 
     def _ingest(text: str, section: str) -> None:
         for token in _TOKEN_RE.findall(text.lower()):
-            if token not in _STOP_WORDS and len(token) > 1:
+            if token not in lex.stop_words and len(token) > 1:
                 result.setdefault(token, set()).add(section)
 
     # Basics — always present
@@ -227,7 +93,10 @@ def _extract_cv_keywords(
 
 # ── Placement suggestions ──────────────────────────────────────────
 
-_SINGLE_TOKEN_RE = re.compile(r"^[a-z0-9+#.]+$")
+# Unicode letters for the same reason the tokenizer uses them: an ASCII-only
+# class routes every accented keyword to `work`, so `diseño` could never be
+# suggested as a skill while `empresa` could.
+_SINGLE_TOKEN_RE = re.compile(r"^[\w+#.]+$", re.UNICODE)
 
 
 def _suggest_section(keyword: str) -> str:
@@ -265,8 +134,11 @@ def _build_reorder_hints(
         return []
     best = work[best_idx]
     current = work[0]
-    best_label = f"{best.get('title', '')} at {best.get('company', '')}"
-    current_label = f"{current.get('title', '')} at {current.get('company', '')}"
+    # No connecting word: cvloom does not supply one (decision F9), and "at" is
+    # the last English glue word that survived 6.1 — punctuation carries no
+    # language.
+    best_label = f"{best.get('title', '')} — {best.get('company', '')}"
+    current_label = f"{current.get('title', '')} — {current.get('company', '')}"
     return [
         f"Work: move '{best_label}' before '{current_label}' "
         f"({scores[best_idx]} vs {scores[0]} JD keyword matches)"
@@ -281,7 +153,8 @@ def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
 
     Returns a :class:`MatchReport` with matched keywords, gaps, and coverage.
     """
-    jd_kw = _extract_keywords(jd_text)
+    lex = pack_for(resolved.locale.code)
+    jd_kw = _extract_keywords(jd_text, lex)
     if not jd_kw:
         return MatchReport(
             matched=[],
@@ -291,7 +164,7 @@ def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
             top_jd_keywords=[],
         )
 
-    cv_kw = _extract_cv_keywords(resolved.data, resolved.show_sections)
+    cv_kw = _extract_cv_keywords(resolved.data, resolved.show_sections, lex)
 
     matched: list[KeywordMatch] = []
     gaps: list[str] = []
