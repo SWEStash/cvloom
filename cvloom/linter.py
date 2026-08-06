@@ -20,6 +20,7 @@ from typing import Any
 
 from cvloom import sections
 from cvloom.links import network_of, normalize_url
+from cvloom.locale import Ongoing
 from cvloom.models import ResolvedProfile
 
 # Rule categories — the three honest axes of writing/ATS readiness.
@@ -509,7 +510,7 @@ def _check_date_format_consistency(resolved: ResolvedProfile) -> list[LintFindin
         for entry in resolved.data.get(section, []):
             for field in ("start_date", "end_date"):
                 val = str(entry.get(field, "")).strip()
-                if not val or val.lower() == "present":
+                if not val or resolved.locale.ongoing.matches(val):
                     continue
                 if _DATE_YYYY_MM_RE.match(val):
                     formats.add("YYYY-MM")
@@ -542,8 +543,8 @@ def _check_tense_consistency(resolved: ResolvedProfile) -> list[LintFinding]:
         return findings
 
     for entry in resolved.data.get("work", []):
-        end_date = str(entry.get("end_date", "")).strip().lower()
-        is_current = not end_date or end_date == "present"
+        end_date = str(entry.get("end_date", "")).strip()
+        is_current = not end_date or resolved.locale.ongoing.matches(end_date)
         company = str(entry.get("company", "?"))
 
         for i, hl in enumerate(entry.get("highlights", [])):
@@ -860,16 +861,21 @@ def _parse_date(value: str, *, as_end: bool = False) -> tuple[int, int] | None:
     return None
 
 
-def _entry_rank(section: sections.Section, entry: dict[str, Any]) -> tuple[int, int] | None:
+def _entry_rank(
+    section: sections.Section, entry: dict[str, Any], ongoing: Ongoing
+) -> tuple[int, int] | None:
     """Chronological rank of *entry* — the first present ``sort_date_keys`` field.
 
-    An explicit ``Present`` outranks every real date, since the role is ongoing.
+    An explicitly open-ended end date outranks every real date, since the role is
+    ongoing. What counts as open-ended is the locale's to say: an `es` project
+    writes ``Actualidad``, and reading only ``Present`` would rank the current
+    role as undated and stop ordering the section.
     """
     for key in section.sort_date_keys:
         raw = str(entry.get(key, "")).strip()
         if not raw:
             continue
-        if raw.lower() == "present":
+        if ongoing.matches(raw):
             return (9999, 12)
         parsed = _parse_date(raw, as_end=key.startswith("end"))
         if parsed:
@@ -887,14 +893,16 @@ def _check_chronological_order(resolved: ResolvedProfile) -> list[LintFinding]:
         # Order only means something within a rendered block; certifications
         # render as two, and their chronologies are independent.
         for run in sections.ordered_runs(section.name, entries):
-            findings.extend(_out_of_order(section, run))
+            findings.extend(_out_of_order(section, run, resolved.locale.ongoing))
     return findings
 
 
-def _out_of_order(section: sections.Section, entries: list[dict[str, Any]]) -> list[LintFinding]:
+def _out_of_order(
+    section: sections.Section, entries: list[dict[str, Any]], ongoing: Ongoing
+) -> list[LintFinding]:
     """The first entry in *entries* that is newer than the one above it."""
     findings: list[LintFinding] = []
-    ranked = [(e, _entry_rank(section, e)) for e in entries]
+    ranked = [(e, _entry_rank(section, e, ongoing)) for e in entries]
     dated = [(e, r) for e, r in ranked if r is not None]
     if len(dated) >= 2:
         for (_, earlier), (entry, later) in zip(dated, dated[1:], strict=False):
@@ -970,8 +978,8 @@ def _check_date_sanity(resolved: ResolvedProfile) -> list[LintFinding]:
                             section.name,
                             entry,
                             f"'{key}' is in the future ({raw}).",
-                            "Use a date that has already happened, or 'Present' "
-                            "for an ongoing entry.",
+                            "Use a date that has already happened, or "
+                            f"'{resolved.locale.ongoing.render}' for an ongoing entry.",
                         )
                     )
                     break

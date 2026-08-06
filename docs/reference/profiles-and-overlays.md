@@ -79,7 +79,7 @@ sections:
 | `sections`          | No       | All `true`                              | Toggle sections on or off                                             |
 | `select`            | No       | —                                       | Per-section content selection (see below)                             |
 | `section_order`     | No       | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
-| `section_titles`    | No       | Template's own wording                  | Rename section headings (text only — see below)                        |
+| `section_titles`    | No       | The project locale's wording            | Rename section headings (text only — see below)                        |
 | `job_context`       | No       | —                                       | Metadata passed to cover letter templates and AI commands             |
 | `overlays`          | No       | —                                       | Per-job data patches (see below)                                      |
 
@@ -182,17 +182,23 @@ section_titles:
   professional_development: "Continuing Education"
 ```
 
-A key you leave out keeps whatever wording the chosen template supplies. That is the
-point: `cv/executive-dark` heads skills "Core Competencies" and `cv/academic` says
-"Positions Held", and this feature adds an override rather than flattening six designs
-into one voice.
+A key you leave out gets the wording from your project's locale pack — `Experience`,
+`Skills`, `Education` in `en`, set by `locale:` in `cvloom.yaml`. Three sources decide a
+heading, narrowest winning:
+
+1. **`section_titles` in this profile** — yours, per output variant. The only mechanism.
+2. **The locale pack** — one flat default per key, in the project's language.
+3. **A template suggestion** — wording a design reads better with, such as
+   `cv/executive-dark`'s "Core Competencies" or `cv/academic`'s "Positions Held". These
+   are *not* applied automatically. `cvloom list-templates` prints each one as a
+   `section_titles:` block to paste here if you want it.
 
 | Key | Renames |
 |---|---|
 | `work` `education` `projects` `publications` `awards` `languages` `skills` | The matching section heading |
 | `certifications` | The credentials group — entries with `type: certification` or `license` |
 | `professional_development` | The coursework group — entries with `type: course` or `micro-credential` |
-| `summary` | The heading over `basics.summary`, which every template words differently ("About", "Executive Summary", "Research Interests") |
+| `summary` | The heading over `basics.summary`. Several templates suggest their own wording for it ("About", "Executive Summary", "Research Interests") |
 | `contact` | The sidebar contact heading (`cv/sidebar-compact` only) |
 
 `certifications` takes two keys because the section renders as two headed groups, split

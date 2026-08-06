@@ -128,7 +128,7 @@
 
 {% macro section_skills() %}
 {% if show.skills and skills %}
-<h2 class="section-title">{{ section_title("skills", "Skills") }}</h2>
+<h2 class="section-title">{{ section_title("skills") }}</h2>
 <div class="skills-list">
   {% for group in skills %}
   <div class="skill-row"><span class="skill-category">{{ group.category }}:</span><span class="skill-items">
@@ -144,7 +144,7 @@
 
 {% macro section_work() %}
 {% if show.work and work %}
-<h2 class="section-title">{{ section_title("work", "Experience") }}</h2>
+<h2 class="section-title">{{ section_title("work") }}</h2>
 <div class="timeline-section">
   {% for job in work %}
   <div class="entry timeline-entry">
@@ -163,7 +163,7 @@
 
 {% macro section_education() %}
 {% if show.education and education %}
-<h2 class="section-title">{{ section_title("education", "Education") }}</h2>
+<h2 class="section-title">{{ section_title("education") }}</h2>
 <div class="timeline-section">
   {% for edu in education %}
   <div class="entry timeline-entry">
@@ -182,7 +182,7 @@
 
 {% macro section_projects() %}
 {% if show.projects and projects %}
-<h2 class="section-title">{{ section_title("projects", "Projects") }}</h2>
+<h2 class="section-title">{{ section_title("projects") }}</h2>
 {% for proj in projects %}
 <div class="entry">
   <h3 class="entry-title">{% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}</h3>
@@ -200,7 +200,7 @@
 
 {% macro section_publications() %}
 {% if show.publications and publications %}
-<h2 class="section-title">{{ section_title("publications", "Publications") }}</h2>
+<h2 class="section-title">{{ section_title("publications") }}</h2>
 <div class="timeline-section">
   {% for pub in publications %}
   <div class="entry timeline-entry">
@@ -219,8 +219,8 @@
 
 {% macro section_certifications() %}
 {% if show.certifications and certifications %}
-{% for title_key, heading, group in certifications | cert_groups %}
-<h2 class="section-title">{{ section_title(title_key, heading) }}</h2>
+{% for title_key, group in certifications | cert_groups %}
+<h2 class="section-title">{{ section_title(title_key) }}</h2>
 <div class="timeline-section">
   {% for cert in group %}
   <div class="entry timeline-entry">
@@ -237,7 +237,7 @@
 
 {% macro section_awards() %}
 {% if show.awards and awards %}
-<h2 class="section-title">{{ section_title("awards", "Awards") }}</h2>
+<h2 class="section-title">{{ section_title("awards") }}</h2>
 {% for award in awards %}
 <div class="entry">
   <div class="entry-title">{{ award.title }}</div>
@@ -252,7 +252,7 @@
 
 {% macro section_languages() %}
 {% if show.languages and languages %}
-<h2 class="section-title">{{ section_title("languages", "Languages") }}</h2>
+<h2 class="section-title">{{ section_title("languages") }}</h2>
 <div class="languages">
   {%- for lang in languages -%}
   {{ lang.language }}{% if lang.fluency %} ({{ lang.fluency }}){% endif %}

@@ -14,7 +14,9 @@ disagrees. See docs/reference/ats-readiness.md.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
 # Extraction verdicts, worst last — `build` warns on anything but SAFE.
 ATS_SAFE = "safe"
@@ -33,6 +35,17 @@ class TemplateInfo:
     summary: str
     caveat: str = ""
 
+    suggested_titles: Mapping[str, str] = field(default_factory=dict)
+    """Section wording this design reads best with, for `profile.section_titles`.
+
+    A suggestion, not a mechanism: the locale pack supplies one flat default per
+    section key, and `profile.section_titles` is the only way to change it. This
+    is where a template says what it would have called things, surfaced by
+    `list-templates` — most users install from PyPI and never open a packaged
+    template, so a comment inside one is invisible to exactly the people who
+    would want the hint.
+    """
+
 
 _INFO = (
     TemplateInfo(
@@ -48,6 +61,14 @@ _INFO = (
         ats=ATS_SAFE,
         fonts="system",
         summary="Education-first serif CV. Runs long by convention; page cap does not apply.",
+        suggested_titles=MappingProxyType(
+            {
+                "skills": "Technical Skills",
+                "work": "Positions Held",
+                "projects": "Research & Projects",
+                "summary": "Research Interests",
+            }
+        ),
     ),
     TemplateInfo(
         name="cv/modern-single",
@@ -55,6 +76,7 @@ _INFO = (
         ats=ATS_SAFE,
         fonts="network",
         summary="Single column, slate rule system, aligned skills column.",
+        suggested_titles=MappingProxyType({"summary": "About"}),
     ),
     TemplateInfo(
         name="cv/timeline-clean",
@@ -69,6 +91,13 @@ _INFO = (
         ats=ATS_SAFE,
         fonts="network",
         summary="Carbon header band, steel accent, title-first entries.",
+        suggested_titles=MappingProxyType(
+            {
+                "skills": "Core Competencies",
+                "projects": "Notable Projects",
+                "summary": "Executive Summary",
+            }
+        ),
     ),
     TemplateInfo(
         name="cv/sidebar-compact",

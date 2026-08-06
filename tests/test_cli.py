@@ -411,6 +411,20 @@ def test_list_templates_reports_extraction_ratings(monkeypatch: pytest.MonkeyPat
         assert rating in result.output, f"list-templates omits the {rating!r} rating"
 
 
+def test_list_templates_surfaces_suggested_section_titles() -> None:
+    """The wording a template lost to the locale pack has to be discoverable.
+
+    Most users install from PyPI and never open a packaged template, so the
+    suggestion lives in `templates_meta` and surfaces here — as a `section_titles`
+    block they can paste into a profile.
+    """
+    result = CliRunner().invoke(cli, ["list-templates"])
+    assert result.exit_code == 0
+    assert "section_titles:" in result.output
+    assert "summary: Executive Summary" in result.output
+    assert "skills: Core Competencies" in result.output
+
+
 def test_risky_template_recommends_the_docx_export(capsys: pytest.CaptureFixture[str]) -> None:
     """A PDF only implies its reading order; a .docx states it.
 

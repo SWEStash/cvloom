@@ -27,9 +27,10 @@ class Section:
     """One entry-list CV section, and what the pipeline needs to know about it.
 
     These sections share a shape — a YAML list of entry dicts — so loading, tag
-    filtering, validation, word counting, visibility and export headings are all
-    driven from this table. ``skills`` and ``basics`` are absent: their shapes
-    differ enough that including them would need more exceptions than it saves.
+    filtering, validation, word counting and visibility are all driven from this
+    table. Headings are not: they belong to the locale pack. ``skills`` and
+    ``basics`` are absent: their shapes differ enough that including them would
+    need more exceptions than it saves.
     """
 
     name: str
@@ -40,9 +41,6 @@ class Section:
 
     label_key: str
     """Field that labels an entry in diffs and trim reports."""
-
-    heading: str
-    """Human-readable heading used by the Markdown and DOCX exports."""
 
     summary_label: str
     """Short label for the CLI's post-build section summary."""
@@ -75,7 +73,6 @@ SECTIONS: tuple[Section, ...] = (
         "work",
         "work",
         "company",
-        "Work Experience",
         "work",
         warn_if_missing=True,
         sort_date_keys=_DATED,
@@ -85,7 +82,6 @@ SECTIONS: tuple[Section, ...] = (
         "education",
         "education",
         "institution",
-        "Education",
         "edu",
         warn_if_missing=True,
         sort_date_keys=_DATED,
@@ -95,7 +91,6 @@ SECTIONS: tuple[Section, ...] = (
         "projects",
         "project",
         "name",
-        "Projects",
         "projects",
         from_directory=True,
         sort_date_keys=_DATED,
@@ -105,7 +100,6 @@ SECTIONS: tuple[Section, ...] = (
         "publications",
         "publications",
         "name",
-        "Publications",
         "pubs",
         sort_date_keys=("release_date",),
     ),
@@ -113,13 +107,12 @@ SECTIONS: tuple[Section, ...] = (
         "certifications",
         "certifications",
         "name",
-        "Certifications",
         "certs",
         sort_date_keys=("date",),
         expiry_key="expiry_date",
     ),
-    Section("awards", "awards", "title", "Awards", "awards", sort_date_keys=("date",)),
-    Section("languages", "languages", "language", "Languages", "langs"),
+    Section("awards", "awards", "title", "awards", sort_date_keys=("date",)),
+    Section("languages", "languages", "language", "langs"),
 )
 
 SECTIONS_BY_NAME: dict[str, Section] = {s.name: s for s in SECTIONS}
@@ -162,19 +155,14 @@ ENTRY_TEXT_FIELDS = (
 
 # Credential kinds, following the Open Badges 3.0 achievementType vocabulary.
 # The split is exam-backed credential vs completion record, and it decides which
-# of the two headings below an entry renders under.
+# of the two groups below an entry renders under.
 CREDENTIAL_TYPES: frozenset[str] = frozenset({"certification", "license"})
 COURSEWORK_TYPES: frozenset[str] = frozenset({"course", "micro-credential"})
 
-CREDENTIAL_HEADING = "Certifications"
-COURSEWORK_HEADING = "Professional Development"
-
 # `certifications` renders as two headed groups, so one profile key cannot rename
-# both. These are the keys a profile's `section_titles` block uses for them.
-CERT_GROUP_KEYS: dict[str, str] = {
-    CREDENTIAL_HEADING: "certifications",
-    COURSEWORK_HEADING: "professional_development",
-}
+# both. These are the title keys the two groups render under, in render order;
+# the wording behind each comes from the locale pack.
+CERT_GROUP_KEYS: tuple[str, str] = ("certifications", "professional_development")
 
 # Keys a profile may rename. `summary` is here because every template heads the
 # basics summary differently ("About", "Executive Summary", "Research Interests")
@@ -197,8 +185,9 @@ def group_certifications(
 ) -> list[tuple[str, list[dict[str, Any]]]]:
     """Split certification entries into their rendered groups.
 
-    Returns ``(heading, entries)`` pairs, credentials first and coursework second,
-    omitting any empty group.
+    Returns ``(title_key, entries)`` pairs, credentials first and coursework
+    second, omitting any empty group. The key rather than the heading, so that
+    the visible wording stays the locale pack's and the profile's to decide.
     """
     credentials: list[dict[str, Any]] = []
     coursework: list[dict[str, Any]] = []
@@ -206,11 +195,8 @@ def group_certifications(
         kind = str(entry.get("type") or DEFAULT_CREDENTIAL_TYPE)
         (coursework if kind in COURSEWORK_TYPES else credentials).append(entry)
     return [
-        (heading, group)
-        for heading, group in (
-            (CREDENTIAL_HEADING, credentials),
-            (COURSEWORK_HEADING, coursework),
-        )
+        (title_key, group)
+        for title_key, group in zip(CERT_GROUP_KEYS, (credentials, coursework), strict=True)
         if group
     ]
 

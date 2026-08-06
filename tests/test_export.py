@@ -196,7 +196,7 @@ def test_markdown_contains_name() -> None:
 
 def test_markdown_section_headings() -> None:
     md = to_markdown(_make_resolved())
-    assert "## Work Experience" in md
+    assert "## Experience" in md
     assert "## Education" in md
     assert "## Skills" in md
 
@@ -243,7 +243,7 @@ def test_markdown_hidden_section_omitted() -> None:
         show_sections={"work": False, "education": True, "skills": True, "projects": True},
     )
     md = to_markdown(r)
-    assert "## Work Experience" not in md
+    assert "## Experience" not in md
     assert "## Education" in md
 
 
@@ -253,7 +253,7 @@ def test_markdown_section_order() -> None:
         section_order=["education", "skills", "work", "projects"],
     )
     md = to_markdown(r)
-    assert md.index("## Education") < md.index("## Skills") < md.index("## Work Experience")
+    assert md.index("## Education") < md.index("## Skills") < md.index("## Experience")
 
 
 def test_export_markdown_writes_file(tmp_path: Path) -> None:
@@ -302,7 +302,7 @@ def test_text_contains_header() -> None:
 def test_text_section_headings() -> None:
     txt = to_text(_make_resolved())
     assert "SUMMARY\n-------" in txt
-    assert "WORK EXPERIENCE\n---------------" in txt
+    assert "EXPERIENCE\n----------" in txt
     assert "EDUCATION\n---------" in txt
     assert "SKILLS\n------" in txt
 
@@ -345,7 +345,7 @@ def test_text_honours_section_titles() -> None:
     r = dataclasses.replace(_make_resolved(), section_titles={"work": "Where I've Worked"})
     txt = to_text(r)
     assert "WHERE I'VE WORKED\n-----------------" in txt
-    assert "WORK EXPERIENCE" not in txt
+    assert "EXPERIENCE" not in txt
 
 
 def test_text_hidden_section_omitted() -> None:
@@ -354,7 +354,7 @@ def test_text_hidden_section_omitted() -> None:
         show_sections={"work": False, "education": True, "skills": True, "projects": True},
     )
     txt = to_text(r)
-    assert "WORK EXPERIENCE" not in txt
+    assert "EXPERIENCE" not in txt
     assert "EDUCATION" in txt
 
 
@@ -364,7 +364,7 @@ def test_text_section_order() -> None:
         section_order=["education", "skills", "work", "projects"],
     )
     txt = to_text(r)
-    assert txt.index("EDUCATION") < txt.index("SKILLS") < txt.index("WORK EXPERIENCE")
+    assert txt.index("EDUCATION") < txt.index("SKILLS") < txt.index("EXPERIENCE")
 
 
 def test_export_text_writes_file(tmp_path: Path) -> None:
@@ -576,7 +576,7 @@ def test_markdown_honours_a_profile_section_title() -> None:
     )
     md = to_markdown(resolved)
     assert "## Professional Experience" in md
-    assert "## Work Experience" not in md
+    assert "## Experience" not in md
 
 
 def test_markdown_honours_a_summary_title_override() -> None:
@@ -587,7 +587,7 @@ def test_markdown_honours_a_summary_title_override() -> None:
 
 
 def test_markdown_headings_default_without_overrides() -> None:
-    assert "## Work Experience" in to_markdown(_make_resolved())
+    assert "## Experience" in to_markdown(_make_resolved())
 
 
 def test_docx_honours_a_profile_section_title(tmp_path: Path) -> None:
@@ -600,4 +600,4 @@ def test_docx_honours_a_profile_section_title(tmp_path: Path) -> None:
     texts = [p.text for p in docx.Document(str(out)).paragraphs]
     assert "Professional Experience" in texts
     assert "About" in texts
-    assert "Work Experience" not in texts
+    assert "Experience" not in texts

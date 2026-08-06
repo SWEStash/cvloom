@@ -151,7 +151,6 @@ awards, languages). Each record carries what the pipeline needs:
 | `name` | data key; profile `sections` / `section_order` key |
 | `schema` | which `cvloom/schemas/*.json` validates one entry |
 | `label_key` | entry labels in diff and trim reports |
-| `heading` | Markdown / DOCX export headings |
 | `summary_label` | the CLI's post-build section summary |
 | `from_directory` | `data/<name>/*.yaml` (projects) vs one `data/<name>.yaml` |
 | `warn_if_missing` | whether an absent file warns; false for opt-in sections |
@@ -199,6 +198,10 @@ A pack under `cvloom/locales/<code>.yaml` supplies the document-facing defaults 
 
 `ResolvedProfile.locale` carries the resolved pack so renderer, linter, export and match all read it from one place. `resolve_project()` and `build_project()` are the two entry points that know the project root, so both resolve the locale; `resolve()` and `build()` take an optional pack and stay pure.
 
+Consumers, as of 6.3: `renderer` installs the pack as a Jinja global, so `base.html.j2` reads `locale.html_lang` and `filters.section_title` / `filters.date_range` read it off the context; `loader` uses `placeholder_contact`; `linter` matches `ongoing.accepts` for chronology, date-format and tense rules and renders `ongoing.render` in a fix hint; `export._heading` uses `section_titles` so the Markdown, text and DOCX exports head sections in the same words as the PDF. The JSON Resume export needs nothing: it drops any non-ISO date, so an open-ended one becomes an omitted `endDate` whatever word wrote it.
+
+The audit against English creeping back into a template is `tests/test_locale_qa.py`, which renders all six packaged templates under a pseudo-locale (`tests/fixtures/locales/qa.yaml`) that brackets every pack-sourced string, then asserts no `<h2>` came out unbracketed. The pack is a test fixture rather than a shipped locale, so it never appears in `available_locales()`.
+
 ### `overlays.py`
 
 Applies profile overlays after loading. Three overlay types:
@@ -225,19 +228,19 @@ Registered via `register_filters(env)`, which also installs the one Jinja global
 | Filter | Input | Output |
 |---|---|---|
 | `md` | Markdown string | HTML; unwraps single `<p>` for inline use |
-| `date_range` | `start, end, sep="–"` | Formatted date range; identical endpoints collapse to one date |
+| `date_range` | `start, end, sep="-"` | Formatted date range; a missing end renders the locale pack's `ongoing.render`. Identical endpoints collapse to one date |
 | `skill_level_bar` | Level string | `<span class="skill-level skill-level-N">` — **renders no text**, so nothing an ATS can read; unused by every built-in template |
 | `link_anchor` | One `basics.links` entry | Anchor whose visible text is the URL itself |
-| `cert_groups` | Certification entries | `(title_key, default_heading, entries)` per group |
+| `cert_groups` | Certification entries | `(title_key, entries)` per group |
 
 | Global | Signature | Purpose |
 |---|---|---|
-| `section_title` | `(key, default) -> str` | Profile's `section_titles` override, else the template's own wording. Reads the context, so a caller that supplies no overrides still renders. |
+| `section_title` | `(key, default=None) -> str` | Profile's `section_titles` override, else the locale pack, else the caller's own fallback. Packaged templates pass none — per-template wording is a `templates_meta.suggested_titles` suggestion instead. Reads the context, so a caller supplying neither overrides nor a pack still renders. |
 
 ### `templates_meta.py`
 
 `info_for(template_name) -> TemplateInfo | None` — the per-template parse-risk registry
-(`columns`, `ats`, `fonts`, `summary`, `caveat`). Deliberately outside the linter:
+(`columns`, `ats`, `fonts`, `summary`, `caveat`, `suggested_titles`). Deliberately outside the linter:
 `check` grades what the user wrote, and whether a layout survives PDF text extraction is
 a property of the template. Surfaced by `cvloom list-templates` and warned about by
 `build` and `check`. `None` means unrated — a template of the user's own — and is

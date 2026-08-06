@@ -9,18 +9,11 @@ from typing import Any
 import yaml
 from rich.console import Console
 
+from cvloom import locale as locale_mod
 from cvloom import schema, sections
+from cvloom.locale import LocalePack
 
 _console = Console(stderr=True)
-
-# Placeholder contact used when private/contact.yaml is absent. Profile links are
-# not here: they live in data/basics.yaml, which is present in every build.
-_PLACEHOLDER_CONTACT: dict[str, Any] = {
-    "name": "Your Name",
-    "email": "your.email@example.com",
-    "phone": "+1 (555) 000-0000",
-    "location": "City, Country",
-}
 
 # Fields that must never appear in public builds
 _SENSITIVE_FIELDS: frozenset[str] = frozenset({"email", "phone"})
@@ -79,6 +72,7 @@ def load_data(
     data_dir: Path,
     private_dir: Path | None,
     public: bool = False,
+    locale: LocalePack | None = None,
 ) -> dict[str, Any]:
     """Load all CV data sections and return a merged context dict.
 
@@ -86,10 +80,12 @@ def load_data(
         data_dir: Path to the ``data/`` directory.
         private_dir: Path to the ``private/`` directory (may not exist).
         public: If True, use placeholder contact data instead of private/contact.yaml.
+        locale: Pack supplying the placeholder contact. Defaults to ``en``.
 
     Selection by tag is not done here — see :mod:`cvloom.select`, which the
     builder applies to the loaded data. This function is I/O and merge only.
     """
+    pack = locale if locale is not None else locale_mod.default_pack()
     result: dict[str, Any] = {}
 
     # basics and skills have bespoke shapes; the entry-list sections come from
@@ -136,13 +132,13 @@ def load_data(
             result["contact"] = contact
     elif public:
         # No private dir in public build — use minimal name-only placeholder
-        result["contact"] = {"name": "Your Name"}
+        result["contact"] = {"name": pack.placeholder_contact["name"]}
     else:
         _console.print(
             "[yellow]Warning:[/yellow] private/contact.yaml not found — "
             "using placeholder contact. Run with --public to silence this warning."
         )
-        result["contact"] = copy.deepcopy(_PLACEHOLDER_CONTACT)
+        result["contact"] = dict(pack.placeholder_contact)
 
     return result
 

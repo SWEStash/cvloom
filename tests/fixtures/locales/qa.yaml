@@ -1,0 +1,34 @@
+# Pseudo-locale for the escaped-English audit. Test fixture, not a shipped pack:
+# it is staged into a temp copy of cvloom/locales/ by tests/test_locale_qa.py, so
+# it never reaches a wheel and never appears in `available_locales()`.
+#
+# Every string a template can source from the pack is bracketed. Anything
+# unbracketed in a rendered document therefore came from a literal in the
+# template or the code — which is the thing 6.3 exists to remove.
+
+html_lang: qa
+
+section_titles:
+  work: ⟦Experience⟧
+  skills: ⟦Skills⟧
+  education: ⟦Education⟧
+  projects: ⟦Projects⟧
+  publications: ⟦Publications⟧
+  certifications: ⟦Certifications⟧
+  awards: ⟦Awards⟧
+  languages: ⟦Languages⟧
+  summary: ⟦Summary⟧
+  professional_development: ⟦Professional Development⟧
+  contact: ⟦Contact⟧
+
+ongoing:
+  render: ⟦Present⟧
+  accepts:
+    - ⟦Present⟧
+    - Present
+
+placeholder_contact:
+  name: ⟦Your Name⟧
+  email: ⟦your.email@example.com⟧
+  phone: ⟦+1 (555) 000-0000⟧
+  location: ⟦City, Country⟧

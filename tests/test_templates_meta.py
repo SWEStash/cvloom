@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cvloom import renderer, templates_meta
+from cvloom import locale, renderer, sections, templates_meta
 
 
 def test_every_packaged_cv_template_is_rated() -> None:
@@ -65,3 +65,23 @@ def test_info_for_tolerates_the_j2_suffix() -> None:
 def test_info_for_unknown_template_is_none() -> None:
     """A project's own template is unrated, not assumed safe."""
     assert templates_meta.info_for("cv/my-own-thing") is None
+
+
+def test_suggested_titles_use_keys_the_profile_schema_accepts() -> None:
+    """A suggestion the user cannot apply is worse than no suggestion.
+
+    `profile.section_titles` restricts its keys to `sections.TITLE_KEYS`, so a
+    suggestion outside that set would be copied out of `list-templates` straight
+    into a validation error.
+    """
+    for name, meta in templates_meta.TEMPLATES.items():
+        unknown = set(meta.suggested_titles) - set(sections.TITLE_KEYS)
+        assert not unknown, f"{name} suggests unrenameable keys: {sorted(unknown)}"
+
+
+def test_suggested_titles_differ_from_the_pack_default() -> None:
+    """A suggestion identical to the default is noise in `list-templates`."""
+    pack = locale.default_pack()
+    for name, meta in templates_meta.TEMPLATES.items():
+        for key, title in meta.suggested_titles.items():
+            assert title != pack.section_titles[key], f"{name} suggests the default for {key}"

@@ -124,6 +124,7 @@ These variables are available in every template:
 | `show` | dict | Section visibility flags, one per orderable section. Value: `True`/`False` |
 | `section_order` | list | Ordered list of section names to render |
 | `section_titles` | dict | Heading overrides from the profile. Read it through the `section_title` global, not directly |
+| `locale` | LocalePack | The project's locale pack (`html_lang`, `section_titles`, `ongoing`, `placeholder_contact`). `base.html.j2` uses `locale.html_lang`; otherwise reach it through `section_title` and `date_range` |
 | `job_context` | dict | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`); keys always present, empty string when unset |
 | `public` | bool | `True` when built with `--public` |
 | `today` | str | Current date formatted as `"Month DD, YYYY"` |
@@ -163,9 +164,10 @@ Renders a Markdown string to HTML. Unwraps single `<p>` tags for inline use.
 
 ### `date_range`
 
-Formats a date range from two date strings, using "Present" as the fallback for missing end
-dates. Identical endpoints collapse to a single date, so a qualification known only by its
-completion year renders "2017", not "2017 – 2017".
+Formats a date range from two date strings, using the locale pack's open-ended word
+("Present" in `en`) as the fallback for missing end dates. Identical endpoints collapse to
+a single date, so a qualification known only by its completion year renders "2017", not
+"2017 – 2017".
 
 ```jinja2
 {{ entry.start_date | date_range(entry.end_date) }}
@@ -215,46 +217,58 @@ reader.
 
 ### `cert_groups`
 
-Splits `certifications` into its rendered groups, yielding
-`(title_key, default_heading, entries)` per group. Credentials
-(`type: certification` / `license`) come first, coursework
+Splits `certifications` into its rendered groups, yielding `(title_key, entries)` per
+group. Credentials (`type: certification` / `license`) come first, coursework
 (`type: course` / `micro-credential`) second, and a group with no entries is omitted —
 so a file of nothing but courses gets an accurate heading rather than one claiming they
 are certifications.
 
 ```jinja2
-{% for title_key, heading, group in certifications | cert_groups %}
-<h2>{{ section_title(title_key, heading) }}</h2>
+{% for title_key, group in certifications | cert_groups %}
+<h2>{{ section_title(title_key) }}</h2>
 {% for cert in group %}…{% endfor %}
 {% endfor %}
 ```
 
 `title_key` is `"certifications"` or `"professional_development"` — pass it to
-`section_title` so a profile can rename each group. Do not reverse-map the visible
-heading text: it is the thing being overridden.
+`section_title` so the locale supplies the wording and a profile can rename each group.
+The filter deliberately yields no heading text: that is the thing being overridden.
 
 ---
 
 ## Section Headings
 
-`section_title(key, default)` is a Jinja **global**, not a filter. Templates pass their
-own wording as *default*, and a profile's `section_titles` overrides it:
+`section_title(key)` is a Jinja **global**, not a filter. Route **every** heading through
+it — a hardcoded `<h2>Skills</h2>` is neither renameable nor translatable:
 
 ```jinja2
-<h2>{{ section_title("skills", "Core Competencies") }}</h2>
+<h2>{{ section_title("skills") }}</h2>
 ```
 
-This is how `cv/executive-dark` keeps saying "Core Competencies" while a profile that
-sets `section_titles.skills` still wins. Route **every** heading through it — a
-hardcoded `<h2>Skills</h2>` is simply not renameable.
+Three things can decide the wording, narrowest winning:
 
-Valid keys are `cvloom.sections.TITLE_KEYS`; the profile schema enumerates the same list,
-so a template asking for a key outside it gets the default forever and a profile setting
-one fails validation. Adding a key means adding it in both places.
+| Source | Who owns it |
+|---|---|
+| `section_titles` in the profile | The user, per output variant. The only customization mechanism |
+| The project's locale pack (`cvloom/locales/<code>.yaml`) | The default, one flat heading per key |
+| The optional second argument, `section_title(key, "Fallback")` | Your template, for a key no pack carries |
 
-It reads `section_titles` off the render context rather than being injected as a callable,
-so a template renders fine when a caller supplies no overrides — which matters because
-`render_template` is public API and is called directly by tests and by the MCP server.
+A packaged template passes **no** fallback. If your design reads better with different
+wording — "Core Competencies" rather than "Skills" — that is a *suggestion*, declared in
+`cvloom/templates_meta.py` as `TemplateInfo.suggested_titles` and printed by
+`cvloom list-templates` as a `section_titles:` block the user pastes into a profile. Two
+mechanisms competing for one heading is what that split avoids.
+
+Valid keys are `cvloom.sections.TITLE_KEYS`; the profile schema and every locale pack
+enumerate the same list, so a template asking for a key outside it falls through to your
+fallback and a profile setting one fails validation. Adding a key means adding it in all
+three places — `TITLE_KEYS`, `profile.json`, and `locales/en.yaml`, whose completeness
+test enforces exactly that.
+
+Both `section_titles` and `locale` are read off the render context rather than injected as
+callables, so a template renders fine when a caller supplies neither — which matters
+because `render_template` is public API and is called directly by tests and by the MCP
+server.
 
 ---
 

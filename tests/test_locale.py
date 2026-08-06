@@ -14,7 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from cvloom import builder, config, loader, locale, sections
+from cvloom import builder, config, linter, locale, sections
+from cvloom.export import to_json_resume, to_markdown
+from tests import conftest
 from tests.conftest import make_project
 
 
@@ -63,18 +65,24 @@ def test_en_ongoing_is_populated_both_ways() -> None:
     assert pack.ongoing.matches(pack.ongoing.render)
 
 
-def test_en_matches_the_literals_it_will_replace() -> None:
-    """Pins en.yaml to the constants 6.3 moves into it.
+def test_en_matches_the_literals_it_replaced() -> None:
+    """Pins en.yaml to the wording it took over from the code in 6.3.
 
-    If these drift apart, consuming the pack would silently change output — the
-    whole point of landing the pack before anything reads it.
+    The constants these were compared against are gone — the pack is now the only
+    place they live, so the expected values are spelled out here. Without this
+    pin, editing en.yaml is a silent change to every default English build.
     """
     pack, _ = locale.load_pack("en")
     assert pack.html_lang == "en"
     assert pack.ongoing.render == "Present"
-    assert dict(pack.placeholder_contact) == loader._PLACEHOLDER_CONTACT
-    assert pack.section_titles["certifications"] == sections.CREDENTIAL_HEADING
-    assert pack.section_titles["professional_development"] == sections.COURSEWORK_HEADING
+    assert dict(pack.placeholder_contact) == {
+        "name": "Your Name",
+        "email": "your.email@example.com",
+        "phone": "+1 (555) 000-0000",
+        "location": "City, Country",
+    }
+    assert pack.section_titles["certifications"] == "Certifications"
+    assert pack.section_titles["professional_development"] == "Professional Development"
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +247,91 @@ def test_resolve_defaults_to_en_without_a_root(tmp_path: Path) -> None:
         profile_name="general",
     )
     assert resolved.locale.code == "en"
+
+
+# ---------------------------------------------------------------------------
+# Consuming the pack (6.3)
+# ---------------------------------------------------------------------------
+
+_ES_PACK = (
+    "html_lang: es\n"
+    "section_titles:\n"
+    "  work: Experiencia\n  skills: Competencias\n  education: Formación\n"
+    "  projects: Proyectos\n  publications: Publicaciones\n"
+    "  certifications: Certificaciones\n  awards: Premios\n  languages: Idiomas\n"
+    "  summary: Perfil\n  professional_development: Formación continua\n"
+    "  contact: Contacto\n"
+    "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n"
+    "placeholder_contact:\n"
+    "  name: Su Nombre\n  email: tu.correo@example.com\n"
+    "  phone: '+1 (555) 000-0000'\n  location: Ciudad, País\n"
+)
+
+# One work entry still open, written the way a Spanish project writes it.
+_ES_WORK = (
+    "- company: Acme\n  title: Ingeniero\n  location: Remoto\n"
+    '  start_date: "2020-01"\n  end_date: Actualidad\n'
+    "  highlights:\n    - Diseñé y construí un sistema distribuido.\n"
+    "- company: Globex\n  title: Ingeniero\n"
+    '  start_date: "2016-01"\n  end_date: "2019-12"\n'
+    "  highlights:\n    - Mantuve la plataforma de pagos.\n"
+)
+
+
+@pytest.fixture
+def es_project(tmp_path: Path, packs_dir: Path) -> Path:
+    (packs_dir / "es.yaml").write_text(_ES_PACK)
+    return make_project(
+        tmp_path,
+        extra={"cvloom.yaml": "locale: es\n", "data/work.yaml": _ES_WORK},
+    )
+
+
+def test_html_lang_and_headings_follow_the_pack(es_project: Path) -> None:
+    """`<html lang>` drives WeasyPrint hyphenation and the PDF /Lang an ATS reads."""
+    result = builder.build_project(es_project, profile_name="general", public=True, skip_pdf=True)
+    assert '<html lang="es">' in result.html
+    assert ">Experiencia<" in result.html
+    assert ">Experience<" not in result.html
+
+
+def test_open_ended_role_ranks_as_ongoing_in_the_locales_own_words(es_project: Path) -> None:
+    """wl-019 reads `ongoing.accepts`, so `Actualidad` outranks every real date.
+
+    Reading only "Present" would rank the current role as undated, and the
+    section would look correctly ordered whatever order it was in.
+    """
+    resolved = builder.resolve_project(es_project, "general", public=True)
+    assert [f.rule_id for f in linter.lint(resolved, rule_ids=["wl-019"])] == []
+
+    reversed_work = list(reversed(resolved.data["work"]))
+    resolved.data["work"] = reversed_work
+    assert [f.rule_id for f in linter.lint(resolved, rule_ids=["wl-019"])] == ["wl-019"]
+
+
+def test_open_ended_date_exports_as_an_omitted_end_date(es_project: Path) -> None:
+    """JSON Resume expresses a current role by omitting endDate, whatever the word."""
+    doc = to_json_resume(builder.resolve_project(es_project, "general", public=True))
+    current = next(w for w in doc["work"] if w["name"] == "Acme")
+    assert "endDate" not in current
+    assert doc["work"][1]["endDate"] == "2019-12"
+
+
+def test_text_exports_head_sections_in_the_locales_words(es_project: Path) -> None:
+    """A Spanish PDF with an English DOCX beside it is the failure this prevents."""
+    md = to_markdown(builder.resolve_project(es_project, "general", public=True))
+    assert "## Experiencia" in md
+    assert "## Experience" not in md
+
+
+def test_public_build_uses_the_packs_placeholder_contact(tmp_path: Path, packs_dir: Path) -> None:
+    """--public must not fall back to an English stand-in identity."""
+    (packs_dir / "es.yaml").write_text(_ES_PACK)
+    files = {k: v for k, v in conftest._PROJECT_FILES.items() if not k.startswith("private/")}
+    root = make_project(tmp_path, files=files, extra={"cvloom.yaml": "locale: es\n"})
+    result = builder.build_project(root, profile_name="general", public=True, skip_pdf=True)
+    assert "Su Nombre" in result.html
+    assert "Your Name" not in result.html
 
 
 def test_fallback_warnings_reach_resolved_profile(tmp_path: Path, packs_dir: Path) -> None:
