@@ -452,3 +452,68 @@ def test_ai_align_to_jd_malformed_response_returns_error(
         ai_align_to_jd(profile="general", jd_text="Python role", project_root=project_dir)
     )
     assert "invalid JSON" in result["error"]
+
+
+# ── project config (cvloom.yaml) ──────────────────────────────────
+#
+# The CLI resolves its root from the cwd; MCP takes `project_root` as an
+# argument and can be pointed at a project the server process is not sitting
+# in. These cover the part of the config surface the CLI tests structurally
+# cannot: that the file is read from `project_root`, and that a bad one
+# arrives as a JSON error rather than an exception crossing the tool boundary.
+
+
+def _elsewhere(tmp_path: Path) -> Path:
+    """A cwd that is not the project — and is not itself a cvloom project."""
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    return other
+
+
+def test_build_cv_reads_config_from_project_root_not_cwd(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (Path(project_dir) / "cvloom.yaml").write_text("locale: zz\n")
+    monkeypatch.chdir(_elsewhere(tmp_path))
+    result = json.loads(build_cv(profile="general", public=True, project_root=project_dir))
+    assert result["error"] == "resolve failed"
+    assert "Unknown locale 'zz'" in " ".join(result["details"])
+
+
+def test_cwd_config_does_not_leak_into_an_explicit_project_root(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The inverse: a broken cvloom.yaml in the cwd must not break a build of
+    a project elsewhere that has none."""
+    other = _elsewhere(tmp_path)
+    (other / "cvloom.yaml").write_text("locale: zz\n")
+    monkeypatch.chdir(other)
+    result = json.loads(
+        build_cv(profile="general", public=True, skip_pdf=True, project_root=project_dir)
+    )
+    assert "error" not in result
+    assert result["words"] > 0
+
+
+def test_check_cv_reads_config_from_project_root(project_dir: str) -> None:
+    """`check_cv` resolves by a different path than `build_cv` — build_project
+    and resolve_project each read the config separately."""
+    (Path(project_dir) / "cvloom.yaml").write_text("locale: zz\n")
+    result = json.loads(check_cv(profile="general", project_root=project_dir))
+    assert result["error"] == "resolve failed"
+    assert "Unknown locale 'zz'" in " ".join(result["details"])
+
+
+def test_bad_config_key_returns_structured_error(project_dir: str) -> None:
+    """A malformed cvloom.yaml must not escape as an exception."""
+    (Path(project_dir) / "cvloom.yaml").write_text("locale: en\nlocal: es\n")
+    result = json.loads(validate_data(project_root=project_dir))
+    assert result["valid"] is False
+    assert any("cvloom.yaml" in e for e in result["errors"])
+
+
+def test_valid_config_is_a_no_op(project_dir: str) -> None:
+    """The invisibility contract, from the MCP side."""
+    (Path(project_dir) / "cvloom.yaml").write_text("locale: en\n")
+    result = json.loads(validate_data(project_root=project_dir))
+    assert result["valid"] is True

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project-config",
+  "title": "Project Config",
+  "description": "cvloom.yaml at the project root: settings owned by the project as a whole rather than by one build profile. Named project-config to keep clear of project.json, which types a portfolio project entry.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "locale": {
+      "type": "string",
+      "description": "Language the project is written and operated in, e.g. 'en' or 'es'. Selects a pack from cvloom/locales/.",
+      "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+      "default": "en"
+    }
+  }
+}

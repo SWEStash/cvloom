@@ -1,0 +1,50 @@
+# English locale pack — the reference pack.
+#
+# `en` is an ordinary pack loaded through the same path as any other locale, so
+# every build exercises the locale mechanism and a resolution bug surfaces in the
+# default build rather than waiting for the first non-English user.
+#
+# It doubles as the completeness contract: a key missing from another pack falls
+# back to the value here with a warning, and a key missing from *here* is an
+# error. `tests/test_locales.py` asserts this file covers everything the code
+# looks up, so adding a lookup without a default here fails CI.
+#
+# Copy this file to add a locale. It governs the rendered document only — CLI and
+# terminal output stay in English by design.
+
+html_lang: en
+
+# Default heading per section key, covering every key in sections.TITLE_KEYS.
+# These are defaults, not the customization mechanism: a profile's own
+# `section_titles` block overrides any of them, and that remains the way to get
+# wording suited to a particular template ("Executive Summary", "Core
+# Competencies", "Positions Held"). See docs and `cvloom list-templates` for the
+# wording each packaged template suggests.
+section_titles:
+  work: Experience
+  skills: Skills
+  education: Education
+  projects: Projects
+  publications: Publications
+  certifications: Certifications
+  awards: Awards
+  languages: Languages
+  summary: Summary
+  professional_development: Professional Development
+  contact: Contact
+
+# The open-ended end date, in both directions. `render` goes into the document;
+# `accepts` is what the chronology lint rule and the JSON Resume export read back
+# out of the data. Matched case-insensitively.
+ongoing:
+  render: Present
+  accepts:
+    - Present
+
+# Stand-in identity for --public builds and for a project with no
+# private/contact.yaml.
+placeholder_contact:
+  name: Your Name
+  email: your.email@example.com
+  phone: +1 (555) 000-0000
+  location: City, Country
