@@ -6,6 +6,12 @@ sections:
   skills: true
   projects: true
 
+# Write how long each role lasted after its work date range, e.g.
+# "2021-03 - Present (5 years 6 months)". Counted to the current month, so a role
+# with no end_date stays right every time you rebuild. Work entries only.
+#
+# show_durations: true
+
 # Rename section headings. Text only — styling stays in the template, so this is
 # safe to set on any of them. A key you leave out keeps the wording the template
 # supplies: cv/executive-dark heads skills "Core Competencies" and cv/academic

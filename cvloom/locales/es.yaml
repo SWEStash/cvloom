@@ -38,6 +38,17 @@ ongoing:
     - Presente
     - Actual
 
+# La duración que se escribe tras el rango de fechas cuando un perfil activa
+# `show_durations`: "2020-01 - 2022-03 (2 años 3 meses)". El español pluraliza
+# de forma regular, así que las cuatro palabras bastan.
+duration:
+  year: año
+  years: años
+  month: mes
+  months: meses
+  join: " "
+  format: "({value})"
+
 # Stand-in identity for --public builds and for a project with no
 # private/contact.yaml.
 #

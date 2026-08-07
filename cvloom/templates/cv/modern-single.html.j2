@@ -81,7 +81,7 @@
 {% for job in work %}
 <div class="entry">
   <h3 class="entry-title">{{ job.title }}</h3>
-  <div class="entry-meta"><span class="entry-org">{{ job.company }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>{% if job.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ job.location }}</span>{% endif %}</div>
+  <div class="entry-meta"><span class="entry-org">{{ job.company }}</span><span class="entry-sep"> · </span><span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>{% if show_durations | default(false) %}{% set _dur = job.start_date | duration(job.end_date | default(none)) %}{% if _dur %}<span class="entry-duration"> {{ _dur }}</span>{% endif %}{% endif %}{% if job.location %}<span class="entry-sep"> · </span><span class="entry-location">{{ job.location }}</span>{% endif %}</div>
   {% if job.highlights %}
   <ul>
     {% for h in job.highlights %}<li>{{ h | md }}</li>{% endfor %}

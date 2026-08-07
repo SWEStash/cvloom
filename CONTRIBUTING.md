@@ -87,10 +87,11 @@ on Python 3.11, 3.12, and 3.13.
 | `job_context` | dict | Keys: company?, role?, hiring_manager?, notes?, greeting?, closing? |
 | `profile` | dict | Full profile config |
 | `public` | bool | True when running in --public mode |
+| `show_durations` | bool | True when the profile asked for role durations; guard the `duration` filter with it, and default it |
 | `today` | str | Current date, formatted by the project's locale pack |
 
 All Jinja2 filters defined in `cvloom/filters.py` are available:
-`md` (Markdown → HTML), `date_range`, `skill_level_bar`.
+`md` (Markdown → HTML), `date_range`, `duration`, `skill_level_bar`.
 
 ## Third-party template convention
 

@@ -84,6 +84,37 @@ def test_en_matches_the_literals_it_replaced() -> None:
     }
 
 
+def test_every_shipped_pack_can_write_a_duration() -> None:
+    """The completeness check `load_pack`'s per-key fallback cannot make: a pack
+    inheriting `duration` from `en` would put English into a Spanish document."""
+    for code in locale.available_locales():
+        pack, _ = locale.load_pack(code)
+        assert pack.duration.render(1), code
+        assert pack.duration.render(27), code
+
+
+def test_en_writes_durations_in_full_words() -> None:
+    pack, _ = locale.load_pack("en")
+    assert pack.duration.render(27) == "(2 years 3 months)"
+    assert pack.duration.render(13) == "(1 year 1 month)"
+    assert pack.duration.render(24) == "(2 years)"
+    assert pack.duration.render(5) == "(5 months)"
+
+
+def test_es_writes_durations_in_spanish() -> None:
+    pack, _ = locale.load_pack("es")
+    assert pack.duration.render(27) == "(2 años 3 meses)"
+    assert pack.duration.render(13) == "(1 año 1 mes)"
+
+
+def test_a_duration_of_nothing_renders_as_nothing() -> None:
+    """`span_months` returns None for an uncomputable range; a caller passing 0
+    through must get an empty string, not "(0 months)"."""
+    pack, _ = locale.load_pack("en")
+    assert pack.duration.render(0) == ""
+    assert pack.duration.render(-3) == ""
+
+
 def test_en_date_drops_the_zero_padded_day() -> None:
     """6.7 changed English output on purpose: `%d` padded the day, which is wrong
     in a letter. Pinned so it cannot drift back or drift further."""
@@ -141,6 +172,37 @@ def test_half_populated_ongoing_fails_schema_validation(packs_dir: Path) -> None
     """F7's named risk: `render` without `accepts` would silently degrade
     chronology ranking and open-ended date export."""
     (packs_dir / "xx.yaml").write_text("ongoing:\n  render: Actualidad\n")
+    with pytest.raises(config.ConfigError) as exc:
+        locale.load_pack("xx")
+    assert any("locales/xx.yaml" in e for e in exc.value.errors)
+
+
+def test_half_populated_duration_fails_schema_validation(packs_dir: Path) -> None:
+    """Same reason as `ongoing`: the fallback is per top-level key, so a pack with
+    plurals but no singulars would inherit nothing and write "1 years"."""
+    (packs_dir / "xx.yaml").write_text(
+        _pack_yaml(omit=("duration",)) + "duration:\n  years: años\n  months: meses\n"
+    )
+    with pytest.raises(config.ConfigError) as exc:
+        locale.load_pack("xx")
+    assert any("locales/xx.yaml" in e for e in exc.value.errors)
+
+
+def test_a_duration_format_without_the_placeholder_fails_at_load(packs_dir: Path) -> None:
+    """`format` is a str.format template; one that drops {value} would render a
+    document with empty parentheses where the tenure should be."""
+    (packs_dir / "xx.yaml").write_text(
+        _pack_yaml(omit=("duration",))
+        + (
+            "duration:\n"
+            "  year: año\n"
+            "  years: años\n"
+            "  month: mes\n"
+            "  months: meses\n"
+            '  join: " "\n'
+            '  format: "()"\n'
+        )
+    )
     with pytest.raises(config.ConfigError) as exc:
         locale.load_pack("xx")
     assert any("locales/xx.yaml" in e for e in exc.value.errors)
@@ -261,6 +323,15 @@ def _pack_yaml(*, omit: tuple[str, ...] = (), titles: str | None = None) -> str:
         "html_lang": "html_lang: xx\n",
         "section_titles": "section_titles:\n" + (_all_titles() if titles is None else titles),
         "ongoing": "ongoing:\n  render: Actualidad\n  accepts: [Actualidad]\n",
+        "duration": (
+            "duration:\n"
+            "  year: año\n"
+            "  years: años\n"
+            "  month: mes\n"
+            "  months: meses\n"
+            '  join: " "\n'
+            '  format: "({value})"\n'
+        ),
         "placeholder_contact": (
             "placeholder_contact:\n"
             "  name: Your Name\n"

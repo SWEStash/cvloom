@@ -620,3 +620,98 @@ def test_language_without_fluency_renders_bare(extras_project_dir: Path) -> None
         extras_project_dir, profile_name="general", public=True, skip_pdf=True
     ).html
     assert "Portuguese ()" not in html
+
+
+# ── show_durations ──────────────────────────────────────────────────
+
+_FREE_TEXT_DATES = (
+    "- company: Acme\n  title: Engineer\n  location: Remote\n"
+    '  start_date: "summer 2020"\n  end_date: "2022-03"\n'
+    "  highlights:\n    - Designed and built a distributed system handling 10k requests.\n"
+)
+
+
+def _resolve(project: Path, profile_name: str = "general"):
+    return resolve(
+        data_dir=project / "data",
+        private_dir=project / "private",
+        profiles_dir=project / "profiles",
+        profile_name=profile_name,
+        public=True,
+    )
+
+
+def test_show_durations_defaults_off(project_dir: Path) -> None:
+    """The upgrade contract: a profile that says nothing keeps its old document."""
+    assert _resolve(project_dir).show_durations is False
+
+
+def test_show_durations_is_read_off_the_profile(tmp_path: Path) -> None:
+    project = make_project(
+        tmp_path,
+        extra={"profiles/general.yaml": "template: cv/ats-clean\nshow_durations: true\n"},
+    )
+    assert _resolve(project).show_durations is True
+
+
+def test_an_unreadable_date_warns_and_still_resolves(tmp_path: Path) -> None:
+    """Free-text dates are schema-legal, so this must not fail the build — but
+    the entry silently losing its suffix is exactly what needs explaining."""
+    project = make_project(
+        tmp_path,
+        extra={
+            "profiles/general.yaml": "template: cv/ats-clean\nshow_durations: true\n",
+            "data/work.yaml": _FREE_TEXT_DATES,
+        },
+    )
+    result = _resolve(project)
+    duration_warnings = [w for w in result.warnings if "no duration shown" in w]
+    assert len(duration_warnings) == 1
+    assert "Acme" in duration_warnings[0]
+    assert "summer 2020" in duration_warnings[0]
+
+
+def test_an_inverted_range_warns_about_the_order_not_the_format(tmp_path: Path) -> None:
+    project = make_project(
+        tmp_path,
+        extra={
+            "profiles/general.yaml": "template: cv/ats-clean\nshow_durations: true\n",
+            "data/work.yaml": (
+                "- company: Acme\n  title: Engineer\n"
+                '  start_date: "2020-01"\n  end_date: "2019-01"\n'
+                "  highlights:\n    - Designed and built a system handling 10k requests.\n"
+            ),
+        },
+    )
+    warnings = [w for w in _resolve(project).warnings if "no duration shown" in w]
+    assert len(warnings) == 1
+    assert "does not end after it begins" in warnings[0]
+
+
+def test_no_duration_warnings_when_the_flag_is_off(tmp_path: Path) -> None:
+    """The same unreadable data warns about nothing until a profile asks for a
+    duration — there is no suffix missing if none was requested."""
+    project = make_project(tmp_path, extra={"data/work.yaml": _FREE_TEXT_DATES})
+    assert not [w for w in _resolve(project).warnings if "no duration shown" in w]
+
+
+def test_readable_dates_warn_about_nothing(tmp_path: Path) -> None:
+    project = make_project(
+        tmp_path,
+        extra={"profiles/general.yaml": "template: cv/ats-clean\nshow_durations: true\n"},
+    )
+    assert not [w for w in _resolve(project).warnings if "no duration shown" in w]
+
+
+def test_a_hidden_work_section_warns_about_nothing(tmp_path: Path) -> None:
+    """Nothing is rendered, so nothing is missing."""
+    project = make_project(
+        tmp_path,
+        extra={
+            "profiles/general.yaml": (
+                "template: cv/ats-clean\nshow_durations: true\nsections:\n  work: false\n"
+            ),
+            "data/work.yaml": _FREE_TEXT_DATES,
+        },
+    )
+    assert not [w for w in _resolve(project).warnings if "no duration shown" in w]

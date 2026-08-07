@@ -80,6 +80,7 @@ sections:
 | `select`            | No       | —                                       | Per-section content selection (see below)                             |
 | `section_order`     | No       | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
 | `section_titles`    | No       | The project locale's wording            | Rename section headings (text only — see below)                        |
+| `show_durations`    | No       | `false`                                 | Write how long each role lasted after its work date range (see below)  |
 | `job_context`       | No       | —                                       | Metadata passed to cover letter templates and AI commands             |
 | `overlays`          | No       | —                                       | Per-job data patches (see below)                                      |
 
@@ -219,6 +220,43 @@ Validation errors:
 
 Only sections that are enabled in `sections` (or left at their default of `true`) are
 actually rendered, regardless of their position in `section_order`.
+
+---
+
+## Role Durations
+
+`show_durations: true` writes how long each role lasted after its work date range:
+
+```
+Senior Backend Engineer
+Acme Corp | 2021-03 - Present (5 years 6 months)
+```
+
+Off unless you ask, so upgrading cvloom never changes a document that was building
+fine. Work entries only — a degree's length is standard and a side project's is not
+the claim you are making, so education and projects keep the plain range.
+
+**Months are counted inclusively and capped at the current month.** March to May is
+three months in the role, not two elapsed. A role with no `end_date` counts to *this*
+month, so the figure is right every time you rebuild without you touching the data —
+which is the main reason to [omit `end_date` for a current role](locales.md#ongoing-is-bidirectional)
+rather than typing the word yourself. A bare year that is the current year, or an
+`end_date` mistyped into the future, is capped the same way rather than claiming
+months that have not happened.
+
+The wording comes from your project's locale pack, so an `es` project reads
+`(5 años 6 meses)` — see [Locales](locales.md#the-document-pack).
+
+Dates are free strings in the schema, so `summer 2021` is legal data that no
+arithmetic can read. Such an entry keeps its plain range and the build says which
+one:
+
+```
+Warning: work[0] (Acme Corp): no duration shown — 'summer 2021' is not YYYY or YYYY-MM.
+```
+
+The rest of the document is unaffected — a date cvloom cannot count is a warning,
+never a build failure.
 
 ---
 
@@ -549,6 +587,10 @@ role at Stripe.
 # ── Template & output ──────────────────────────────────────────────
 template: cv/ats-clean
 output_filename: stripe-infra-cv
+
+# Show how long each role lasted, e.g. "2021-03 - Present (5 years 6 months)".
+# Counted to the current month, so it stays right without editing the data.
+show_durations: true
 
 # ── Section visibility ─────────────────────────────────────────────
 sections:

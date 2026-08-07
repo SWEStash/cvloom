@@ -122,6 +122,9 @@ _EVERY_SECTION_CONTEXT: dict[str, Any] = {
     "profile": {},
     "section_titles": {},
     "public": False,
+    # On, so the duration words are audited too. The work entry above has no
+    # end_date, so this exercises the open-ended path as well.
+    "show_durations": True,
     "today": "March 22, 2026",
 }
 
@@ -173,6 +176,10 @@ def _pack_strings(pack: locale.LocalePack) -> tuple[str, ...]:
         value = getattr(pack, f.name)
         if isinstance(value, locale.Ongoing):
             values.append(value.render)  # `accepts` is read back out of data, never written
+        elif isinstance(value, locale.Duration):
+            # The words only. `join` is a bare space and `format` is punctuation
+            # around a placeholder; auditing either would match every document.
+            values.extend([value.year, value.years, value.month, value.months])
         elif isinstance(value, str):
             values.append(value)
         elif isinstance(value, Mapping):
@@ -196,6 +203,18 @@ _NON_DOCUMENT_RE = re.compile(r"<head\b.*?</head>|<style\b.*?</style>|<!--.*?-->
 def _document_text(html: str) -> str:
     """The rendered document minus its chrome: no <head>, no CSS, no comments."""
     return _NON_DOCUMENT_RE.sub("", html)
+
+
+def _occurrences(needle: str, haystack: str) -> int:
+    """Count *needle* in *haystack* as a whole word, not as a substring.
+
+    A plain ``str.count`` was enough until the pack owned two words where one is a
+    prefix of the other: ``duration.year`` inside ``duration.years``. Counting
+    naively, a document rendering ⟦years⟧ reports one unbracketed ``year`` and the
+    audit fails on correct output. The brackets are non-word characters, so a
+    word-boundary match still sees ⟦year⟧ and skips ⟦years⟧.
+    """
+    return len(re.findall(rf"(?<!\w){re.escape(needle)}(?!\w)", haystack))
 
 
 def _render(template: str, pack: locale.LocalePack, **overrides: Any) -> str:
@@ -254,7 +273,7 @@ def test_no_pack_owned_string_escapes_unbracketed(
         _document_text(_render(template, qa_pack, job_context=no_manager)),
     ):
         for owned in _pack_strings(en):
-            escaped = html.count(owned) - html.count(f"⟦{owned}⟧")
+            escaped = _occurrences(owned, html) - _occurrences(f"⟦{owned}⟧", html)
             assert not escaped, (
                 f"{template} renders {owned!r} {escaped} time(s) as a literal; "
                 "the locale pack owns that string"

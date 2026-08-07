@@ -208,3 +208,63 @@ def test_date_range_open_end_comes_from_the_locale_pack():
 
     pack = replace(locale.default_pack(), ongoing=locale.Ongoing("Actualidad", ("Actualidad",)))
     assert _date_range("2020-01", None, locale=pack) == "2020-01 - Actualidad"
+
+
+# ── duration ────────────────────────────────────────────────────────
+
+
+def _duration(start: str, end: str | None, **ctx: object) -> str:
+    """Call the `duration` filter the way a template does.
+
+    Like `date_range` it reads the pack off the Jinja context, so it has to go
+    through a render. Every case here uses a closed range: an open-ended one
+    counts to the current month and would change its answer every month. The
+    ceiling is tested against an injected `today` in tests/test_dates.py.
+    """
+    return _render("{{ start | duration(end) }}", start=start, end=end, **ctx)
+
+
+def test_duration_writes_years_and_months():
+    assert _duration("2020-01", "2022-03") == "(2 years 3 months)"
+
+
+def test_duration_uses_singular_words_for_one():
+    assert _duration("2020-01", "2021-01") == "(1 year 1 month)"
+
+
+def test_duration_omits_a_zero_component():
+    assert _duration("2020-01", "2021-12") == "(2 years)"
+    assert _duration("2020-01", "2020-05") == "(5 months)"
+
+
+def test_duration_counts_a_single_month_role():
+    assert _duration("2020-01", "2020-01") == "(1 month)"
+
+
+def test_duration_reads_a_bare_year_range_end_to_end():
+    """A 2013-2017 degree is five years — January 2013 through December 2017."""
+    assert _duration("2013", "2017") == "(5 years)"
+
+
+@pytest.mark.parametrize("start", ["summer 2020", "2020/13", ""])
+def test_duration_is_empty_when_the_dates_cannot_be_read(start: str):
+    """Dates are free strings by schema, so this is legal data, not a bug.
+    Empty rather than raising: the template tests the result for truthiness."""
+    assert _duration(start, "2022-03") == ""
+
+
+def test_duration_is_empty_for_an_inverted_range():
+    assert _duration("2020-01", "2019-01") == ""
+
+
+def test_duration_words_come_from_the_locale_pack():
+    """The wording is the pack's, not the filter's — same contract as
+    `date_range`'s open-ended word."""
+    from dataclasses import replace
+
+    from cvloom import locale
+
+    es, _ = locale.load_pack("es")
+    pack = replace(locale.default_pack(), duration=es.duration)
+    assert _duration("2020-01", "2022-03", locale=pack) == "(2 años 3 meses)"
+    assert _duration("2020-01", "2021-01", locale=pack) == "(1 año 1 mes)"

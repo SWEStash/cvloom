@@ -31,6 +31,13 @@ class ResolvedProfile:
     section_titles: dict[str, str] = field(default_factory=dict)
     """Heading text overrides from the profile. Empty means every template default stands."""
 
+    show_durations: bool = False
+    """Whether work entries carry a tenure suffix after their date range.
+
+    Off unless a profile asks, so upgrading cvloom never changes a document that
+    was building fine — the same contract the locale default keeps below.
+    """
+
     locale: LocalePack = field(default_factory=default_pack)
     """Document-facing locale pack, resolved from the project's ``cvloom.yaml``.
 

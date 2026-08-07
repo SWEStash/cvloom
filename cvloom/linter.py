@@ -19,6 +19,7 @@ from datetime import date
 from typing import Any
 
 from cvloom import sections
+from cvloom.dates import granularity, parse_partial
 from cvloom.links import network_of, normalize_url
 from cvloom.linter_locales import LintLocale, pack_for
 from cvloom.linter_locales import en as en_data
@@ -78,9 +79,6 @@ _MAX_BULLETS = 8
 _MAX_EDUCATION_ENTRIES = 6
 
 from cvloom.trim import MAX_PAGES as _MAX_PAGES  # noqa: E402  (one ceiling, one place)
-
-_DATE_YYYY_MM_RE = re.compile(r"^\d{4}-\d{2}$")
-_DATE_YYYY_RE = re.compile(r"^\d{4}$")
 
 # Scaffold placeholders such as "[Company Name]" or "[X]%". The negative
 # lookahead spares Markdown links, whose "[label](url)" is not a placeholder.
@@ -299,12 +297,7 @@ def _check_date_format_consistency(resolved: ResolvedProfile, lex: LintLocale) -
                 val = str(entry.get(field, "")).strip()
                 if not val or resolved.locale.ongoing.matches(val):
                     continue
-                if _DATE_YYYY_MM_RE.match(val):
-                    formats.add("YYYY-MM")
-                elif _DATE_YYYY_RE.match(val):
-                    formats.add("YYYY")
-                else:
-                    formats.add("other")
+                formats.add(granularity(val))
         if len(formats) > 1:
             findings.append(
                 LintFinding(
@@ -791,23 +784,6 @@ def _check_education_size(resolved: ResolvedProfile, lex: LintLocale) -> list[Li
     ]
 
 
-def _parse_date(value: str, *, as_end: bool = False) -> tuple[int, int] | None:
-    """Parse ``YYYY`` / ``YYYY-MM`` into a comparable ``(year, month)``.
-
-    ``Present`` (and anything unparseable) returns ``None``; callers decide what
-    an open-ended date means. A bare year resolves to December when it closes a
-    range and January when it opens one, so ``2020`` – ``2020-05`` is not read
-    as ending before it starts.
-    """
-    text = str(value).strip()
-    if _DATE_YYYY_MM_RE.match(text):
-        year, month = text.split("-")
-        return int(year), int(month)
-    if _DATE_YYYY_RE.match(text):
-        return int(text), 12 if as_end else 1
-    return None
-
-
 def _entry_rank(
     section: sections.Section, entry: dict[str, Any], ongoing: Ongoing
 ) -> tuple[int, int] | None:
@@ -824,7 +800,7 @@ def _entry_rank(
             continue
         if ongoing.matches(raw):
             return (9999, 12)
-        parsed = _parse_date(raw, as_end=key.startswith("end"))
+        parsed = parse_partial(raw, as_end=key.startswith("end"))
         if parsed:
             return parsed
     return None
@@ -903,8 +879,8 @@ def _check_date_sanity(resolved: ResolvedProfile, lex: LintLocale) -> list[LintF
         for entry in resolved.data.get(section.name, []):
             if section.range_keys:
                 start_key, end_key = section.range_keys
-                start = _parse_date(str(entry.get(start_key, "")))
-                end = _parse_date(str(entry.get(end_key, "")), as_end=True)
+                start = parse_partial(str(entry.get(start_key, "")))
+                end = parse_partial(str(entry.get(end_key, "")), as_end=True)
                 if start and end and end < start:
                     findings.append(
                         finding(
@@ -918,7 +894,7 @@ def _check_date_sanity(resolved: ResolvedProfile, lex: LintLocale) -> list[LintF
 
             for key in (*section.sort_date_keys, *(section.range_keys or ())):
                 raw = str(entry.get(key, "")).strip()
-                parsed = _parse_date(raw) if raw else None
+                parsed = parse_partial(raw) if raw else None
                 if parsed and parsed > now:
                     findings.append(
                         finding(
@@ -933,7 +909,7 @@ def _check_date_sanity(resolved: ResolvedProfile, lex: LintLocale) -> list[LintF
 
             if section.expiry_key:
                 expiry_raw = str(entry.get(section.expiry_key, "")).strip()
-                expiry = _parse_date(expiry_raw, as_end=True) if expiry_raw else None
+                expiry = parse_partial(expiry_raw, as_end=True) if expiry_raw else None
                 if expiry and expiry < now:
                     findings.append(
                         finding(

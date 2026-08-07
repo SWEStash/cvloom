@@ -41,6 +41,43 @@
         }
       }
     },
+    "duration": {
+      "type": "object",
+      "description": "How this locale writes a tenure, e.g. '(2 years 3 months)'. Written after a work date range by filters.duration when a profile sets show_durations. All six keys are required together: a pack with plural words but no singular ones would write '1 years'.",
+      "additionalProperties": false,
+      "required": ["year", "years", "month", "months", "join", "format"],
+      "properties": {
+        "year": {
+          "type": "string",
+          "description": "Singular year, e.g. 'year'.",
+          "minLength": 1
+        },
+        "years": {
+          "type": "string",
+          "description": "Plural years, e.g. 'years'.",
+          "minLength": 1
+        },
+        "month": {
+          "type": "string",
+          "description": "Singular month, e.g. 'month'.",
+          "minLength": 1
+        },
+        "months": {
+          "type": "string",
+          "description": "Plural months, e.g. 'months'.",
+          "minLength": 1
+        },
+        "join": {
+          "type": "string",
+          "description": "Placed between the years part and the months part, e.g. ' ' or ' y '."
+        },
+        "format": {
+          "type": "string",
+          "description": "Wraps the joined parts. Must contain the {value} placeholder, e.g. '({value})'.",
+          "pattern": "\\{value\\}"
+        }
+      }
+    },
     "placeholder_contact": {
       "type": "object",
       "description": "Stand-in contact used by --public builds and when private/contact.yaml is absent. Carries no real identity by construction.",

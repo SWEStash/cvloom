@@ -16,6 +16,11 @@
       "type": "string",
       "description": "Base filename for outputs (without extension), e.g. 'jane-smith-cv'"
     },
+    "show_durations": {
+      "type": "boolean",
+      "default": false,
+      "description": "Write how long each role lasted after its work date range, e.g. '2020-01 - 2022-03 (2 years 3 months)'. Counted to the current month for a role with no end date. An entry whose dates are not YYYY or YYYY-MM keeps its plain range and is reported as a build warning."
+    },
     "sections": {
       "type": "object",
       "description": "Per-section include/exclude overrides",

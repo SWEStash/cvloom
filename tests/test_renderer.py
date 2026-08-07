@@ -497,6 +497,65 @@ def test_date_ranges_are_ascii_in_every_template(template: str) -> None:
     assert "–" not in body and "—" not in body, f"{template} renders a non-ASCII dash"
 
 
+# ── show_durations ───────────────────────────────────────────────────
+
+# A closed range, so the assertions below do not change answer every month. The
+# open-ended path is covered against an injected `today` in tests/test_dates.py.
+_CLOSED_WORK = [{**_FULL_CONTEXT["work"][0], "start_date": "2020-01", "end_date": "2022-03"}]
+_DURATIONS_ON = {**_FULL_CONTEXT, "work": _CLOSED_WORK, "show_durations": True}
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_no_template_shows_a_duration_by_default(template: str) -> None:
+    """The upgrade contract: a document that built fine keeps rendering the same.
+
+    Asserted against `_FULL_CONTEXT`, which does not carry the key at all —
+    `render_template` is public API, so a caller that never heard of durations
+    must still render under StrictUndefined.
+    """
+    html = _body_of(render_template(template, _FULL_CONTEXT))
+    assert "entry-duration" not in html
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_every_template_shows_a_duration_when_asked(template: str) -> None:
+    html = _body_of(render_template(template, _DURATIONS_ON))
+    assert "(2 years 3 months)" in html
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_the_duration_follows_the_date_range(template: str) -> None:
+    """It reads as a suffix to the range, not as a detached field elsewhere."""
+    html = _body_of(render_template(template, _DURATIONS_ON))
+    assert re.search(r"2020-01[^<]*-[^<]*2022-03</span>\s*<span[^>]*>\s*\(2 years", html)
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_only_work_gets_a_duration(template: str) -> None:
+    """Education and projects keep the plain range: a degree's length is standard,
+    and a side project's is not the claim being made."""
+    html = _body_of(render_template(template, _DURATIONS_ON))
+    assert html.count("entry-duration") == 1
+    assert "(5 years)" not in html  # the 2016-2020 degree
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_an_unreadable_date_drops_the_suffix_without_breaking_the_entry(template: str) -> None:
+    """Free-text dates are schema-legal. The entry still renders; only the
+    suffix is missing, and `builder.resolve` warns about it separately."""
+    work = [{**_CLOSED_WORK[0], "start_date": "summer 2020"}]
+    html = _body_of(render_template(template, {**_DURATIONS_ON, "work": work}))
+    assert "entry-duration" not in html
+    assert "Acme" in html and "summer 2020" in html
+
+
+@pytest.mark.parametrize("template", _CV_TEMPLATES)
+def test_durations_are_ascii(template: str) -> None:
+    """Same rule the date ranges follow — a CV is meant to be machine-read."""
+    body = _body_of(render_template(template, _DURATIONS_ON))
+    assert "–" not in body and "—" not in body
+
+
 # ── Heading tracking ceiling ─────────────────────────────────────────
 
 # WeasyPrint writes CSS letter-spacing as real inter-glyph advance in the PDF,
