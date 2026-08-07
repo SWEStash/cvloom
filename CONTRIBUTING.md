@@ -142,6 +142,12 @@ docs: add template contribution guide
 test: cover list-projects tag filtering
 ```
 
+## Releasing
+
+release-please owns versioning, the changelog and publishing. The per-release task list —
+including `scripts/verify-upgrade.sh`, which checks that a project built by the previous
+release upgrades in one command — is [docs/dev/releasing.md](docs/dev/releasing.md).
+
 ## Pull request checklist
 
 - [ ] `uv run pytest` passes
