@@ -43,8 +43,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 * add GitHub issue templates (bug, feature) + security routing ([e73a170](https://github.com/SWEStash/cvloom/commit/e73a170eeb155563b0fcb62ee41845cd6aefc582))
 
-## [Unreleased]
-
 ---
 
 ## [0.6.0] — 2026-08-05
