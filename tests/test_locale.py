@@ -196,6 +196,20 @@ def test_key_missing_from_en_is_an_error(packs_dir: Path) -> None:
 
 
 @pytest.mark.parametrize("code", locale.available_locales())
+def test_every_shipped_pack_can_write_a_date(code: str) -> None:
+    """`date_format` is a str.format template, so a typo'd placeholder is a
+    KeyError at build time — after the schema has passed it. Every month is
+    rendered because `months` is indexed, not formatted: a short list fails on
+    one month of the year, which is the failure F13 called out."""
+    pack, _ = locale.load_pack(code)
+    for month in range(1, 13):
+        rendered = pack.format_date(date(2026, month, 9))
+        assert "{" not in rendered and "}" not in rendered
+        assert pack.months[month - 1] in rendered
+        assert "2026" in rendered and "9" in rendered
+
+
+@pytest.mark.parametrize("code", locale.available_locales())
 def test_shipped_packs_report_complete_coverage(code: str) -> None:
     """A pack we ship ourselves inherits nothing and names every heading."""
     cov = locale.pack_coverage(code)
