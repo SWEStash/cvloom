@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from cvloom import config, loader, overlays, renderer, schema, sections, select
+from cvloom import config, dates, loader, overlays, renderer, schema, sections, select
 from cvloom import locale as locale_mod
 from cvloom.locale import LocalePack
 from cvloom.models import BuildResult, ResolvedProfile
@@ -32,6 +32,35 @@ def _estimate_pages(html: str) -> tuple[int, int]:
     words = len(text.split())
     pages = max(1, round(words / 350))
     return words, pages
+
+
+def _uncomputable_durations(entries: list[dict[str, Any]], pack: LocalePack) -> list[str]:
+    """Warn about work entries whose tenure the profile asked for but cannot get.
+
+    ``filters.duration`` drops the suffix silently, which is right for a template
+    but leaves a user staring at one entry that lost it. Recomputed here rather
+    than passed down from the render: the filter is pure and has no route to
+    ``ResolvedProfile.warnings``, and ``dates.span_months`` is cheap.
+
+    The message names the reason, since the two cases have different fixes — a
+    free-text date needs rewriting, an inverted range needs the dates swapped.
+    """
+    warnings: list[str] = []
+    for i, entry in enumerate(entries):
+        start = str(entry.get("start_date", "")).strip()
+        end = str(entry.get("end_date") or "").strip()
+        if dates.span_months(start, end or None, pack.ongoing) is not None:
+            continue
+
+        label = sections.entry_label("work", entry)
+        if dates.parse_partial(start) is None:
+            reason = f"'{start or '(missing)'}' is not YYYY or YYYY-MM"
+        elif end and not pack.ongoing.matches(end) and dates.parse_partial(end) is None:
+            reason = f"'{end}' is not YYYY, YYYY-MM, or '{pack.ongoing.render}'"
+        else:
+            reason = f"the range starting '{start}' does not end after it begins"
+        warnings.append(f"work[{i}] ({label}): no duration shown — {reason}.")
+    return warnings
 
 
 def resolve(
@@ -125,6 +154,13 @@ def resolve(
     if data_errors:
         raise ResolveError(data_errors)
 
+    show_durations = bool(profile.get("show_durations", False))
+    duration_warnings = (
+        _uncomputable_durations(data.get("work", []), pack)
+        if show_durations and show_sections.get("work")
+        else []
+    )
+
     return ResolvedProfile(
         profile=profile,
         data=data,
@@ -133,9 +169,10 @@ def resolve(
         section_titles=section_titles,
         template_name=template_name,
         output_filename=output_filename,
-        warnings=(locale_warnings or []) + select_warnings + overlay_warnings,
+        warnings=((locale_warnings or []) + select_warnings + overlay_warnings + duration_warnings),
         profile_name=profile_name,
         locale=pack,
+        show_durations=show_durations,
     )
 
 
@@ -290,6 +327,9 @@ def build(
         # Read by the `section_title` Jinja global. Templates keep owning the
         # wording that suits their design; a profile overrides it without forking.
         "section_titles": resolved.section_titles,
+        # Read by the work macro of every cv/* template. Off by default, so a
+        # template that honours it changes nothing until a profile asks.
+        "show_durations": resolved.show_durations,
         "job_context": job_context,
         "public": public,
         # Formatted from the pack, not `strftime("%B")`, which reads the C locale

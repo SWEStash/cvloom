@@ -27,6 +27,16 @@ ongoing:
     - ⟦Present⟧
     - Present
 
+# `join` and `format` are punctuation, not words, so they are not bracketed:
+# a bracketed space would match everywhere in every document.
+duration:
+  year: ⟦year⟧
+  years: ⟦years⟧
+  month: ⟦month⟧
+  months: ⟦months⟧
+  join: " "
+  format: "({value})"
+
 placeholder_contact:
   name: ⟦Your Name⟧
   email: ⟦your.email@example.com⟧

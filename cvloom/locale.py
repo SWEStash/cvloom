@@ -49,6 +49,47 @@ class Ongoing:
 
 
 @dataclass(frozen=True)
+class Duration:
+    """How this locale writes a tenure: "2 years 3 months", "2 años 3 meses".
+
+    Four words and two pieces of punctuation, because that is all `en` and `es`
+    need — both pluralise regularly, and both put the span in parentheses after
+    the date range. A locale with real plural *categories* (Polish, Arabic) does
+    not fit this shape and would need the field to grow; nothing is lost by
+    waiting until such a pack exists, and a four-key block is one a translator can
+    fill in without reading any code.
+
+    ``join`` and ``format`` are separate from the words so a locale can reshape
+    the punctuation — ``"2 años y 3 meses"``, or brackets instead of parentheses —
+    without the rendering logic knowing which locale it is serving.
+    """
+
+    year: str
+    years: str
+    month: str
+    months: str
+    join: str
+    format: str
+
+    def render(self, total_months: int) -> str:
+        """Write *total_months* out, or ``""`` if there is nothing to say.
+
+        A zero or negative total means the caller could not compute a span; it
+        renders as nothing rather than as "0 months", so a template can test the
+        result for truthiness instead of for a sentinel.
+        """
+        if total_months <= 0:
+            return ""
+        years, months = divmod(total_months, 12)
+        parts = []
+        if years:
+            parts.append(f"{years} {self.year if years == 1 else self.years}")
+        if months:
+            parts.append(f"{months} {self.month if months == 1 else self.months}")
+        return self.format.format(value=self.join.join(parts))
+
+
+@dataclass(frozen=True)
 class LocalePack:
     """Resolved locale pack. Carried on ``ResolvedProfile`` so renderer, linter,
     export and match all read the same values from one place."""
@@ -57,6 +98,7 @@ class LocalePack:
     html_lang: str
     section_titles: Mapping[str, str]
     ongoing: Ongoing
+    duration: Duration
     placeholder_contact: Mapping[str, str]
     cover_letter: Mapping[str, str]
     months: tuple[str, ...]
@@ -126,6 +168,7 @@ def _build_pack(code: str, raw: dict[str, Any]) -> LocalePack:
         html_lang=raw["html_lang"],
         section_titles=MappingProxyType(dict(raw["section_titles"])),
         ongoing=Ongoing(render=ongoing["render"], accepts=tuple(ongoing["accepts"])),
+        duration=Duration(**raw["duration"]),
         placeholder_contact=MappingProxyType(dict(raw["placeholder_contact"])),
         cover_letter=MappingProxyType(dict(raw["cover_letter"])),
         months=tuple(raw["months"]),

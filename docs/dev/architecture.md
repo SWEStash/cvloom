@@ -37,7 +37,8 @@ cvloom/
 ├── projects.py         # Shared profile/project listing behind the CLI and MCP
 ├── renderer.py         # Jinja2 rendering, template discovery
 ├── templates_meta.py   # Per-template parse-risk registry: columns, ats rating, fonts, caveat
-├── filters.py          # Jinja2 filters (md, date_range, cert_groups, …) + section_title global
+├── filters.py          # Jinja2 filters (md, date_range, duration, cert_groups, …) + section_title global
+├── dates.py            # The one CV-date parser: parse_partial, granularity, span_months
 ├── links.py            # Profile-link vocabulary: network_of, link_username, normalize_url
 ├── select.py           # Per-section content selection: apply_selection()
 ├── linter.py           # Writing lint: 25 categorized rules, LintFinding, lint()
@@ -191,11 +192,11 @@ Note `project` types a *portfolio project entry* (`data/projects/*.yaml`); the p
 
 ### `locale.py` — locale packs
 
-A pack under `cvloom/locales/<code>.yaml` supplies the document-facing defaults cvloom would otherwise hardcode in English: `html_lang`, `section_titles`, `ongoing`, `placeholder_contact`, `cover_letter`, `months`, `date_format`. Packs govern the **rendered document only** — CLI and terminal output stay in English by design.
+A pack under `cvloom/locales/<code>.yaml` supplies the document-facing defaults cvloom would otherwise hardcode in English: `html_lang`, `section_titles`, `ongoing`, `duration`, `placeholder_contact`, `cover_letter`, `months`, `date_format`. Packs govern the **rendered document only** — CLI and terminal output stay in English by design.
 
 `en` is an ordinary pack loaded through the same path as any other, with no privileged branch, so every build exercises the mechanism and a resolution bug surfaces in the default build rather than waiting for the first non-English user. It is also the fallback: a key missing from another pack resolves to `en`'s value and reports a warning onto `ResolvedProfile.warnings`; a key missing from `en` is an error, since nothing is left to fall back to. `tests/test_locale.py` asserts `en.yaml` covers every key the code looks up, derived from `LocalePack`'s fields and `sections.TITLE_KEYS` rather than a hand-written list.
 
-`Ongoing` binds `render` and `accepts` together because the field is bidirectional — `render` is written into the document by `filters.date_range`, `accepts` is parsed back out by the chronology lint rule and the JSON Resume export. A pack supplying only one would silently stop the other side from recognising its own output.
+`Ongoing` binds `render` and `accepts` together because the field is bidirectional — `render` is written into the document by `filters.date_range`, `accepts` is parsed back out by the chronology lint rule and the JSON Resume export. A pack supplying only one would silently stop the other side from recognising its own output. `Duration` is required whole for the same class of reason: the count picks between `year`/`years` and `month`/`months`, so a pack with one of each pair would write `1 years`.
 
 `load_pack` is cached and its mappings are read-only: every build shares one instance.
 
@@ -209,7 +210,7 @@ API before the configuration model has been designed. The two are keyed by the s
 code and resolved independently: a document pack with no linter data behind it falls back to
 English heuristics rather than failing, and says so through the skipped-rule count.
 
-Consumers, as of 6.7: `renderer` installs the pack as a Jinja global, so `base.html.j2` reads `locale.html_lang` and `filters.section_title` / `filters.date_range` read it off the context; `loader` uses `placeholder_contact`; `linter` matches `ongoing.accepts` for chronology, date-format and tense rules and renders `ongoing.render` in a fix hint; `export._heading` uses `section_titles` so the Markdown, text and DOCX exports head sections in the same words as the PDF; `filters.cover_letter_text` resolves `cover_letter` under a `job_context` override, and `builder` writes `today` through `LocalePack.format_date`, since `strftime("%B")` reads the C locale rather than the project's. The JSON Resume export needs nothing: it drops any non-ISO date, so an open-ended one becomes an omitted `endDate` whatever word wrote it.
+Consumers, as of 6.8: `renderer` installs the pack as a Jinja global, so `base.html.j2` reads `locale.html_lang` and `filters.section_title` / `filters.date_range` / `filters.duration` read it off the context; `loader` uses `placeholder_contact`; `linter` matches `ongoing.accepts` for chronology, date-format and tense rules and renders `ongoing.render` in a fix hint; `export._heading` uses `section_titles` so the Markdown, text and DOCX exports head sections in the same words as the PDF; `filters.cover_letter_text` resolves `cover_letter` under a `job_context` override, and `builder` writes `today` through `LocalePack.format_date`, since `strftime("%B")` reads the C locale rather than the project's, and recomputes `dates.span_months` against `ongoing` to warn about work entries whose requested duration it could not compute (a Jinja filter has no route to `ResolvedProfile.warnings`). The JSON Resume export needs nothing: it drops any non-ISO date, so an open-ended one becomes an omitted `endDate` whatever word wrote it.
 
 The audit against English creeping back into a template is `tests/test_locale_qa.py`, which renders **every** template `renderer.list_templates()` returns under a pseudo-locale (`tests/fixtures/locales/qa.yaml`) that brackets every pack-sourced string. Two assertions: no `<h2>` came out unbracketed in the `cv/*` templates, and no pack-owned string appears unbracketed in any rendered body. Both the template list and the string list are derived — from `list_templates()` and from `LocalePack`'s fields — because the first version hardcoded the six `cv/*` templates and grepped `<h2>`, and so could not see the cover letters, which have no headings. The pack is a test fixture rather than a shipped locale, so it never appears in `available_locales()`.
 
@@ -249,6 +250,7 @@ Registered via `register_filters(env)`, which also installs the one Jinja global
 |---|---|---|
 | `md` | Markdown string | HTML; unwraps single `<p>` for inline use |
 | `date_range` | `start, end, sep="-"` | Formatted date range; a missing end renders the locale pack's `ongoing.render`. Identical endpoints collapse to one date |
+| `duration` | `start, end` | The tenure the range covers, in the pack's `duration` words: `(2 years 3 months)`. Inclusive months, capped at the current one. Empty string when the dates are unreadable, so a template can test it |
 | `skill_level_bar` | Level string | `<span class="skill-level skill-level-N">` — **renders no text**, so nothing an ATS can read; unused by every built-in template |
 | `link_anchor` | One `basics.links` entry | Anchor whose visible text is the URL itself |
 | `cert_groups` | Certification entries | `(title_key, entries)` per group |

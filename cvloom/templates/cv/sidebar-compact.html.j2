@@ -129,7 +129,7 @@
 .main .entry-title { font-weight: 700; font-size: 10.5pt; }
 .entry-header > .entry-title { flex: 0 1 auto; }
 .main .entry-org { color: var(--accent); font-weight: 600; }
-.main .entry-date { color: var(--muted); font-size: 9pt; }
+.main .entry-date, .main .entry-duration { color: var(--muted); font-size: 9pt; }
 .main .entry-meta { color: var(--muted); font-size: 9pt; margin-bottom: 3px; }
 
 @media print {
@@ -192,7 +192,7 @@
 <div class="entry">
   <div class="entry-header">
     <h3 class="entry-title">{{ job.title }}</h3>
-    <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>
+    <span class="entry-date">{{ job.start_date | date_range(job.end_date | default(none)) }}</span>{% if show_durations | default(false) %}{% set _dur = job.start_date | duration(job.end_date | default(none)) %}{% if _dur %}<span class="entry-duration"> {{ _dur }}</span>{% endif %}{% endif %}
   </div>
   <div class="entry-meta">
     <span class="entry-org">{{ job.company }}</span>

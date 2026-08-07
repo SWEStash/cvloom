@@ -6,7 +6,7 @@ import jinja2
 from markdown_it import MarkdownIt
 from markupsafe import Markup
 
-from cvloom import icons, links, sections
+from cvloom import dates, icons, links, sections
 from cvloom import locale as locale_mod
 from cvloom.locale import LocalePack
 
@@ -56,6 +56,25 @@ def date_range(ctx: jinja2.runtime.Context, start: str, end: str | None, sep: st
     if end_str == start:
         return start
     return f"{start} {sep} {end_str}"
+
+
+@jinja2.pass_context
+def duration(ctx: jinja2.runtime.Context, start: str, end: str | None) -> str:
+    """Format the tenure a date range covers: ``(2 years 3 months)``.
+
+    Both the arithmetic and the wording come from elsewhere — :mod:`cvloom.dates`
+    counts the months against the current one, the pack's ``duration`` block
+    writes them out — so this filter is only the join between them.
+
+    Returns ``""`` when the span is not computable: dates are free strings by
+    schema, so ``summer 2020`` is legal data that no arithmetic can read. A
+    template tests the result rather than getting a broken suffix, and
+    ``builder.resolve`` separately warns about the entry, since a filter cannot
+    reach ``ResolvedProfile.warnings``.
+    """
+    pack = _locale_of(ctx)
+    total = dates.span_months(start, end, pack.ongoing)
+    return pack.duration.render(total) if total else ""
 
 
 def skill_level_bar(level: str) -> Markup:
@@ -169,6 +188,7 @@ def register_filters(env: jinja2.Environment) -> None:
     env.globals["icon"] = icon
     env.filters["md"] = md_to_html
     env.filters["date_range"] = date_range
+    env.filters["duration"] = duration
     env.filters["skill_level_bar"] = skill_level_bar
     env.filters["cert_groups"] = cert_groups
     # Registered straight from `sections` — the exporters need the same join, and

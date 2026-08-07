@@ -63,7 +63,9 @@ on Python 3.11, 3.12, and 3.13.
    example.
 3. Add a render test in `tests/test_renderer.py` that exercises the template
    with minimal fixture data.
-4. Document the template in CHANGELOG.md under `[Unreleased]`.
+4. Describe the template in the commit body. Since 0.6.1 release-please generates
+   CHANGELOG.md from Conventional Commit subjects and bodies, so the commit *is*
+   the changelog source — see [docs/dev/releasing.md](docs/dev/releasing.md).
 
 **Typography conventions:**
 
@@ -87,10 +89,11 @@ on Python 3.11, 3.12, and 3.13.
 | `job_context` | dict | Keys: company?, role?, hiring_manager?, notes?, greeting?, closing? |
 | `profile` | dict | Full profile config |
 | `public` | bool | True when running in --public mode |
+| `show_durations` | bool | True when the profile asked for role durations; guard the `duration` filter with it, and default it |
 | `today` | str | Current date, formatted by the project's locale pack |
 
 All Jinja2 filters defined in `cvloom/filters.py` are available:
-`md` (Markdown → HTML), `date_range`, `skill_level_bar`.
+`md` (Markdown → HTML), `date_range`, `duration`, `skill_level_bar`.
 
 ## Third-party template convention
 
@@ -153,7 +156,8 @@ release upgrades in one command — is [docs/dev/releasing.md](docs/dev/releasin
 - [ ] `uv run pytest` passes
 - [ ] `uv run ruff check cvloom tests` and `uv run ruff format --check cvloom tests` pass
 - [ ] `uv run mypy cvloom` passes
-- [ ] CHANGELOG.md updated under `[Unreleased]`
+- [ ] Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org/)
+      — release-please generates CHANGELOG.md from them; do not hand-edit it
 - [ ] `docs/` updated if user-facing behaviour changed
 - [ ] New templates include a render test
 - [ ] New linter rules include tests for both triggering and clean cases

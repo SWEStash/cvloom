@@ -50,7 +50,7 @@ table that implies parity — would promise coverage the tool does not have.
 
 ## The document pack
 
-Seven keys, all required in `en` and all optional elsewhere. This is the whole
+Eight keys, all required in `en` and all optional elsewhere. This is the whole
 surface; there is nothing else a pack can set.
 
 | Key | What it is |
@@ -58,6 +58,7 @@ surface; there is nothing else a pack can set.
 | `html_lang` | The `<html lang>` attribute. Drives WeasyPrint hyphenation and the PDF `/Lang` metadata that ATS language detection reads |
 | `section_titles` | One default heading per renameable section |
 | `ongoing` | The open-ended end date, in both directions: `render` is written into the document, `accepts` is the list parsed back out |
+| `duration` | How a tenure is written, e.g. `(2 years 3 months)`. Used only by profiles that set `show_durations` |
 | `placeholder_contact` | The stand-in identity for `--public` builds and for a project with no `private/contact.yaml` |
 | `cover_letter` | `greeting`, `fallback_salutee` and `closing` — everything a letter says that you did not write |
 | `months` | The twelve month names, January first |
@@ -86,6 +87,37 @@ is wrong in an `es` one: `es` does not accept `Present`, so it renders as the
 literal English word and the chronology rule stops seeing the role as current.
 Omitting the field is right in every language, which is why the scaffolded sample
 does it that way.
+
+### `duration` is four words and two pieces of punctuation
+
+Read only when a profile turns
+[`show_durations`](profiles-and-overlays.md#role-durations) on, which is off by
+default — a pack that never fills this in costs a document nothing until then.
+
+```yaml
+duration:
+  year: año
+  years: años
+  month: mes
+  months: meses
+  join: " "
+  format: "({value})"
+```
+
+Singular and plural are separate keys because the count picks between them:
+`(1 año 1 mes)` and `(2 años 3 meses)` come from the same block. The schema
+requires all four together, for the same reason it requires both halves of
+`ongoing` — a pack with plurals only would write `1 años`.
+
+`join` sits between the years part and the months part, and `format` wraps the
+result; both are punctuation rather than words, so a language that prefers
+`2 años y 3 meses` or square brackets changes them without any code knowing which
+locale it is serving. `format` must contain `{value}`, and the schema rejects a
+pack where it does not.
+
+This shape assumes regular pluralisation, which covers `en` and `es`. A language
+with real plural *categories* — Polish, Arabic — needs more than two forms and
+would need the key to grow; nothing is lost by waiting until such a pack exists.
 
 ## Section headings: three sources, narrowest wins
 
@@ -191,6 +223,9 @@ rather than at render time. Two things to get right:
 - Give `ongoing` both `render` and `accepts`. The schema requires them together,
   because a pack with only the rendered form would stop recognising its own
   output when the chronology rule and the JSON Resume export read it back.
+- Give `duration` all four words plus `join` and `format`. Same reason: the count
+  picks between singular and plural, so a pack with one of each pair would write
+  `1 años`. Keep `{value}` in `format`.
 - Cover **every** key in `section_titles`. A missing one heads the section with
   its raw key, silently.
 - Translate **all twelve** `months`. The schema requires exactly twelve, so a

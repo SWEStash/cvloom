@@ -81,6 +81,8 @@ A list of work experience entries.
   location: Remote                         # optional
   start_date: "2021-03"                    # required (YYYY-MM or YYYY)
   # end_date                               # optional; omit for a current role
+                                           # (also what lets show_durations count
+                                           #  the tenure to the current month)
   highlights:                              # optional list of bullets
     - id: kafka-pipeline                   # optional ID for overlay targeting
       text: "Built real-time pipeline..."
@@ -94,9 +96,15 @@ A list of work experience entries.
 | `title` | Yes | Job title |
 | `location` | No | Office location or "Remote" |
 | `start_date` | Yes | `YYYY-MM` or `YYYY` |
-| `end_date` | No | `YYYY-MM` or `YYYY`. Omit for a current role — cvloom supplies your [locale](../reference/locales.md)'s word (`Present` in `en`) |
+| `end_date` | No | `YYYY-MM` or `YYYY`. Omit for a current role — cvloom supplies your [locale](../reference/locales.md)'s word (`Present` in `en`) and, with `show_durations` on, counts the tenure to the current month |
 | `highlights` | No | Bullet points; plain strings or `{id, text}` objects |
 | `tags` | No | Used for profile `select` filtering; never rendered |
+
+Set [`show_durations: true`](../reference/profiles-and-overlays.md#role-durations) in a
+profile to write how long each role lasted after its date range —
+`2021-03 - Present (5 years 6 months)`. This is the other reason to omit `end_date`
+rather than typing `Present`: a role with no end date is counted to the month you
+build in, so the figure is right every time without you editing anything.
 
 **Highlight IDs** — give highlights an `id` if you want to target them in overlay `pick`, `exclude`, or `replace` operations. Plain strings work but cannot be individually addressed.
 

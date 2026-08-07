@@ -41,6 +41,17 @@ ongoing:
   accepts:
     - Present
 
+# How a tenure is written after a work date range, when a profile turns
+# `show_durations` on: "2020-01 - 2022-03 (2 years 3 months)". Singular and
+# plural are separate keys because English picks between them by count.
+duration:
+  year: year
+  years: years
+  month: month
+  months: months
+  join: " "
+  format: "({value})"
+
 # Stand-in identity for --public builds and for a project with no
 # private/contact.yaml.
 placeholder_contact:

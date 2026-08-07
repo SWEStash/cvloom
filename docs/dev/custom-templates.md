@@ -124,7 +124,8 @@ These variables are available in every template:
 | `show` | dict | Section visibility flags, one per orderable section. Value: `True`/`False` |
 | `section_order` | list | Ordered list of section names to render |
 | `section_titles` | dict | Heading overrides from the profile. Read it through the `section_title` global, not directly |
-| `locale` | LocalePack | The project's locale pack (`html_lang`, `section_titles`, `ongoing`, `placeholder_contact`, `cover_letter`, `months`, `date_format`). `base.html.j2` uses `locale.html_lang`; otherwise reach it through `section_title`, `date_range` and `cover_letter_text` |
+| `locale` | LocalePack | The project's locale pack (`html_lang`, `section_titles`, `ongoing`, `duration`, `placeholder_contact`, `cover_letter`, `months`, `date_format`). `base.html.j2` uses `locale.html_lang`; otherwise reach it through `section_title`, `date_range`, `duration` and `cover_letter_text` |
+| `show_durations` | bool | `True` when the profile asked for role durations. Guard the `duration` filter with it — and default it, since `render_template` is public API and a caller may not supply it |
 | `job_context` | dict | From `job_context:` in the profile (`company`, `role`, `hiring_manager`, `notes`, `greeting`, `closing`); keys always present, empty string when unset |
 | `public` | bool | `True` when built with `--public` |
 | `today` | str | Current date, written the way the project's locale writes one |
@@ -176,6 +177,31 @@ a single date, so a qualification known only by its completion year renders "201
 {{ entry.start_date | date_range(entry.end_date, sep="-") }}
 {# → "2021-03 - Present" — see Separator Convention below #}
 ```
+
+### `duration`
+
+Formats how long a date range covers, for templates that honour `show_durations`.
+Months are counted inclusively and capped at the current month, so an entry with no
+end date — or one carrying the locale's ongoing word — counts to the month you build
+in. The wording comes from the pack's `duration` block, so an `es` project reads
+`(2 años 3 meses)`.
+
+Returns an **empty string** when the span cannot be computed: dates are free strings
+in the schema, so `summer 2020` is legal data that no arithmetic can read, as is a
+range that ends before it starts. Test the result rather than rendering it blind —
+otherwise those entries get an empty pair of parentheses. `builder.resolve` warns
+about the entry separately, so nothing is silently swallowed.
+
+```jinja2
+{% if show_durations | default(false) %}
+  {% set _dur = job.start_date | duration(job.end_date | default(none)) %}
+  {% if _dur %}<span class="entry-duration"> {{ _dur }}</span>{% endif %}
+{% endif %}
+{# → " (2 years 3 months)" #}
+```
+
+The built-in templates apply this to **work only**. Education and projects keep the
+plain range.
 
 ### `skill_level_bar`
 
@@ -308,6 +334,9 @@ the whole document set:
 
 An en dash is better typography for a range, but a CV is meant to be machine-read: a
 document mixing `-`, `–` and `—` gives a parser three things to handle instead of one.
+
+The duration suffix follows the same rule: the parentheses come from the locale pack's
+`duration.format`, and every shipped pack uses ASCII ones.
 `wl-023` flags non-ASCII dashes left in your own content.
 
 `tests/test_renderer.py` asserts the two ASCII-first templates emit no middot and no en

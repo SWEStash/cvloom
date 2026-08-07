@@ -191,7 +191,7 @@ Edit `data/work.yaml`. Notice two formats for highlights — plain strings and `
 
 **Tips:**
 
-- `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. **Omit `end_date` for a current role** — cvloom fills in your project's word for it (`Present` in `en`, `Actualidad` in `es`), so this stays right in any language. Writing `end_date: Present` also works in an English project; see [Locales](../reference/locales.md#ongoing-is-bidirectional).
+- `start_date` and `end_date` accept `YYYY-MM` or `YYYY`. **Omit `end_date` for a current role** — cvloom fills in your project's word for it (`Present` in `en`, `Actualidad` in `es`), so this stays right in any language. Writing `end_date: Present` also works in an English project; see [Locales](../reference/locales.md#ongoing-is-bidirectional). Omitting it is also what lets [`show_durations`](../reference/profiles-and-overlays.md#role-durations) count a current role to the month you build in.
 - `tags` are used for filtering in profiles (covered in Scenario 7).
 - A work entry with no `tags` is dropped by a profile that narrows `work` via `select`; profiles that do not name the section keep everything.
 
