@@ -7,6 +7,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.0](https://github.com/SWEStash/cvloom/compare/v0.7.0...v0.8.0) (2026-08-07)
+
+
+### Features
+
+* show how long each role lasted ([#15](https://github.com/SWEStash/cvloom/issues/15)) ([ddfff1b](https://github.com/SWEStash/cvloom/commit/ddfff1bd3da0a5c89ae3e45c803b29809926c938))
+
 ## [0.7.0](https://github.com/SWEStash/cvloom/compare/v0.6.1...v0.7.0) (2026-08-07)
 
 
