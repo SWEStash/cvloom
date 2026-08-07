@@ -849,12 +849,21 @@ def init(force: bool, locale_code: str) -> None:
     "--force", is_flag=True, help="Overwrite out-of-date/missing files with the packaged versions."
 )
 def sync(force: bool) -> None:
-    """Refresh cvloom-managed scaffold files (pre-commit hook, publish workflow).
+    """Bring a project up to date with the installed cvloom.
 
-    After `uv tool upgrade cvloom`, run this to bring the scaffolded files up to
-    the installed version. Without --force it only reports status.
+    After `uv tool upgrade cvloom`, run this to refresh the scaffolded files
+    (pre-commit hook, publish workflow) and to create any project file a newer
+    cvloom expects but your project predates — today that is `cvloom.yaml`.
+    Without --force it only reports status.
     """
     root = _root()
+    # Created when absent, never overwritten — not even by --force. Its content
+    # is the user's own choice, which is why it is not a ManagedFile; but a
+    # project scaffolded before it existed has made no choice to protect, and
+    # leaving it absent is what made upgrading a two-command affair.
+    config_missing = not scaffold.config_exists(root)
+    if config_missing:
+        _console.print(f"[yellow]•[/yellow] {config.CONFIG_FILENAME} — missing")
     _status_style = {
         "current": ("green", "up to date"),
         "outdated": ("yellow", "out of date"),
@@ -869,17 +878,27 @@ def sync(force: bool) -> None:
         if status in ("outdated", "missing"):
             stale.append(mf)
 
-    if not stale:
-        _console.print("\n[green]✓ All managed files are up to date.[/green]")
+    if not stale and not config_missing:
+        _console.print("\n[green]✓ Project is up to date.[/green]")
         return
 
     if not force:
         _console.print(
-            f"\n[yellow]{len(stale)} file(s) need updating.[/yellow]"
-            " Re-run with [bold]--force[/bold] to overwrite them."
+            f"\n[yellow]{len(stale) + config_missing} file(s) need updating.[/yellow]"
+            " Re-run with [bold]--force[/bold] to write them."
         )
         return
 
+    if config_missing:
+        scaffold.write_config(root, config.DEFAULT_LOCALE)
+        _console.print(
+            f"[green]✓[/green] Created {config.CONFIG_FILENAME} (locale: {config.DEFAULT_LOCALE})"
+        )
+        _console.print(
+            "[dim]  A project with no config already behaved as "
+            f"'{config.DEFAULT_LOCALE}', so this changes nothing on its own. Set "
+            "`locale:` for a project in another language — see `cvloom list-locales`.[/dim]"
+        )
     for mf in stale:
         scaffold.write_managed(mf, root)
         _console.print(f"[green]✓[/green] Updated {mf.dest_rel}")

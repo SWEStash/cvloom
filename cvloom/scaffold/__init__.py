@@ -75,19 +75,20 @@ def init_profile(root: Path, force: bool) -> None:
             _console.print(f"[dim]  {rel} already exists, skipping[/dim]")
 
 
-def init_config(root: Path, locale: str, force: bool) -> None:
-    """Write ``cvloom.yaml``, declaring the language the project operates in.
+def config_exists(root: Path) -> bool:
+    """Return True if *root* already has a ``cvloom.yaml``."""
+    return (root / "cvloom.yaml").exists()
 
-    Deliberately *not* a :class:`ManagedFile`. ``managed_status`` compares bytes
-    against a packaged source, so a file whose content is a user's own choice
-    would read as "outdated" for every project that picked anything but the
-    default, and ``sync --force`` would reset their locale. This belongs with the
-    other create-if-absent writers instead.
+
+def write_config(root: Path, locale: str) -> None:
+    """Write ``cvloom.yaml`` unconditionally. Callers decide whether to.
+
+    Split from :func:`init_config` so ``sync`` can create the file for a project
+    that predates it without inheriting ``init``'s ``--force`` semantics: `sync`
+    must be able to *create* this file but never to *overwrite* it, since its
+    content is the user's own choice.
     """
     path = root / "cvloom.yaml"
-    if path.exists() and not force:
-        _console.print("[dim]  cvloom.yaml already exists, skipping[/dim]")
-        return
     path.write_text(
         "# The language this project operates in. One project, one language —\n"
         "# a CV in a second language is a second project directory.\n"
@@ -106,6 +107,21 @@ def init_config(root: Path, locale: str, force: bool) -> None:
         "#   base_url: http://localhost:11434/v1\n"
         "#   model: gemma3:27b\n"
     )
+
+
+def init_config(root: Path, locale: str, force: bool) -> None:
+    """Write ``cvloom.yaml``, declaring the language the project operates in.
+
+    Deliberately *not* a :class:`ManagedFile`. ``managed_status`` compares bytes
+    against a packaged source, so a file whose content is a user's own choice
+    would read as "outdated" for every project that picked anything but the
+    default, and ``sync --force`` would reset their locale. This belongs with the
+    other create-if-absent writers instead.
+    """
+    if config_exists(root) and not force:
+        _console.print("[dim]  cvloom.yaml already exists, skipping[/dim]")
+        return
+    write_config(root, locale)
     _console.print(f"[green]✓[/green] Created cvloom.yaml (locale: {locale})")
 
 

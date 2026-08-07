@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
+from cvloom import config
 from cvloom.cli import cli
 from tests.ai_fakes import FakeClient
 
@@ -348,6 +349,40 @@ def test_sync_leaves_the_projects_locale_alone(
     CliRunner().invoke(cli, ["init", "--locale", "es"])
     CliRunner().invoke(cli, ["sync", "--force"])
     assert "locale: es" in (tmp_path / "cvloom.yaml").read_text()
+
+
+def test_sync_creates_a_missing_config_for_a_project_that_predates_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The upgrade path: a project scaffolded before cvloom.yaml existed has no
+    choice to protect, and `sync` is the one command that brings a project up to
+    date. Without this, upgrading took `init` *and* `sync --force`, and `init`
+    skips an out-of-date hook."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data").mkdir()  # a project, minus the config a newer cvloom expects
+
+    reported = CliRunner().invoke(cli, ["sync"])
+    assert "cvloom.yaml — missing" in reported.output
+    assert not (tmp_path / "cvloom.yaml").exists(), "a bare `sync` must write nothing"
+
+    result = CliRunner().invoke(cli, ["sync", "--force"])
+    assert result.exit_code == 0
+    assert f"locale: {config.DEFAULT_LOCALE}" in (tmp_path / "cvloom.yaml").read_text()
+
+
+def test_sync_never_overwrites_an_existing_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Create-if-absent, never overwrite — the line that lets `sync` own the
+    upgrade without becoming able to reset a user's locale."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "cvloom.yaml").write_text("locale: es\n# a comment the user wrote\n")
+
+    CliRunner().invoke(cli, ["sync", "--force"])
+
+    text = (tmp_path / "cvloom.yaml").read_text()
+    assert "locale: es" in text
+    assert "a comment the user wrote" in text
 
 
 def test_scaffolded_current_role_renders_in_the_projects_language(

@@ -354,6 +354,7 @@ my-cv/
 | [Architecture](docs/dev/architecture.md) | Build pipeline, module responsibilities, data flow |
 | [Custom Templates](docs/dev/custom-templates.md) | Writing Jinja2 templates, available blocks and filters |
 | [Contributing](CONTRIBUTING.md) | Dev setup, testing, adding linter rules, PR checklist |
+| [Releasing](docs/dev/releasing.md) | The per-release task list: version, gates, upgrade path, publish |
 
 ---
 

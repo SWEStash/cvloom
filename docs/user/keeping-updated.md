@@ -6,6 +6,21 @@ cvloom is designed to be used as an **installed tool** against a repo that holds
 data*. That keeps updates simple: the tool and your CV are separate, so upgrading the tool never
 touches your content.
 
+## The short version
+
+```bash
+uv tool upgrade cvloom && cvloom sync --force
+```
+
+Or, without installing anything:
+
+```bash
+uvx cvloom@latest sync --force
+```
+
+Run it from your CV project. The rest of this page explains what each half does and what
+`sync` may write.
+
 ## 1. Update the tool
 
 ```bash
@@ -15,15 +30,16 @@ uv tool upgrade cvloom
 That's the whole update for cvloom itself. Check the [CHANGELOG](../../CHANGELOG.md) for any
 breaking changes before a major upgrade.
 
-## 2. Refresh scaffolded files with `cvloom sync`
+## 2. Bring the project up to date with `cvloom sync`
 
-`cvloom init` scaffolds a few files *into your project* — the pre-commit PII-scanner hook and the
-GitHub Pages publish workflow. These are copies, so a tool upgrade doesn't change them. After
-upgrading, refresh them:
+`cvloom init` scaffolds files *into your project* — the pre-commit PII-scanner hook and the
+GitHub Pages publish workflow. These are copies, so a tool upgrade doesn't change them. A
+release may also add a project file that did not exist when you scaffolded, such as
+`cvloom.yaml`. `sync` handles both:
 
 ```bash
-cvloom sync           # report which scaffolded files are out of date (writes nothing)
-cvloom sync --force   # overwrite the out-of-date / missing ones with the new versions
+cvloom sync           # report what is out of date or missing (writes nothing)
+cvloom sync --force   # write it
 ```
 
 `cvloom sync` byte-compares each managed file against the version shipped in the installed
@@ -31,12 +47,28 @@ package and reports `up to date` / `out of date` / `missing`. Nothing is overwri
 pass `--force`, so your own edits are never lost by accident — review the diff (e.g. `git diff`)
 after a forced sync.
 
-Managed files:
+Managed files, byte-compared and overwritten only with `--force`:
 
 | File | Purpose |
 |---|---|
-| `.git/hooks/pre-commit` | PII scanner that blocks committing `private/` data |
+| `.git/hooks/pre-commit` | PII scanner that blocks committing `private/` data, and credentials |
 | `.github/workflows/publish-cv.yml` | GitHub Pages publish workflow |
+
+Project files, **created when absent and never overwritten** — not even by `--force`, because
+their content is your choice:
+
+| File | Purpose | Added in |
+|---|---|---|
+| `cvloom.yaml` | Project settings: `locale`, and optionally an `ai` block | 0.7.0 |
+
+A project with no `cvloom.yaml` already behaved as `locale: en`, so `sync` creating one changes
+nothing on its own. If your CV is not in English, set `locale:` afterwards — see
+[Locales](../reference/locales.md) and `cvloom list-locales`.
+
+> **Upgrading a project scaffolded before 0.7.0?** One thing `sync` cannot fix for you: if your
+> `profiles/cover-letter.yaml` still carries `hiring_manager: "Hiring Manager"` from the old
+> sample, that English literal overrides your locale's salutee. Delete the line to let the
+> locale supply it (`Responsable de Contratación` in `es`), or set it to the real recipient.
 
 ## Uninstalling
 
