@@ -1135,7 +1135,8 @@ def _patch_ai(monkeypatch: pytest.MonkeyPatch, content: str) -> FakeClient:
     """
     monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
     client = FakeClient(content)
-    monkeypatch.setattr("cvloom.ai.get_client", lambda: client)
+    # `root` is optional on get_client, so the fake takes it and ignores it.
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
     return client
 
 
@@ -1172,6 +1173,57 @@ def test_ai_config_configured_hides_the_key(monkeypatch: pytest.MonkeyPatch) -> 
     assert "http://fake/v1" in result.output
     assert "gemma3:27b" in result.output
     assert "sk-secret-value" not in result.output
+
+
+def test_ai_config_unconfigured_offers_the_file_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
+    result = CliRunner().invoke(cli, ["ai", "config"])
+    assert "cvloom.yaml" in result.output
+    assert "base_url" in result.output
+
+
+def test_ai_config_reads_the_projects_own_file(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for var in ("CVLOOM_AI_BASE_URL", "CVLOOM_AI_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    (project_root / "cvloom.yaml").write_text("ai:\n  model: gemma3:27b\n  base_url: http://f/v1\n")
+    monkeypatch.chdir(project_root)
+
+    result = CliRunner().invoke(cli, ["ai", "config"])
+    assert result.exit_code == 0
+    assert "gemma3:27b" in result.output
+    assert "cvloom.yaml" in result.output
+
+
+def test_ai_config_says_when_the_environment_overrode_the_file(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stale exported variable silently beating an explicit file value is the
+    confusion two layers create; this line is the mitigation."""
+    (project_root / "cvloom.yaml").write_text("ai:\n  base_url: http://f/v1\n  model: gemma3:27b\n")
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    monkeypatch.setenv("CVLOOM_AI_MODEL", "gpt-4o-mini")
+    monkeypatch.chdir(project_root)
+
+    result = CliRunner().invoke(cli, ["ai", "config"])
+    assert "gpt-4o-mini" in result.output
+    assert "overrides cvloom.yaml" in result.output
+
+
+def test_ai_command_runs_on_a_file_configured_provider(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`ai.base_url` alone enables the feature — the gate reads the project."""
+    for var in ("CVLOOM_AI_BASE_URL", "CVLOOM_AI_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    (project_root / "cvloom.yaml").write_text("ai:\n  base_url: http://fake/v1\n")
+    client = FakeClient(_REVIEW_JSON)
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
+    monkeypatch.chdir(project_root)
+
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0, result.output
 
 
 def test_ai_config_reports_a_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -57,6 +57,17 @@ EMAIL_ALLOW='@(example\.(com|org|net)|([a-zA-Z0-9\-]+\.)*(example|test|invalid|l
 #   NANP 555 exchange (North American fiction), Ofcom drama range (UK fiction)
 PHONE_ALLOW='(\(555\)|[+ \-]555[ \-]|7700[ \-]?900)'
 
+# A credential in cvloom.yaml is the case this exists for: that file sits at the
+# project root and is committed, unlike private/. cvloom refuses to load one
+# carrying an api_key, but the hook is what stops it reaching the history.
+#
+# The value has to look like a credential, not merely be assigned: `api_key=cfg.key`
+# and `api_key: the key must not live here` are ordinary code and prose, and a rule
+# that fires on those gets bypassed with --no-verify until it stops being read.
+SECRET_PATTERN='(api[_-]?key["'"'"']?\s*[:=]\s*["'"'"']?[A-Za-z0-9_\-]{12,}|sk-[A-Za-z0-9]{16,})'
+#   Documentation placeholders — an elided or obviously fictional value.
+SECRET_ALLOW='(your|YOUR|xxx|XXX|placeholder|PLACEHOLDER|example|EXAMPLE|not-a-real|dummy|redacted)'
+
 FOUND_PII=()
 
 while IFS= read -r file; do
@@ -78,6 +89,14 @@ while IFS= read -r file; do
   if [[ -n "$REAL_PHONES" ]]; then
     FOUND_PII+=("$file (phone number: $(echo "$REAL_PHONES" | head -3 | tr '\n' ' '))")
   fi
+
+  # The value itself is never echoed back — printing a secret to the terminal is
+  # how it ends up in a scrollback buffer or a pasted bug report.
+  SECRETS=$(echo "$ADDED" | grep -oP "$SECRET_PATTERN" 2>/dev/null \
+    | grep -vP "$SECRET_ALLOW" || true)
+  if [[ -n "$SECRETS" ]]; then
+    FOUND_PII+=("$file (looks like an API key, $(echo "$SECRETS" | wc -l) line(s))")
+  fi
 done <<< "$STAGED"
 
 if [[ ${#FOUND_PII[@]} -gt 0 ]]; then
@@ -90,6 +109,10 @@ if [[ ${#FOUND_PII[@]} -gt 0 ]]; then
   echo ""
   echo "If this is real contact information, move it to private/contact.yaml"
   echo "and reference it from your data files using the build system."
+  echo ""
+  echo "If it is an API key, it belongs in the environment, not in a tracked file:"
+  echo "  export CVLOOM_AI_API_KEY=...   (cvloom.yaml is committed; it may not carry one)"
+  echo "Rotate the key if this commit has already been pushed."
   echo ""
   echo "If it is a placeholder, prefer a reserved value the hook recognises:"
   echo "  email  someone@example.com     (also .example / .test / .invalid)"

@@ -1134,12 +1134,19 @@ def ai_config() -> None:
     """Show current AI provider configuration and setup instructions."""
     from cvloom.ai.provider import get_config
 
-    cfg = get_config()
+    cfg = get_config(_root())
     if cfg["configured"]:
         _console.print("[green]AI provider: configured[/green]")
-        _console.print(f"  Base URL:  {cfg['base_url']}")
-        _console.print(f"  Model:     {cfg['model']}")
-        key_status = "***set***" if cfg["api_key_set"] else "[yellow]not set[/yellow]"
+        # Provenance per value, not just the value: with two layers, a stale
+        # exported variable quietly beating an explicit cvloom.yaml entry is the
+        # confusion this command exists to answer.
+        _console.print(f"  Base URL:  {cfg['base_url']} [dim]({cfg['base_url_source']})[/dim]")
+        _console.print(f"  Model:     {cfg['model']} [dim]({cfg['model_source']})[/dim]")
+        key_status = (
+            "***set*** [dim](CVLOOM_AI_API_KEY)[/dim]"
+            if cfg["api_key_set"]
+            else "[yellow]not set[/yellow]"
+        )
         _console.print(f"  API key:   {key_status}")
     else:
         _console.print("[yellow]AI provider: not configured[/yellow]")
@@ -1152,6 +1159,18 @@ def ai_config() -> None:
         ]
         for var_name, hint in env_rows:
             _console.print(f"  [bold]{var_name:<21}[/bold]  {hint}")
+        _console.print()
+        _console.print(
+            "Or put the endpoint and model in [bold]cvloom.yaml[/bold], which travels with "
+            "the project:"
+        )
+        _console.print("  [dim]ai:[/dim]")
+        _console.print("  [dim]  base_url: http://localhost:11434/v1[/dim]")
+        _console.print("  [dim]  model: gemma3:27b[/dim]")
+        _console.print(
+            "  [dim]The API key is never set there — that file is committed. "
+            "The environment wins over it.[/dim]"
+        )
         _console.print()
         _console.print("[dim]Quickstart options:[/dim]")
         _console.print("  [dim]• Local (Ollama):    https://ollama.ai[/dim]")
@@ -1173,15 +1192,15 @@ def ai_review(profile: str) -> None:
     from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
     from cvloom.ai.analyzer import review
 
-    if not is_configured():
+    root = _root()
+    if not is_configured(root):
         _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
         raise SystemExit(1)
 
-    root = _root()
     resolved = _resolve(root, profile, public=True)
     try:
-        client = get_client()
-        result = review(resolved, client, get_model())
+        client = get_client(root)
+        result = review(resolved, client, get_model(root))
     except AINotConfiguredError as exc:
         _console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)
@@ -1239,16 +1258,16 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
     from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
     from cvloom.ai.cover import generate_cover
 
-    if not is_configured():
+    root = _root()
+    if not is_configured(root):
         _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
         raise SystemExit(1)
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
-    root = _root()
     resolved = _resolve(root, profile, public=True)
     try:
-        client = get_client()
-        result = generate_cover(resolved, jd_text, client, get_model())
+        client = get_client(root)
+        result = generate_cover(resolved, jd_text, client, get_model(root))
     except AINotConfiguredError as exc:
         _console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)
@@ -1290,18 +1309,18 @@ def ai_suggest(profile: str, role_context: str) -> None:
     from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
     from cvloom.ai.suggest import suggest
 
-    if not is_configured():
+    root = _root()
+    if not is_configured(root):
         _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
         raise SystemExit(1)
 
-    root = _root()
     resolved = _resolve(root, profile, public=True)
 
     effective_role = role_context or (resolved.profile.get("job_context") or {}).get("role", "")
 
     try:
-        client = get_client()
-        result = suggest(resolved, client, get_model(), role_context=effective_role)
+        client = get_client(root)
+        result = suggest(resolved, client, get_model(root), role_context=effective_role)
     except AINotConfiguredError as exc:
         _console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)
@@ -1355,16 +1374,16 @@ def ai_align(profile: str, jd_file: str) -> None:
     from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
     from cvloom.ai.align import align
 
-    if not is_configured():
+    root = _root()
+    if not is_configured(root):
         _console.print("[yellow]AI provider not configured.[/yellow] Run: cvloom ai config")
         raise SystemExit(1)
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
-    root = _root()
     resolved = _resolve(root, profile, public=True)
     try:
-        client = get_client()
-        result = align(resolved, jd_text, client, get_model())
+        client = get_client(root)
+        result = align(resolved, jd_text, client, get_model(root))
     except AINotConfiguredError as exc:
         _console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)

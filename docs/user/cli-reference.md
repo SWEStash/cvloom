@@ -744,7 +744,8 @@ Set a project's language with `locale:` in `cvloom.yaml`, or scaffold one with
 
 AI-powered analysis commands. Require the `ai` extra
 (`uv tool install 'cvloom[ai]'`, or `uv sync --extra ai` in a dev checkout —
-see [ai-features.md#installation](ai-features.md#installation)) and `CVLOOM_AI_BASE_URL` to be set.
+see [ai-features.md#installation](ai-features.md#installation)) and a provider:
+`CVLOOM_AI_BASE_URL`, or an `ai.base_url` in the project's `cvloom.yaml`.
 
 ```bash
 cvloom ai config                                              # check provider status

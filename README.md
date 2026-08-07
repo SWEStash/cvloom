@@ -158,8 +158,13 @@ export CVLOOM_AI_BASE_URL=http://localhost:11434/v1   # Ollama, LiteLLM, OpenAI,
 export CVLOOM_AI_API_KEY=ollama                        # or your real key
 export CVLOOM_AI_MODEL=gemma3:27b                      # or gpt-4o, claude-sonnet-4-6
 
-cvloom ai config   # verify
+cvloom ai config   # verify — prints where each value came from
 ```
+
+The endpoint and model can live in the project's `cvloom.yaml` instead, under an
+`ai:` block, so the repo records which backend analyses it; the environment
+overrides that. The API key stays in the environment either way — `cvloom.yaml`
+is committed.
 
 ### Commands
 
@@ -296,7 +301,7 @@ cvloom-mcp
 | `ai_suggest_improvements` | AI content improvement suggestions |
 | `ai_align_to_jd` | AI qualitative JD alignment analysis |
 
-> AI tools require the `ai` extra and `CVLOOM_AI_BASE_URL` to be set.
+> AI tools require the `ai` extra and a provider — `CVLOOM_AI_BASE_URL`, or an `ai.base_url` in the project's `cvloom.yaml`.
 
 See [docs/reference/mcp-server.md](docs/reference/mcp-server.md) for setup with Claude Desktop, Claude Code, and example workflows.
 

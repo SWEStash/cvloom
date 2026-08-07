@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
+from cvloom import config
 from cvloom.ai.provider import (
     AINotConfiguredError,
     cv_to_text,
     get_config,
     get_model,
     is_configured,
+    resolve_ai_config,
 )
 
 # ---------------------------------------------------------------------------
@@ -50,6 +54,101 @@ def test_get_config_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cfg["base_url"] == "http://localhost:11434/v1"
     assert cfg["api_key_set"] is True
     assert cfg["model"] == "gemma3:27b"
+
+
+# ---------------------------------------------------------------------------
+# Two layers: cvloom.yaml and the environment, environment winning
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def no_ai_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("CVLOOM_AI_BASE_URL", "CVLOOM_AI_API_KEY", "CVLOOM_AI_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+
+
+def _project(root: Path, body: str) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "cvloom.yaml").write_text(body)
+    return root
+
+
+def test_file_supplies_the_backend_when_the_environment_does_not(
+    tmp_path: Path, no_ai_env: None
+) -> None:
+    """Which backend a project is analysed with is a property of the project."""
+    root = _project(tmp_path, "ai:\n  base_url: http://localhost:11434/v1\n  model: gemma3:27b\n")
+    cfg = resolve_ai_config(root)
+    assert cfg.configured
+    assert cfg.base_url == "http://localhost:11434/v1"
+    assert cfg.model == "gemma3:27b"
+    assert cfg.base_url_source == "cvloom.yaml"
+    assert cfg.model_source == "cvloom.yaml"
+
+
+def test_environment_wins_and_says_so(
+    tmp_path: Path, no_ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A committed `localhost` base_url is wrong on every other machine, so the
+    machine has to be able to override the project — and the override has to be
+    visible, or a stale exported variable is invisible."""
+    root = _project(tmp_path, "ai:\n  base_url: http://localhost:11434/v1\n  model: gemma3:27b\n")
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("CVLOOM_AI_MODEL", "gpt-4o-mini")
+
+    cfg = resolve_ai_config(root)
+    assert cfg.base_url == "https://api.example.com/v1"
+    assert cfg.model == "gpt-4o-mini"
+    assert cfg.base_url_source == "CVLOOM_AI_BASE_URL — overrides cvloom.yaml"
+    assert cfg.model_source == "CVLOOM_AI_MODEL — overrides cvloom.yaml"
+
+
+def test_environment_alone_does_not_claim_to_override_a_file(
+    tmp_path: Path, no_ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "https://api.example.com/v1")
+    cfg = resolve_ai_config(tmp_path)
+    assert cfg.base_url_source == "CVLOOM_AI_BASE_URL"
+    assert cfg.model_source == "default"
+    assert cfg.model == "gpt-4o"
+
+
+def test_a_project_that_pins_nothing_behaves_exactly_as_before(
+    tmp_path: Path, no_ai_env: None
+) -> None:
+    """The primary compatibility gate: no `ai:` block means no change at all."""
+    _project(tmp_path, "locale: en\n")
+    cfg = resolve_ai_config(tmp_path)
+    assert cfg.configured is False
+    assert cfg.model == "gpt-4o"
+    assert cfg.base_url_source == "default"
+
+
+def test_api_key_in_the_file_is_refused_by_name(tmp_path: Path) -> None:
+    """The file is committed by construction, so this is not a style preference."""
+    _project(tmp_path, "ai:\n  api_key: sk-not-a-real-key\n")
+    with pytest.raises(config.ConfigError) as exc:
+        config.load_project_config(tmp_path)
+    message = "; ".join(exc.value.errors)
+    assert "cvloom.yaml" in message
+    assert "committed" in message
+    assert "CVLOOM_AI_API_KEY" in message
+
+
+def test_a_broken_config_does_not_break_ai_configuration(
+    tmp_path: Path, no_ai_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`ai config` is what a user runs to understand the problem; failing it on
+    an unrelated typo would hide the output that explains it."""
+    _project(tmp_path, "locale: 'not a locale code'\n")
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "https://api.example.com/v1")
+    assert resolve_ai_config(tmp_path).configured is True
+
+
+def test_is_configured_reads_the_root_it_is_given(tmp_path: Path, no_ai_env: None) -> None:
+    pinned = _project(tmp_path / "pinned", "ai:\n  base_url: http://localhost:11434/v1\n")
+    assert is_configured(pinned) is True
+    assert is_configured(tmp_path / "bare") is False
 
 
 # ---------------------------------------------------------------------------
