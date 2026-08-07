@@ -37,7 +37,7 @@ h2 { display: none; }
 <div class="letter-date">{{ today }}</div>
 
 <div class="salutation">
-Dear {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else %}Hiring Manager{% endif %},
+{{ cover_letter_text('greeting') }} {% if job_context.hiring_manager %}{{ job_context.hiring_manager }}{% else %}{{ cover_letter_text('fallback_salutee') }}{% endif %},
 </div>
 
 <div class="letter-body">

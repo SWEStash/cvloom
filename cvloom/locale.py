@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
+from datetime import date
 from functools import cache
 from pathlib import Path
 from types import MappingProxyType
@@ -57,6 +58,20 @@ class LocalePack:
     section_titles: Mapping[str, str]
     ongoing: Ongoing
     placeholder_contact: Mapping[str, str]
+    cover_letter: Mapping[str, str]
+    months: tuple[str, ...]
+    date_format: str
+
+    def format_date(self, value: date) -> str:
+        """Render *value* the way this locale writes a date in a letter.
+
+        A pure function of the pack: no host locale, no new dependency.
+        ``strftime("%B")`` reads the C locale, so it is English whatever the
+        project's ``locale:`` says.
+        """
+        return self.date_format.format(
+            day=value.day, month=self.months[value.month - 1], year=value.year
+        )
 
 
 # Keys a pack file supplies, derived from LocalePack rather than restated. `code`
@@ -112,6 +127,9 @@ def _build_pack(code: str, raw: dict[str, Any]) -> LocalePack:
         section_titles=MappingProxyType(dict(raw["section_titles"])),
         ongoing=Ongoing(render=ongoing["render"], accepts=tuple(ongoing["accepts"])),
         placeholder_contact=MappingProxyType(dict(raw["placeholder_contact"])),
+        cover_letter=MappingProxyType(dict(raw["cover_letter"])),
+        months=tuple(raw["months"]),
+        date_format=raw["date_format"],
     )
 
 

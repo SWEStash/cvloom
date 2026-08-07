@@ -48,3 +48,33 @@ placeholder_contact:
   email: your.email@example.com
   phone: +1 (555) 000-0000
   location: City, Country
+
+# Cover-letter furniture — everything the letter says that the user did not
+# write. `greeting` and `closing` are overridden per application by a profile's
+# `job_context`; `fallback_salutee` is only reached when `job_context.hiring_manager`
+# is unset, and a user who wants other wording there sets that instead.
+cover_letter:
+  greeting: Dear
+  fallback_salutee: Hiring Manager
+  closing: Sincerely,
+
+# The cover-letter date. `strftime("%B")` reads the C locale, which is English
+# whatever this pack says, so the month names come from here instead.
+months:
+  - January
+  - February
+  - March
+  - April
+  - May
+  - June
+  - July
+  - August
+  - September
+  - October
+  - November
+  - December
+
+# str.format template over {day}, {month} and {year}. Keeping the order here
+# rather than in code is what lets `{day} de {month} de {year}` work without a
+# branch. The day is not zero-padded — `August 06, 2026` was an artefact of `%d`.
+date_format: "{month} {day}, {year}"

@@ -50,3 +50,29 @@ placeholder_contact:
   email: tu.correo@example.com
   phone: +1 (555) 000-0000
   location: Ciudad, País
+
+# Fórmulas de la carta de presentación. `greeting` va en masculino singular
+# porque es la forma más común, pero el saludo español concuerda con quien lo
+# recibe: `Estimada`, `Estimados`. Eso es un dato de la candidatura, no del
+# idioma, así que se ajusta con `job_context.greeting` en el perfil.
+cover_letter:
+  greeting: Estimado
+  fallback_salutee: Responsable de Contratación
+  closing: Atentamente,
+
+# Los meses en español van en minúscula.
+months:
+  - enero
+  - febrero
+  - marzo
+  - abril
+  - mayo
+  - junio
+  - julio
+  - agosto
+  - septiembre
+  - octubre
+  - noviembre
+  - diciembre
+
+date_format: "{day} de {month} de {year}"

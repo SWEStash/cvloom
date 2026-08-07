@@ -122,9 +122,10 @@ def list_projects(
 def list_locales(project_root: str | None = None) -> str:
     """List the locales cvloom ships and how completely each is supported.
 
-    Two independent axes. ``document`` is what the locale pack writes into the CV
-    (lang attribute, section headings, the open-ended date word, the --public
-    placeholder contact). ``lint`` is the lexicons and thresholds ``check_cv``
+    Two independent axes. ``document`` is what the locale pack writes into the
+    rendered document (lang attribute, section headings, the open-ended date word,
+    the --public placeholder contact, and a cover letter's greeting, sign-off and
+    date). ``lint`` is the lexicons and thresholds ``check_cv``
     grades with — a locale with a document pack but no linter data is written
     correctly and then graded by English heuristics, which is what
     ``lint_data: "en fallback"`` means.

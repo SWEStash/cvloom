@@ -1,0 +1,23 @@
+# Una carta de presentación es un perfil más: la plantilla es lo que la
+# convierte en carta. Todo lo que la carta dice y tú no escribiste —el saludo,
+# la despedida, la fecha— sale del pack de idioma del proyecto (`locale: es`).
+#
+# `greeting` sobrescribe el saludo del pack porque en español concuerda con
+# quien lo recibe: el pack trae `Estimado` y aquí escribimos a Dana Reyes.
+template: cover-letter/standard
+output_filename: carta-presentacion
+
+job_context:
+  company: Acme Corp
+  role: Ingeniera de Backend Senior
+  hiring_manager: Dana Reyes
+  greeting: Estimada
+  notes: |
+    Le escribo para presentar mi candidatura al puesto de **Ingeniera de Backend
+    Senior** en Acme Corp. Me llamó la atención el énfasis de la oferta en la
+    fiabilidad de los pagos.
+
+    Los últimos cuatro años los he dedicado a sistemas distribuidos que tenían
+    que seguir siendo correctos bajo carga, y a las herramientas que permitieron
+    a un equipo pequeño mantenerlos así. Me encantaría poder comentarlo con
+    usted.

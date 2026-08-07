@@ -145,9 +145,27 @@ def section_title(ctx: jinja2.runtime.Context, key: str, default: str | None = N
     return str(overrides.get(key) or pack_title or default or key)
 
 
+@jinja2.pass_context
+def cover_letter_text(ctx: jinja2.runtime.Context, key: str) -> str:
+    """Resolve a piece of cover-letter furniture: profile override, else pack.
+
+    The same two-source rule `section_title` uses, minus the template-suggestion
+    layer, which has no analogue here. The override lives in `job_context`
+    because a greeting is a fact about the application, not about the language:
+    `Estimado` / `Estimada` / `Estimados` depend on who is being written to.
+
+    `fallback_salutee` has no override on purpose — it is only reached when
+    `job_context.hiring_manager` is unset, and a user who wants other wording
+    there sets `hiring_manager` itself.
+    """
+    override = (ctx.get("job_context") or {}).get(key)
+    return str(override or _locale_of(ctx).cover_letter.get(key) or key)
+
+
 def register_filters(env: jinja2.Environment) -> None:
     """Register all custom filters and globals onto *env*."""
     env.globals["section_title"] = section_title
+    env.globals["cover_letter_text"] = cover_letter_text
     env.globals["icon"] = icon
     env.filters["md"] = md_to_html
     env.filters["date_range"] = date_range

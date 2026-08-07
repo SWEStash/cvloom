@@ -389,7 +389,7 @@ Profiles live in `profiles/*.yaml`. All keys except `template` are optional.
 | `select` | — | Per-section content selection; see [Selecting Content](../reference/profiles-and-overlays.md#selecting-content) |
 | `section_order` | `[work, skills, education, projects, publications, certifications, awards, languages]` | Override the rendering order of sections |
 | `section_titles` | The project locale's wording | Rename section headings — text only, styling stays in the template. See [Where section headings come from](#where-section-headings-come-from) |
-| `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`) |
+| `job_context` | — | Metadata for cover letter templates and AI commands (`company`, `role`, `hiring_manager`, `notes`), plus `greeting`/`closing` to override the locale's letter furniture. See [Locales → Cover-letter furniture](../reference/locales.md#cover-letter-furniture-two-sources-narrowest-wins) |
 | `overlays` | — | Per-job data patches; see [Profiles and Overlays](../reference/profiles-and-overlays.md) |
 
 ---
@@ -494,7 +494,7 @@ typography for a range.
 
 | Template | Description |
 |---|---|
-| `cover-letter/standard` | Professional formal cover letter. Uses `job_context` (company, role, hiring_manager, notes). |
+| `cover-letter/standard` | Professional formal cover letter. Uses `job_context` (company, role, hiring_manager, notes). Greeting, sign-off and date come from the project's locale. |
 | `cover-letter/brief` | Compact one-paragraph format. Omits boilerplate sign-off. |
 
 ### Project summary template
@@ -589,7 +589,8 @@ locale: es
 `locale` is the language the project operates in. It sets the document's `lang`
 attribute (which drives PDF hyphenation and the `/Lang` metadata ATS language
 detection reads), the default section headings, the word used for an open-ended end
-date, and the `--public` placeholder contact. It also selects the rules
+date, the `--public` placeholder contact, and a cover letter's greeting, sign-off
+and date. It also selects the rules
 `cvloom check` grades by, so a Spanish CV is graded by Spanish heuristics rather
 than English ones applied to Spanish text.
 
