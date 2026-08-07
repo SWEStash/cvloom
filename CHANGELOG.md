@@ -7,6 +7,30 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.0](https://github.com/SWEStash/cvloom/compare/v0.6.1...v0.7.0) (2026-08-07)
+
+
+### Features
+
+* add cvloom.yaml project config and locale packs ([#7](https://github.com/SWEStash/cvloom/issues/7)) ([bed99bc](https://github.com/SWEStash/cvloom/commit/bed99bc27da919e6ee4184dd153670bcbed8035c))
+* consume the locale pack in templates, linter and export ([#8](https://github.com/SWEStash/cvloom/issues/8)) ([361cb68](https://github.com/SWEStash/cvloom/commit/361cb68ca1743492eaa3d50463da06bf62288022))
+* grade and match Spanish CVs with Spanish rules ([#10](https://github.com/SWEStash/cvloom/issues/10)) ([123080d](https://github.com/SWEStash/cvloom/commit/123080df8c6ad65b6e73f144d9f7933f39adcb24))
+* localize cover-letter furniture and dates ([#12](https://github.com/SWEStash/cvloom/issues/12)) ([284dabc](https://github.com/SWEStash/cvloom/commit/284dabcfdcd4b13ed54b8db5669418262fd5b770))
+* read AI provider config from cvloom.yaml ([#13](https://github.com/SWEStash/cvloom/issues/13)) ([f417f8b](https://github.com/SWEStash/cvloom/commit/f417f8b163d9892200440b468d38c6abf843258e))
+* remove cvloom's own connecting words from every output ([#4](https://github.com/SWEStash/cvloom/issues/4)) ([26128d0](https://github.com/SWEStash/cvloom/commit/26128d04b61062c34542db01b3eced76268b44da))
+* surface locale in the CLI, init, MCP and the docs ([#11](https://github.com/SWEStash/cvloom/issues/11)) ([a444e0d](https://github.com/SWEStash/cvloom/commit/a444e0d4a7cfa5be2137cc59c62549269cc9caab))
+
+
+### Bug Fixes
+
+* let one command bring a project up to date after an upgrade ([#14](https://github.com/SWEStash/cvloom/issues/14)) ([7b6db67](https://github.com/SWEStash/cvloom/commit/7b6db672e64878b426531acce762ebe76719383e))
+
+
+### Documentation
+
+* fix extra-install instructions for uv tool/pipx/pip installs ([#6](https://github.com/SWEStash/cvloom/issues/6)) ([4e1604b](https://github.com/SWEStash/cvloom/commit/4e1604bb45a1c2313edc7a007fb3561374af33c7))
+* state the &lt;h2&gt; constraint the qa locale audit depends on ([#9](https://github.com/SWEStash/cvloom/issues/9)) ([48a535f](https://github.com/SWEStash/cvloom/commit/48a535f883105a6e01a6abf044f13667c34a7ead))
+
 ## [0.6.1](https://github.com/SWEStash/cvloom/compare/v0.6.0...v0.6.1) (2026-08-05)
 
 
