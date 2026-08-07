@@ -43,6 +43,39 @@ def test_unknown_key_is_rejected(tmp_path: Path) -> None:
     assert any(config.CONFIG_FILENAME in e for e in exc.value.errors)
 
 
+def test_ai_block_is_read(tmp_path: Path) -> None:
+    _write(tmp_path, "ai:\n  base_url: http://localhost:11434/v1\n  model: gemma3:27b\n")
+    cfg = config.load_project_config(tmp_path)
+    assert cfg.ai.base_url == "http://localhost:11434/v1"
+    assert cfg.ai.model == "gemma3:27b"
+
+
+def test_no_ai_block_yields_empty_settings(tmp_path: Path) -> None:
+    _write(tmp_path, "locale: en\n")
+    assert config.load_project_config(tmp_path).ai == config.AIConfig()
+
+
+def test_unknown_ai_key_is_rejected(tmp_path: Path) -> None:
+    """`additionalProperties: false` on the block, so `temperature:` fails here
+    rather than being silently ignored until someone wonders why it did nothing."""
+    _write(tmp_path, "ai:\n  temperature: 0.7\n")
+    with pytest.raises(config.ConfigError) as exc:
+        config.load_project_config(tmp_path)
+    assert any(config.CONFIG_FILENAME in e for e in exc.value.errors)
+
+
+def test_api_key_is_refused_with_its_own_message(tmp_path: Path) -> None:
+    """The schema would reject it too, but "additional properties are not
+    allowed" does not tell a user that the file they put a secret in is tracked."""
+    _write(tmp_path, "ai:\n  api_key: sk-not-a-real-key\n")
+    with pytest.raises(config.ConfigError) as exc:
+        config.load_project_config(tmp_path)
+    message = "; ".join(exc.value.errors)
+    assert config.CONFIG_FILENAME in message
+    assert "committed" in message
+    assert "CVLOOM_AI_API_KEY" in message
+
+
 def test_malformed_locale_is_rejected(tmp_path: Path) -> None:
     _write(tmp_path, "locale: English\n")
     with pytest.raises(config.ConfigError) as exc:

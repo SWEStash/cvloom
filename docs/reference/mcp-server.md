@@ -147,7 +147,7 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 | `diff_profiles` | `profile_a` (string), `profile_b` (string), `project_root?` | `{template_a, template_b, sections_only_in_a, sections_only_in_b, entries_only_in_a, entries_only_in_b, word_count_a, word_count_b, highlight_count_a, highlight_count_b}` | Compares two profiles: sections, entries, word counts, and highlight counts. |
 | `match_jd` | `jd_text` (string), `profile?` (default `"general"`), `project_root?` | `{coverage, jd_word_count, matched: [...], gaps: [...], top_jd_keywords: [...]}` | Keyword gap analysis comparing CV content against a job description. |
 
-### AI tools (require `--extra ai` and `CVLOOM_AI_BASE_URL`)
+### AI tools (require `--extra ai` and a provider)
 
 | Tool | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
@@ -156,7 +156,7 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 | `ai_suggest_improvements` | `profile?` (default `"general"`), `role?` (string), `project_root?` | `{suggestions: [...], missing_skills: [...], summary}` | AI content improvement suggestions for a target role. |
 | `ai_align_to_jd` | `profile?` (default `"general"`), `jd_text` (string), `project_root?` | `{alignment_score, narrative, repositioning: [...], tone_gaps: [...], strengths: [...]}` | Qualitative AI analysis of CV-to-JD alignment — tone, framing, and repositioning actions. |
 
-> AI tools return `{"error": "..."}` instead of raising when `CVLOOM_AI_BASE_URL` is not set.
+> A provider is `CVLOOM_AI_BASE_URL`, or an `ai.base_url` in the target project's `cvloom.yaml` — resolved against the same `project_root` the tool operates on, so a project that pins its own backend is honoured rather than whatever the server's cwd says. AI tools return `{"error": "...", "project_root": "..."}` instead of raising when none resolves; the root is named because a wrong root is the likely cause.
 
 ## Example workflow
 

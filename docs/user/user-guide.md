@@ -580,10 +580,14 @@ variant is rendered; this says what the project *is*. The file is committed, and
 is optional — a project without one behaves exactly as it did before the file
 existed.
 
-Today it has one key:
+Two keys:
 
 ```yaml
 locale: es
+
+ai:
+  base_url: http://localhost:11434/v1
+  model: gemma3:27b
 ```
 
 `locale` is the language the project operates in. It sets the document's `lang`
@@ -600,6 +604,17 @@ Spanish prose in English.
 is available and how completely each language is supported. One project operates in
 one language: a CV in a second language is a second project directory. See
 [Locales](../reference/locales.md) for the full reference.
+
+`ai` records which backend and model this project is analysed with — a property of
+the project rather than of whichever shell you happen to run `cvloom ai` from.
+`CVLOOM_AI_BASE_URL` and `CVLOOM_AI_MODEL` override it, so a machine can point at
+its own endpoint without editing a tracked file.
+
+> **`ai.api_key` does not exist, deliberately.** This file is committed, so a key
+> here is a key in your history. cvloom refuses to load a config containing one,
+> and the scaffolded pre-commit hook blocks it at the commit. Use
+> `CVLOOM_AI_API_KEY`. Run `cvloom ai config` to see which layer each value came
+> from.
 
 ### Where section headings come from
 
@@ -666,9 +681,13 @@ AI commands use three environment variables:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CVLOOM_AI_BASE_URL` | Yes | — | Base URL of the OpenAI-compatible API endpoint |
-| `CVLOOM_AI_API_KEY` | No | `"not-set"` | API key for the provider |
-| `CVLOOM_AI_MODEL` | No | `"gpt-4o"` | Model identifier |
+| `CVLOOM_AI_BASE_URL` | Yes, unless `ai.base_url` is set | — | Base URL of the OpenAI-compatible API endpoint |
+| `CVLOOM_AI_API_KEY` | No | `"not-set"` | API key for the provider. **The only place a key may live** |
+| `CVLOOM_AI_MODEL` | No | `ai.model`, else `"gpt-4o"` | Model identifier |
+
+The endpoint and model can also be recorded per project under `ai:` in
+`cvloom.yaml`; these variables override that block. The API key cannot — that file
+is committed. `cvloom ai config` reports which layer each value came from.
 
 See [AI Features](ai-features.md) for provider-specific setup (Ollama, LiteLLM, OpenAI).
 

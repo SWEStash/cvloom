@@ -436,6 +436,10 @@ ai/align.py      ← align():    runs match() first, passes keyword analysis as 
 
 `cv_to_text(data, show_sections)` in `provider.py` serializes the resolved CV to plain text for LLM input. It respects section visibility.
 
+`resolve_ai_config(root)` in `provider.py` is the single place the two config layers meet: `CVLOOM_AI_*` beats `cvloom.yaml`'s `ai:` block, which beats the built-in default. It returns an `AIConfig` carrying `base_url_source` / `model_source` alongside the values, because with two layers "which model is it actually using" needs an answer that `cvloom ai config` can print. `is_configured`, `get_client`, `get_model` and `get_config` all route through it and all take `root` **optionally** — the Python API is part of the public contract, so a required parameter would be a breaking change. A malformed `cvloom.yaml` degrades to the environment layer rather than raising: `ai config` is the command a user runs to understand a problem, and failing it on an unrelated typo hides the output that explains it.
+
+The credential is guarded in three places, cheapest first: `schemas/project-config.json` forbids `ai.api_key` structurally, `config.load_project_config` special-cases the key for a message naming the file and its committed status, and `cvloom/hooks/pre-commit` matches `api_key`-shaped and `sk-`-shaped strings on added lines.
+
 `ai/align.py` is the only AI command that calls another domain function (`match.analyze_match`) before calling the LLM — it passes the keyword gap analysis as structured context so the AI can focus on qualitative insights rather than rediscovering keyword gaps.
 
 All AI functions require `openai` (installed via `--extra ai`). They import it at function call time so the rest of the codebase works without it.
@@ -455,10 +459,13 @@ def tool_name(param: str, project_root: str | None = None) -> str:
     return json.dumps(result)
 ```
 
-AI tools add an extra guard:
+AI tools add an extra guard, and it runs *after* the root is resolved — a project
+can pin its own backend in `cvloom.yaml`, so asking before the root is known reads
+another project's settings:
 ```python
-if not is_configured():
-    return json.dumps({"error": "CVLOOM_AI_BASE_URL is not set"})
+root = _root(project_root)
+if not is_configured(root):
+    return json.dumps({"error": "AI provider not configured. …", "project_root": str(root)})
 ```
 
 ---

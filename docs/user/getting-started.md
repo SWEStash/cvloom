@@ -935,6 +935,19 @@ export CVLOOM_AI_API_KEY=sk-...
 export CVLOOM_AI_MODEL=gpt-4o
 ```
 
+The endpoint and model can go in the project's `cvloom.yaml` instead, so the repo
+records which backend analyses it:
+
+```yaml
+ai:
+  base_url: http://localhost:11434/v1
+  model: gemma3:27b
+```
+
+The environment overrides that block. The **API key is never written there** —
+`cvloom.yaml` is committed, and cvloom refuses to load one containing an
+`api_key`. See [AI Features](ai-features.md#configuration).
+
 Verify your setup:
 
 ```bash

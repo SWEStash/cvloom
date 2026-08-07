@@ -464,21 +464,29 @@ def match_jd(
 def ai_review_cv(profile: str = "general", project_root: str | None = None) -> str:
     """AI-powered scoring and feedback for each CV section.
 
-    Requires CVLOOM_AI_BASE_URL environment variable.
+    Requires an AI provider: CVLOOM_AI_BASE_URL, or an `ai.base_url` in the
+    target project's cvloom.yaml. Resolved against project_root, so a project
+    that pins its own backend is honoured.
     Returns JSON with overall_score, per-section scores, and top_priorities.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.analyzer import review
     from cvloom.ai.provider import AINotConfiguredError
 
-    if not is_configured():
-        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
-
     root = _root(project_root)
+    if not is_configured(root):
+        return json.dumps(
+            {
+                "error": "AI provider not configured. Set CVLOOM_AI_BASE_URL, or an "
+                "`ai.base_url` in this project's cvloom.yaml.",
+                "project_root": str(root),
+            }
+        )
+
     try:
         resolved = builder.resolve_project(root, profile, public=True)
-        client = get_client()
-        result = review(resolved, client, get_model())
+        client = get_client(root)
+        result = review(resolved, client, get_model(root))
     except builder.ResolveError as exc:
         return json.dumps({"error": "resolve failed", "details": exc.errors})
     except (AINotConfiguredError, RuntimeError) as exc:
@@ -493,7 +501,9 @@ def ai_generate_cover(
 ) -> str:
     """Generate a tailored cover letter from the CV and a job description.
 
-    Requires CVLOOM_AI_BASE_URL environment variable.
+    Requires an AI provider: CVLOOM_AI_BASE_URL, or an `ai.base_url` in the
+    target project's cvloom.yaml. Resolved against project_root, so a project
+    that pins its own backend is honoured.
     Pass the full job description text as jd_text.
     Returns JSON with letter, word_count, and key_alignments.
     """
@@ -501,14 +511,20 @@ def ai_generate_cover(
     from cvloom.ai.cover import generate_cover
     from cvloom.ai.provider import AINotConfiguredError
 
-    if not is_configured():
-        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
-
     root = _root(project_root)
+    if not is_configured(root):
+        return json.dumps(
+            {
+                "error": "AI provider not configured. Set CVLOOM_AI_BASE_URL, or an "
+                "`ai.base_url` in this project's cvloom.yaml.",
+                "project_root": str(root),
+            }
+        )
+
     try:
         resolved = builder.resolve_project(root, profile, public=True)
-        client = get_client()
-        result = generate_cover(resolved, jd_text, client, get_model())
+        client = get_client(root)
+        result = generate_cover(resolved, jd_text, client, get_model(root))
     except builder.ResolveError as exc:
         return json.dumps({"error": "resolve failed", "details": exc.errors})
     except (AINotConfiguredError, RuntimeError) as exc:
@@ -525,7 +541,9 @@ def ai_suggest_improvements(
 ) -> str:
     """Suggest content improvements for the CV: new bullets, skills, rewordings.
 
-    Requires CVLOOM_AI_BASE_URL environment variable.
+    Requires an AI provider: CVLOOM_AI_BASE_URL, or an `ai.base_url` in the
+    target project's cvloom.yaml. Resolved against project_root, so a project
+    that pins its own backend is honoured.
     Pass role to target suggestions for a specific position.
     Returns JSON with suggestions, missing_skills, and summary.
     """
@@ -533,14 +551,20 @@ def ai_suggest_improvements(
     from cvloom.ai.provider import AINotConfiguredError
     from cvloom.ai.suggest import suggest
 
-    if not is_configured():
-        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
-
     root = _root(project_root)
+    if not is_configured(root):
+        return json.dumps(
+            {
+                "error": "AI provider not configured. Set CVLOOM_AI_BASE_URL, or an "
+                "`ai.base_url` in this project's cvloom.yaml.",
+                "project_root": str(root),
+            }
+        )
+
     try:
         resolved = builder.resolve_project(root, profile, public=True)
-        client = get_client()
-        result = suggest(resolved, client, get_model(), role_context=role)
+        client = get_client(root)
+        result = suggest(resolved, client, get_model(root), role_context=role)
     except builder.ResolveError as exc:
         return json.dumps({"error": "resolve failed", "details": exc.errors})
     except (AINotConfiguredError, RuntimeError) as exc:
@@ -557,7 +581,9 @@ def ai_align_to_jd(
 ) -> str:
     """Qualitative AI analysis of how well the CV aligns to a job description.
 
-    Requires CVLOOM_AI_BASE_URL environment variable.
+    Requires an AI provider: CVLOOM_AI_BASE_URL, or an `ai.base_url` in the
+    target project's cvloom.yaml. Resolved against project_root, so a project
+    that pins its own backend is honoured.
     jd_text is the full text of the job description.
     Returns JSON with alignment_score, narrative, repositioning, tone_gaps, strengths.
     """
@@ -565,13 +591,19 @@ def ai_align_to_jd(
     from cvloom.ai.align import align
     from cvloom.ai.provider import AINotConfiguredError
 
-    if not is_configured():
-        return json.dumps({"error": "AI provider not configured. Set CVLOOM_AI_BASE_URL."})
-
     root = _root(project_root)
+    if not is_configured(root):
+        return json.dumps(
+            {
+                "error": "AI provider not configured. Set CVLOOM_AI_BASE_URL, or an "
+                "`ai.base_url` in this project's cvloom.yaml.",
+                "project_root": str(root),
+            }
+        )
+
     try:
         resolved = builder.resolve_project(root, profile, public=True)
-        result = align(resolved, jd_text, get_client(), get_model())
+        result = align(resolved, jd_text, get_client(root), get_model(root))
     except builder.ResolveError as exc:
         return json.dumps({"error": "resolve failed", "details": exc.errors})
     except (AINotConfiguredError, RuntimeError) as exc:

@@ -36,6 +36,8 @@ hack on cvloom itself, you're in the dev checkout case.
 
 ## Configuration
 
+Two places, and the environment always wins.
+
 Set three environment variables (only `CVLOOM_AI_BASE_URL` is required):
 
 ```bash
@@ -43,6 +45,28 @@ CVLOOM_AI_BASE_URL=http://localhost:11434/v1   # your provider's base URL
 CVLOOM_AI_API_KEY=ollama                        # API key ("ollama" for local Ollama)
 CVLOOM_AI_MODEL=gemma3:27b                      # model identifier
 ```
+
+Or record the endpoint and model in the project's own `cvloom.yaml`, so the
+repository says which backend it is analysed with instead of that living only in
+one shell:
+
+```yaml
+# cvloom.yaml
+locale: en
+
+ai:
+  base_url: http://localhost:11434/v1
+  model: gemma3:27b
+```
+
+> **The API key never goes in `cvloom.yaml`.** That file sits at the project root
+> and is committed — unlike `private/`, it is tracked. cvloom refuses to load a
+> config carrying an `api_key` at all, and the scaffolded pre-commit hook blocks
+> one on the way into a commit. Use `CVLOOM_AI_API_KEY`.
+
+`CVLOOM_AI_BASE_URL` and `CVLOOM_AI_MODEL` override the file. That direction is
+deliberate: a committed `base_url` of `localhost:11434` is right for whoever
+wrote it and wrong on every other machine, so the machine has the last word.
 
 Verify your configuration at any time:
 
@@ -92,11 +116,23 @@ export CVLOOM_AI_MODEL=gpt-4o
 
 ### `ai config`
 
-Shows current provider status and setup instructions.
+Shows current provider status and setup instructions — and, for each value,
+**where it came from**:
 
 ```bash
 cvloom ai config
 ```
+
+```
+AI provider: configured
+  Base URL:  http://localhost:11434/v1 (cvloom.yaml)
+  Model:     gpt-4o-mini (CVLOOM_AI_MODEL — overrides cvloom.yaml)
+  API key:   ***set*** (CVLOOM_AI_API_KEY)
+```
+
+The source column is the point of the command with two config layers: an exported
+variable you forgot about, quietly beating the model your project pins, otherwise
+looks identical to it working.
 
 ### `ai review`
 

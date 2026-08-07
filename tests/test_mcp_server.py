@@ -331,7 +331,8 @@ def ai_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _patch_client(monkeypatch: pytest.MonkeyPatch, content: str) -> FakeClient:
     client = FakeClient(content)
-    monkeypatch.setattr("cvloom.ai.get_client", lambda: client)
+    # `root` is optional on get_client, so the fake takes it and ignores it.
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
     return client
 
 
@@ -374,6 +375,41 @@ def test_ai_review_cv_success(
     assert result["overall_score"] == 8.0
     assert result["sections"][0]["section"] == "work"
     assert result["top_priorities"] == ["add metrics"]
+
+
+def test_ai_settings_come_from_the_targeted_project_not_the_servers_cwd(
+    project_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The case that needs root-aware AI config at all: an MCP server runs in
+    whatever directory the client launched it in, which is nobody's project."""
+    for var in ("CVLOOM_AI_BASE_URL", "CVLOOM_AI_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    Path(project_dir, "cvloom.yaml").write_text(
+        "ai:\n  base_url: http://localhost:9999/v1\n  model: pinned-by-the-project\n"
+    )
+    monkeypatch.chdir(_elsewhere(tmp_path))
+
+    from cvloom.ai.provider import get_model
+
+    assert get_model() == "gpt-4o"  # the server's cwd knows nothing
+
+    client = FakeClient(json.dumps({"suggestions": [], "summary": "ok"}))
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
+    result = json.loads(ai_suggest_improvements(profile="general", project_root=project_dir))
+
+    assert "error" not in result
+    assert client.calls[0]["model"] == "pinned-by-the-project"
+
+
+def test_ai_tool_error_names_the_root_it_resolved(
+    project_dir: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A wrong root is the likely cause of "not configured" now that settings
+    are per project, so the payload says which project answered."""
+    monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
+    result = json.loads(ai_review_cv(profile="general", project_root=project_dir))
+    assert result["project_root"] == project_dir
+    assert "cvloom.yaml" in result["error"]
 
 
 def test_ai_review_cv_malformed_response_returns_error(

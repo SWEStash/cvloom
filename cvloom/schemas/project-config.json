@@ -11,6 +11,23 @@
       "description": "Language the project is written and operated in, e.g. 'en' or 'es'. Selects a pack from cvloom/locales/.",
       "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
       "default": "en"
+    },
+    "ai": {
+      "type": "object",
+      "description": "Which backend and model this project is analysed with. The credential is never expressible here: this file sits at the project root and is committed. Set CVLOOM_AI_API_KEY in the environment instead. Every value here is overridden by the matching CVLOOM_AI_* variable, so a machine can point at its own backend.",
+      "additionalProperties": false,
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "OpenAI-compatible endpoint, e.g. http://localhost:11434/v1. Its absence is what disables AI features.",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier, e.g. gemma3:27b. Defaults to gpt-4o.",
+          "minLength": 1
+        }
+      }
     }
   }
 }

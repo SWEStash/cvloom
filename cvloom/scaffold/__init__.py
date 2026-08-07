@@ -93,6 +93,18 @@ def init_config(root: Path, locale: str, force: bool) -> None:
         "# a CV in a second language is a second project directory.\n"
         "# See `cvloom list-locales` for what each locale covers.\n"
         f"locale: {locale}\n"
+        "\n"
+        "# Which backend and model `cvloom ai` uses for this project. Commented out\n"
+        "# because a base_url is machine-specific: whatever we wrote here would be\n"
+        "# wrong on the next machine. CVLOOM_AI_BASE_URL and CVLOOM_AI_MODEL\n"
+        "# override these, so the machine always has the last word.\n"
+        "#\n"
+        "# Never put the API key here. This file is committed. Set it in the\n"
+        "# environment as CVLOOM_AI_API_KEY — cvloom refuses to load a config\n"
+        "# carrying an api_key at all.\n"
+        "# ai:\n"
+        "#   base_url: http://localhost:11434/v1\n"
+        "#   model: gemma3:27b\n"
     )
     _console.print(f"[green]✓[/green] Created cvloom.yaml (locale: {locale})")
 

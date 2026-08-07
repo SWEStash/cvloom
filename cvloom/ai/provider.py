@@ -1,13 +1,26 @@
 """AI provider configuration and CV serialization utilities.
 
-Configuration is driven entirely by environment variables so users can plug in
-any OpenAI-compatible backend (Ollama, LiteLLM proxy, OpenAI, Azure, etc.)
+Any OpenAI-compatible backend works (Ollama, LiteLLM proxy, OpenAI, Azure, …)
 without cvloom needing vendor-specific code.
 
-Required env vars (all optional — feature is disabled when BASE_URL is unset):
+Two layers, environment winning, resolved by :func:`resolve_ai_config`:
+
     CVLOOM_AI_BASE_URL   e.g. http://localhost:11434/v1
     CVLOOM_AI_API_KEY    API key ("ollama" works for local Ollama)
     CVLOOM_AI_MODEL      model identifier, e.g. gemma3:27b or gpt-4o
+
+    # cvloom.yaml
+    ai:
+      base_url: http://localhost:11434/v1
+      model: gemma3:27b
+
+Which backend and model a project is analysed with is a property of the project,
+so it belongs in the project's file. The **credential is not expressible there**:
+``cvloom.yaml`` sits at the project root and is committed. The environment wins
+because a committed ``base_url`` of ``localhost`` is wrong on any other machine —
+and because it makes every setup that predates the file behave identically.
+
+The feature is disabled when no ``base_url`` resolves from either layer.
 """
 
 from __future__ import annotations
@@ -15,11 +28,17 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, TypeVar
 
-from cvloom import sections
+from cvloom import config, sections
 
 _DEFAULT_MODEL = "gpt-4o"
+
+_BASE_URL_VAR = "CVLOOM_AI_BASE_URL"
+_API_KEY_VAR = "CVLOOM_AI_API_KEY"
+_MODEL_VAR = "CVLOOM_AI_MODEL"
 
 _T = TypeVar("_T")
 
@@ -28,21 +47,81 @@ class AINotConfiguredError(RuntimeError):
     """Raised when AI features are requested but not configured."""
 
 
-def is_configured() -> bool:
-    """Return True if CVLOOM_AI_BASE_URL is set."""
-    return bool(os.environ.get("CVLOOM_AI_BASE_URL", "").strip())
+@dataclass(frozen=True)
+class AIConfig:
+    """Resolved AI settings, with where each one came from.
+
+    The sources are carried rather than recomputed because "which model is it
+    actually using" is the question a two-layer config makes hard to answer: a
+    stale exported variable silently beating an explicit file value is the
+    classic confusion. ``cvloom ai config`` prints these.
+    """
+
+    base_url: str
+    model: str
+    api_key: str
+    base_url_source: str
+    model_source: str
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.base_url)
 
 
-def get_client() -> Any:
+def _source(env_var: str, from_env: bool, from_file: bool) -> str:
+    """Describe where a value came from, naming the layer it overrode."""
+    if from_env:
+        return f"{env_var} — overrides cvloom.yaml" if from_file else env_var
+    if from_file:
+        return config.CONFIG_FILENAME
+    return "default"
+
+
+def resolve_ai_config(root: Path | None = None) -> AIConfig:
+    """Resolve AI settings for the project at *root* (default: the cwd).
+
+    A malformed ``cvloom.yaml`` does not break AI configuration: the file layer
+    is skipped and the environment answers alone, because failing `ai config`
+    on an unrelated typo would hide the very output that explains the problem.
+    """
+    try:
+        file_ai = config.load_project_config(root or Path.cwd()).ai
+    except config.ConfigError:
+        file_ai = config.AIConfig()
+
+    env_base_url = os.environ.get(_BASE_URL_VAR, "").strip()
+    env_model = os.environ.get(_MODEL_VAR, "").strip()
+
+    return AIConfig(
+        base_url=(env_base_url or file_ai.base_url or "").rstrip("/"),
+        model=env_model or file_ai.model or _DEFAULT_MODEL,
+        api_key=os.environ.get(_API_KEY_VAR, ""),
+        base_url_source=_source(_BASE_URL_VAR, bool(env_base_url), bool(file_ai.base_url)),
+        model_source=_source(_MODEL_VAR, bool(env_model), bool(file_ai.model)),
+    )
+
+
+def is_configured(root: Path | None = None) -> bool:
+    """Return True if a base URL resolves for the project at *root*.
+
+    *root* is optional so that this stays backward compatible: the Python API is
+    part of the public contract, and a required parameter would break every
+    existing caller.
+    """
+    return resolve_ai_config(root).configured
+
+
+def get_client(root: Path | None = None) -> Any:
     """Return a configured OpenAI-compatible client.
 
-    Raises AINotConfiguredError if CVLOOM_AI_BASE_URL is not set.
+    Raises AINotConfiguredError if no base URL resolves.
     Raises ImportError if the openai package is not installed.
     """
-    if not is_configured():
+    cfg = resolve_ai_config(root)
+    if not cfg.configured:
         raise AINotConfiguredError(
-            "AI features require CVLOOM_AI_BASE_URL to be set.\n"
-            "Run 'cvloom ai config' for setup instructions."
+            f"AI features require a base URL: set {_BASE_URL_VAR}, or an `ai.base_url` "
+            f"in {config.CONFIG_FILENAME}.\nRun 'cvloom ai config' for setup instructions."
         )
     try:
         import openai
@@ -51,14 +130,12 @@ def get_client() -> Any:
             "The 'openai' package is required for AI features.\nInstall with: uv sync --extra ai"
         ) from exc
 
-    base_url = os.environ["CVLOOM_AI_BASE_URL"].rstrip("/")
-    api_key = os.environ.get("CVLOOM_AI_API_KEY", "not-set")
-    return openai.OpenAI(base_url=base_url, api_key=api_key)
+    return openai.OpenAI(base_url=cfg.base_url, api_key=cfg.api_key or "not-set")
 
 
-def get_model() -> str:
+def get_model(root: Path | None = None) -> str:
     """Return the configured model name, falling back to the default."""
-    return os.environ.get("CVLOOM_AI_MODEL", _DEFAULT_MODEL).strip()
+    return resolve_ai_config(root).model
 
 
 def complete_json(
@@ -93,17 +170,20 @@ def complete_json(
         raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc
 
 
-def get_config() -> dict[str, str | bool]:
-    """Return a summary of the current AI configuration (safe to display)."""
-    configured = is_configured()
-    base_url = os.environ.get("CVLOOM_AI_BASE_URL", "")
-    api_key = os.environ.get("CVLOOM_AI_API_KEY", "")
-    model = os.environ.get("CVLOOM_AI_MODEL", "")
+def get_config(root: Path | None = None) -> dict[str, str | bool]:
+    """Return a summary of the current AI configuration (safe to display).
+
+    Carries the provenance of each value alongside it — never the key itself,
+    only whether one is set.
+    """
+    cfg = resolve_ai_config(root)
     return {
-        "configured": configured,
-        "base_url": base_url,
-        "api_key_set": bool(api_key),
-        "model": model or f"{_DEFAULT_MODEL} (default)",
+        "configured": cfg.configured,
+        "base_url": cfg.base_url,
+        "base_url_source": cfg.base_url_source,
+        "api_key_set": bool(cfg.api_key),
+        "model": cfg.model,
+        "model_source": cfg.model_source,
     }
 
 
