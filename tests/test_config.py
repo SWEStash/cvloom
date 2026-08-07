@@ -76,6 +76,17 @@ def test_api_key_is_refused_with_its_own_message(tmp_path: Path) -> None:
     assert "CVLOOM_AI_API_KEY" in message
 
 
+@pytest.mark.parametrize("spelling", ["api_key", "API_KEY", "api-key", "apiKey"])
+def test_api_key_is_refused_however_it_is_spelled(spelling: str, tmp_path: Path) -> None:
+    """`additionalProperties` catches these anyway, but with a message about
+    unexpected properties. Someone who just wrote a live credential into a
+    tracked file should be told that, whichever way they capitalised it."""
+    _write(tmp_path, f"ai:\n  {spelling}: sk-not-a-real-key\n")
+    with pytest.raises(config.ConfigError) as exc:
+        config.load_project_config(tmp_path)
+    assert "committed" in "; ".join(exc.value.errors)
+
+
 def test_malformed_locale_is_rejected(tmp_path: Path) -> None:
     _write(tmp_path, "locale: English\n")
     with pytest.raises(config.ConfigError) as exc:

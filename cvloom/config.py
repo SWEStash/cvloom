@@ -87,7 +87,11 @@ def load_project_config(root: Path) -> ProjectConfig:
     # is the one key whose presence means a secret may already be in git.
     raw_ai = raw.get("ai")
     ai_block: dict[str, Any] = raw_ai if isinstance(raw_ai, dict) else {}
-    if "api_key" in ai_block:
+    # Spelling-insensitive: `additionalProperties` would reject `API_KEY` and
+    # `apiKey` anyway, but with a message about unexpected properties. Someone
+    # who just wrote a live credential into a tracked file should be told that,
+    # however they capitalised it.
+    if any(k.lower().replace("-", "").replace("_", "") == "apikey" for k in ai_block):
         raise ConfigError(
             [
                 f"{CONFIG_FILENAME}:ai.api_key: an API key must not live here — "
