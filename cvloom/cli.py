@@ -1101,10 +1101,11 @@ def list_locales() -> None:
 
     _console.print(table)
     _console.print(
-        "\n[dim]'Document' is what the locale pack writes into the CV — the lang "
-        "attribute, section headings, the open-ended date word, and the --public "
-        "placeholder contact. 'Lint data' is a separate axis: the lexicons and "
-        "thresholds `cvloom check` grades with.[/dim]"
+        "\n[dim]'Document' is what the locale pack writes into the document — the "
+        "lang attribute, section headings, the open-ended date word, the --public "
+        "placeholder contact, and a cover letter's greeting, sign-off and date. "
+        "'Lint data' is a separate axis: the lexicons and thresholds `cvloom check` "
+        "grades with.[/dim]"
     )
     _console.print(
         "[dim]The two are resolved independently, so 'en fallback' means a CV in "

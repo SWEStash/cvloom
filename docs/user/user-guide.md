@@ -589,7 +589,8 @@ locale: es
 `locale` is the language the project operates in. It sets the document's `lang`
 attribute (which drives PDF hyphenation and the `/Lang` metadata ATS language
 detection reads), the default section headings, the word used for an open-ended end
-date, and the `--public` placeholder contact. It also selects the rules
+date, the `--public` placeholder contact, and a cover letter's greeting, sign-off
+and date. It also selects the rules
 `cvloom check` grades by, so a Spanish CV is graded by Spanish heuristics rather
 than English ones applied to Spanish text.
 

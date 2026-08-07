@@ -39,7 +39,7 @@ Two independent axes, resolved separately:
 
 | Axis | Lives in | Governs |
 |---|---|---|
-| **Document pack** | `cvloom/locales/<code>.yaml` | The CV itself — `lang` attribute, section headings, the open-ended date word, the `--public` placeholder contact |
+| **Document pack** | `cvloom/locales/<code>.yaml` | The rendered document — `lang` attribute, section headings, the open-ended date word, the `--public` placeholder contact, and a cover letter's greeting, sign-off and date |
 | **Linter data** | `cvloom/linter_locales/<code>.py` | How `cvloom check` and `cvloom match` grade the writing — lexicons, thresholds, stop words |
 
 They are keyed by the same locale code but looked up independently, so a language
