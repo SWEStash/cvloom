@@ -40,7 +40,7 @@ class LintFinding:
     """A single linter finding tied to a specific location in the CV."""
 
     rule_id: str
-    severity: str  # "warning" | "error"
+    severity: str  # "warning" | "suggestion" | "info", most severe first
     section: str
     entry: str
     bullet_index: int | None

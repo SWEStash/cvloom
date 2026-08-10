@@ -100,3 +100,33 @@ def test_prompt_contains_schema_keys() -> None:
     assert "overall_score" in prompt
     assert "sections" in prompt
     assert "top_priorities" in prompt
+
+
+def test_prompt_asks_for_at_most_three_points_per_section() -> None:
+    prompt = _build_review_prompt("cv text", ["work"])
+    assert "At most 3 items in each of strengths, weaknesses and suggestions" in prompt
+    assert "not three padded ones" in prompt, "the cap must not read as a quota"
+
+
+def test_parse_truncates_a_model_that_ignores_the_cap() -> None:
+    """The instruction alone is unenforceable, and an unbounded section buries
+    top_priorities under it."""
+    raw = json.dumps(
+        {
+            "overall_score": 7,
+            "sections": [
+                {
+                    "section": "work",
+                    "score": 7,
+                    "strengths": [f"s{i}" for i in range(9)],
+                    "weaknesses": [f"w{i}" for i in range(5)],
+                    "suggestions": [f"g{i}" for i in range(4)],
+                }
+            ],
+            "top_priorities": ["p1"],
+        }
+    )
+    section = _parse_review_result(raw).sections[0]
+    assert section.strengths == ["s0", "s1", "s2"], "keeps the model's own ordering"
+    assert len(section.weaknesses) == 3
+    assert len(section.suggestions) == 3

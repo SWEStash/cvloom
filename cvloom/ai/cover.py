@@ -6,30 +6,21 @@ import json
 from typing import Any
 
 from cvloom.ai.models import CoverResult
-from cvloom.ai.prompts import SYSTEM_CREATIVE, cv_context_block, jd_context_block
+from cvloom.ai.prompts import (
+    CLOSING,
+    JD_UNTRUSTED,
+    SYSTEM_CREATIVE,
+    assemble,
+    cv_context_block,
+    jd_context_block,
+    unhappy_input,
+)
 from cvloom.ai.provider import complete_json, cv_to_text
 from cvloom.models import ResolvedProfile
 
 
 def _build_cover_prompt(cv_text: str, jd_text: str, job_context: dict[str, Any]) -> str:
-    parts: list[str] = []
-
-    _jc_keys = ("company", "role", "hiring_manager")
-    jc_fields = {k: job_context[k] for k in _jc_keys if job_context.get(k)}
-    if jc_fields:
-        lines = ["<job_context>"]
-        if "company" in jc_fields:
-            lines.append(f"Company: {jc_fields['company']}")
-        if "role" in jc_fields:
-            lines.append(f"Role: {jc_fields['role']}")
-        if "hiring_manager" in jc_fields:
-            lines.append(f"Hiring Manager: {jc_fields['hiring_manager']}")
-        lines.append("</job_context>")
-        parts.append("\n".join(lines))
-
-    parts.append(cv_context_block(cv_text))
-    parts.append(jd_context_block(jd_text))
-    parts.append(
+    instruction = (
         "Generate a tailored, professional cover letter for this role. "
         "Respond with valid JSON matching this schema exactly:\n"
         "{\n"
@@ -40,7 +31,23 @@ def _build_cover_prompt(cv_text: str, jd_text: str, job_context: dict[str, Any])
         "key_alignments: 3–5 brief bullets explaining why this candidate fits the role.\n"
         "Keep the letter under 400 words. Write in first person, professional tone."
     )
-    return "\n\n".join(parts)
+
+    _jc_keys = ("company", "role", "hiring_manager")
+    _jc_labels = {"company": "Company", "role": "Role", "hiring_manager": "Hiring Manager"}
+    jc_lines = [f"{_jc_labels[k]}: {job_context[k]}" for k in _jc_keys if job_context.get(k)]
+    job_context_block = ""
+    if jc_lines:
+        job_context_block = "\n".join(["<job_context>", *jc_lines, "</job_context>"])
+
+    return assemble(
+        instruction,
+        unhappy_input("letter"),
+        JD_UNTRUSTED,
+        cv_context_block(cv_text),
+        jd_context_block(jd_text),
+        job_context_block,
+        CLOSING,
+    )
 
 
 def _parse_cover_result(raw_json: str) -> CoverResult:

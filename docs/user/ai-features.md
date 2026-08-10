@@ -92,6 +92,55 @@ export CVLOOM_AI_MODEL=gemma3:27b
 
 Recommended models: `gemma3:27b`, `llama3.3:70b`, `qwen2.5:32b`
 
+#### Context length — read this before running `ai` on a long CV
+
+Ollama does not reject a prompt that is too long for the context window it is
+running with. It silently discards the **front** of the prompt and answers with
+what is left. Measured on Ollama 0.32.6 through the same OpenAI-compatible
+endpoint cvloom uses: prompts up to roughly 2,500 tokens went through intact,
+while every larger prompt was clamped to about 2,050 tokens ingested no matter
+how much larger it was. `ollama serve --help` gives the default context length as
+"4k/32k/256k based on VRAM", so a machine with modest VRAM is on 4k.
+
+cvloom sends one prompt per command carrying your entire CV, plus the whole job
+description for `ai cover` and `ai align`. A one-page CV sits comfortably inside
+4k. A three-page CV with a long job description does not.
+
+**You will see an error rather than a wrong answer.** cvloom puts the JSON schema
+at the top of every prompt and the CV below it, so a discarded front takes the
+schema with it, the model stops answering in JSON, and the command fails:
+
+```
+AI error: AI returned invalid JSON. Raw response:
+Based on the information provided, this candidate ...
+```
+
+Treat that as the truncation signal. The ordering is deliberate: with the CV at
+the top instead, truncation discards the CV and the model returns a fluent,
+well-formed review of a CV it never read — and nothing on screen distinguishes
+that from a real one.
+
+**Fix it on the Ollama side.** cvloom talks to the OpenAI-compatible `/v1`
+endpoint, which has no field for Ollama's per-request `num_ctx`, so the context
+length has to be set where the server can see it:
+
+```bash
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve
+```
+
+Or bake it into a model variant, which survives a restart:
+
+```bash
+printf 'FROM gemma3:27b\nPARAMETER num_ctx 16384\n' > Modelfile
+ollama create gemma3-cv -f Modelfile
+export CVLOOM_AI_MODEL=gemma3-cv
+```
+
+A longer context costs memory, so raise it to what your CV needs rather than to
+the model's maximum. Note that asking the model how much context it has does not
+work — it reports what its architecture supports, not what the server actually
+gave it, and answers the same number whichever value you set.
+
 ### LiteLLM proxy (cloud routing)
 
 LiteLLM lets you route to OpenAI, Anthropic, Google, and other providers through a single OpenAI-compatible endpoint without modifying your config.
