@@ -7,6 +7,7 @@ import json
 import pytest
 
 from cvloom.ai.cover import _build_cover_prompt, _parse_cover_result
+from cvloom.locale import default_pack
 
 # ---------------------------------------------------------------------------
 # _parse_cover_result
@@ -58,17 +59,19 @@ def test_parse_invalid_json_raises() -> None:
 
 
 def test_prompt_contains_cv_text() -> None:
-    prompt = _build_cover_prompt("Jane Doe | Senior Engineer", "We need a backend engineer.", {})
+    prompt = _build_cover_prompt(
+        "Jane Doe | Senior Engineer", "We need a backend engineer.", {}, default_pack()
+    )
     assert "Jane Doe | Senior Engineer" in prompt
 
 
 def test_prompt_contains_jd_text() -> None:
-    prompt = _build_cover_prompt("cv text", "We need a backend engineer.", {})
+    prompt = _build_cover_prompt("cv text", "We need a backend engineer.", {}, default_pack())
     assert "We need a backend engineer." in prompt
 
 
 def test_prompt_contains_schema_keys() -> None:
-    prompt = _build_cover_prompt("cv text", "jd text", {})
+    prompt = _build_cover_prompt("cv text", "jd text", {}, default_pack())
     assert "letter" in prompt
     assert "word_count" in prompt
     assert "key_alignments" in prompt
@@ -76,18 +79,21 @@ def test_prompt_contains_schema_keys() -> None:
 
 def test_prompt_includes_job_context_when_present() -> None:
     job_context = {"company": "Stripe", "role": "Senior Engineer", "hiring_manager": "Jane Smith"}
-    prompt = _build_cover_prompt("cv text", "jd text", job_context)
+    prompt = _build_cover_prompt("cv text", "jd text", job_context, default_pack())
     assert "Stripe" in prompt
     assert "Senior Engineer" in prompt
     assert "Jane Smith" in prompt
 
 
 def test_prompt_excludes_job_context_block_when_empty() -> None:
-    prompt = _build_cover_prompt("cv text", "jd text", {})
+    prompt = _build_cover_prompt("cv text", "jd text", {}, default_pack())
     assert "<job_context>" not in prompt
 
 
 def test_prompt_partial_job_context_omits_missing_fields() -> None:
-    prompt = _build_cover_prompt("cv text", "jd text", {"company": "Acme"})
-    assert "Acme" in prompt
-    assert "Hiring Manager" not in prompt
+    prompt = _build_cover_prompt("cv text", "jd text", {"company": "Acme"}, default_pack())
+    block = prompt[prompt.index("<job_context>") : prompt.index("</job_context>")]
+    assert "Acme" in block
+    # Scoped to the block on purpose: the pack's fallback salutee names a hiring
+    # manager in the salutation instruction, which is not this test's subject.
+    assert "Hiring Manager" not in block
