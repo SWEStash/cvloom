@@ -427,7 +427,8 @@ The AI subsystem is structured to keep each command self-contained:
 
 ```
 ai/provider.py   ← shared: config, client factory, cv_to_text()
-ai/prompts.py    ← shared: system prompts, context block helpers
+ai/prompts.py    ← shared: system prompts, context block helpers, prompt assembly
+ai/analysis.py   ← shared: the <analysis> block — lint/trim/template facts, budgeted
 ai/models.py     ← shared: result dataclasses
 
 ai/analyzer.py   ← review():  build prompt → call API → parse JSON response → ReviewResult
@@ -438,13 +439,21 @@ ai/align.py      ← align():    runs match() first, passes keyword analysis as 
 
 `cv_to_text(data, show_sections, locale=None)` in `provider.py` serializes the resolved CV to plain text for LLM input. It respects section visibility, and walks `sections.DEFAULT_SECTION_ORDER` rather than a list of its own — a hand-written list here went stale the moment a section was added, leaving `certifications`, `publications`, `awards` and `languages` invisible to every AI command even when the profile showed them. `skills` and `basics` stay bespoke, for the same reason they sit outside the registry. The optional `locale` pack supplies the section headings, so the model reads the CV under the same words the rendered document uses.
 
+Every prompt is assembled by `prompts.assemble(*parts)` in one canonical order — `<locale>`, then instruction and schema, then `<analysis>`, `<keyword_analysis>`, `<cv>`, and the job-specific blocks, closing with `CLOSING`. Stable content leads so a caching provider can reuse the prefix; `tests/test_ai_prompt_order.py` is the only thing holding that order, since no type expresses it. `prompts.locale_context_block` states the language every human-readable response field must use, and exempts JSON keys and enum values from it — a model told only "answer in Spanish" returns `"type": "viñeta"` and breaks the CLI's own colour map.
+
 `prompts.GROUNDING` is appended to both `SYSTEM_ANALYSIS` and `SYSTEM_CREATIVE`: every claim must trace to a fact in `<cv>`, and a missing metric is written as an `[add metric: …]` marker rather than invented. `tests/test_ai_grounding.py` enforces it with a reference-free numeric-token check, and asserts the contract reaches all four orchestrators.
 
 `resolve_ai_config(root)` in `provider.py` is the single place the two config layers meet: `CVLOOM_AI_*` beats `cvloom.yaml`'s `ai:` block, which beats the built-in default. It returns an `AIConfig` carrying `base_url_source` / `model_source` alongside the values, because with two layers "which model is it actually using" needs an answer that `cvloom ai config` can print. `is_configured`, `get_client`, `get_model` and `get_config` all route through it and all take `root` **optionally** — the Python API is part of the public contract, so a required parameter would be a breaking change. A malformed `cvloom.yaml` degrades to the environment layer rather than raising: `ai config` is the command a user runs to understand a problem, and failing it on an unrelated typo hides the output that explains it.
 
 The credential is guarded in three places, cheapest first: `schemas/project-config.json` forbids `ai.api_key` structurally, `config.load_project_config` special-cases the key for a message naming the file and its committed status, and `cvloom/hooks/pre-commit` matches `api_key`-shaped and `sk-`-shaped strings on added lines.
 
-`ai/align.py` is the only AI command that calls another domain function (`match.analyze_match`) before calling the LLM — it passes the keyword gap analysis as structured context so the AI can focus on qualitative insights rather than rediscovering keyword gaps.
+`ai/analysis.py` generalizes what `align` did first. All four commands now feed the LLM what cvloom already computed — `linter.lint`, `trim.analyze`, `templates_meta.info_for`, `linter.rules_for` — inside an `<analysis>` block, so the model stops re-deriving what a rule answers exactly and stops missing what the CV text cannot show. `align` and `cover` additionally call `match.analyze_match` for the `<keyword_analysis>` block, which stays separate: its provenance is the job description, not the CV.
+
+The block is budgeted as a fraction of `cv_text` and renders through a downward walk — grouped by `(rule_id, fix_hint)`, then one line per finding, then counts — taking the first that fits. This is a safety mechanism, not only a quality one: Ollama drops the *front* of an over-long prompt and `GROUNDING` lives in the system message, so an oversized block can push the anti-fabrication contract out of the request entirely. Characters rather than tokens, because block and CV share a language and the tokenizer bias cancels between numerator and denominator.
+
+Scope decides what each command receives, keyed on what its consumer can act on rather than on the command name. `review` and `suggest` get every finding; `align` gets counts and an aggregate writing signal; `cover` gets **no defect findings at all** — at temperature 0.7, "No quantified outcome in this entry" is an invitation to invent the number, so it receives the inverse instead: which entries already carry a metric.
+
+What the block had to shed reaches the user through `context_notes` on each result dataclass, not `ResolvedProfile.warnings` — `cli._resolve` emits those before the AI call runs.
 
 All AI functions require `openai` (installed via `--extra ai`). They import it at function call time so the rest of the codebase works without it.
 
