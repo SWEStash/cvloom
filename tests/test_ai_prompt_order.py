@@ -20,6 +20,7 @@ from cvloom.locale import default_pack
 from cvloom.match import KeywordMatch, MatchReport
 
 _CV = "Jane Doe | Senior Engineer\n\n## Work Experience\n\nAcme — Engineer | 2020 – Present"
+_ANALYSIS = "<analysis>\nfindings: 1 (writing 1)\n</analysis>"
 _JD = "We need a Python developer with Kubernetes experience."
 
 
@@ -46,10 +47,12 @@ def _block_at(prompt: str, tag: str) -> int:
 def _prompts() -> dict[str, str]:
     pack = default_pack()
     return {
-        "review": _build_review_prompt(_CV, ["work", "skills"], pack),
-        "suggest": _build_suggest_prompt(_CV, ["work"], "Senior Backend Engineer", pack),
-        "align": _build_align_prompt(_CV, _JD, _match_report(), pack),
-        "cover": _build_cover_prompt(_CV, _JD, {"company": "Acme", "role": "Engineer"}, pack),
+        "review": _build_review_prompt(_CV, ["work", "skills"], pack, _ANALYSIS),
+        "suggest": _build_suggest_prompt(_CV, ["work"], "Senior Backend Engineer", pack, _ANALYSIS),
+        "align": _build_align_prompt(_CV, _JD, _match_report(), pack, _ANALYSIS),
+        "cover": _build_cover_prompt(
+            _CV, _JD, {"company": "Acme", "role": "Engineer"}, pack, _match_report(), _ANALYSIS
+        ),
     }
 
 
@@ -87,9 +90,13 @@ def test_the_closing_line_is_last(name: str) -> None:
 @pytest.mark.parametrize(
     ("name", "blocks"),
     [
-        ("suggest", ["<cv>", "<target_role>"]),
-        ("align", ["<keyword_analysis>", "<cv>", "<job_description>"]),
-        ("cover", ["<cv>", "<job_description>", "<job_context>"]),
+        ("review", ["<analysis>", "<cv>"]),
+        ("suggest", ["<analysis>", "<cv>", "<target_role>"]),
+        ("align", ["<analysis>", "<keyword_analysis>", "<cv>", "<job_description>"]),
+        (
+            "cover",
+            ["<analysis>", "<keyword_analysis>", "<cv>", "<job_description>", "<job_context>"],
+        ),
     ],
 )
 def test_volatile_blocks_run_least_to_most_specific(name: str, blocks: list[str]) -> None:

@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from cvloom.ai.analysis import SCOPE_FULL, analysis_context_block
 from cvloom.ai.models import ReviewResult, SectionScore
 from cvloom.ai.prompts import (
     CLOSING,
+    RELATED_FINDINGS,
     SYSTEM_ANALYSIS,
     assemble,
     cv_context_block,
@@ -20,8 +22,21 @@ from cvloom.models import ResolvedProfile
 
 _MAX_PER_SECTION = 3
 
+_ANALYSIS_TASK = (
+    "The <analysis> block lists what deterministic rules already found. Do not repeat "
+    "those findings back as weaknesses — the user has already seen them from "
+    "`cvloom check`. Judge instead what rules cannot: which of these findings actually "
+    "matter for this candidate, is each achievement credible and significant for this "
+    "level of role, and does the career narrative hold together, or is there an "
+    "unexplained gap or a seniority claim the evidence does not support? A section "
+    "whose findings are all cosmetic can still score badly, and a section with many "
+    "findings can still be strong.\n"
+)
 
-def _build_review_prompt(cv_text: str, sections: list[str], locale: LocalePack) -> str:
+
+def _build_review_prompt(
+    cv_text: str, sections: list[str], locale: LocalePack, analysis: str = ""
+) -> str:
     sections_str = ", ".join(sections) if sections else "all sections"
     instruction = (
         "Score each section of this CV. Respond with valid JSON matching this schema exactly:\n"
@@ -33,17 +48,17 @@ def _build_review_prompt(cv_text: str, sections: list[str], locale: LocalePack) 
         '      "score": <float 1.0-10.0>,\n'
         '      "strengths": [<string>, ...],\n'
         '      "weaknesses": [<string>, ...],\n'
-        '      "suggestions": [<string>, ...]\n'
+        '      "suggestions": [<string>, ...],\n'
+        '      "related_findings": [<string, a rule id from <analysis>>, ...]\n'
         "    }\n"
         "  ],\n"
         '  "top_priorities": [<string>, <string>, <string>]\n'
         "}\n\n"
         f"Sections to review: {sections_str}\n"
-        "Be honest and specific. "
         "top_priorities lists the 3 highest-impact improvements across all sections.\n"
         f"At most {_MAX_PER_SECTION} items in each of strengths, weaknesses and "
         "suggestions — the ones that matter most. A section with only one real "
-        "strength gets one item, not three padded ones."
+        "strength gets one item, not three padded ones.\n" + _ANALYSIS_TASK + RELATED_FINDINGS
     )
     return assemble(
         locale_context_block(locale),
@@ -51,6 +66,7 @@ def _build_review_prompt(cv_text: str, sections: list[str], locale: LocalePack) 
         # review has no prose field of its own, so the report lands in the one
         # free-text list it does have.
         unhappy_input("the first item of top_priorities"),
+        analysis,
         cv_context_block(cv_text),
         CLOSING,
     )
@@ -73,6 +89,7 @@ def _parse_review_result(raw_json: str) -> ReviewResult:
             strengths=(s.get("strengths") or [])[:_MAX_PER_SECTION],
             weaknesses=(s.get("weaknesses") or [])[:_MAX_PER_SECTION],
             suggestions=(s.get("suggestions") or [])[:_MAX_PER_SECTION],
+            related_findings=s.get("related_findings") or [],
         )
         for s in (data.get("sections") or [])
     ]
@@ -87,9 +104,10 @@ def review(resolved: ResolvedProfile, client: Any, model: str) -> ReviewResult:
     """Score each visible CV section with AI-powered feedback."""
     cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     shown = visible_sections(resolved)
-    prompt = _build_review_prompt(cv_text, shown, resolved.locale)
+    block = analysis_context_block(resolved, cv_text, scope=SCOPE_FULL)
+    prompt = _build_review_prompt(cv_text, shown, resolved.locale, block.text)
 
-    return complete_json(
+    result = complete_json(
         client,
         model,
         system=SYSTEM_ANALYSIS,
@@ -97,3 +115,5 @@ def review(resolved: ResolvedProfile, client: Any, model: str) -> ReviewResult:
         temperature=0.3,
         parse=_parse_review_result,
     )
+    result.context_notes = list(block.notes)
+    return result

@@ -1,4 +1,22 @@
-"""Result dataclasses for AI-powered analysis features."""
+"""Result dataclasses for AI-powered analysis features.
+
+Two fields recur across these types and are worth explaining once.
+
+``related_findings`` lets an item cite the deterministic lint rule it resolves, so
+a suggestion can be traced back to the `cvloom check` output the user has already
+seen. Parsers deliberately do **not** filter out unknown rule ids: silently
+dropping one hides a model that is making them up, whereas a rendered id absent
+from `cvloom check` is a visible symptom the user can report.
+
+``context_notes`` carries what the AI layer had to give up to fit the model's
+context — shed lint findings, a coarser analysis block. It is a field rather than
+a `ResolvedProfile.warnings` entry because the CLI emits those inside `_resolve`,
+before the AI call is made, so anything appended afterwards is never printed.
+
+Both are last and defaulted on every type that has them, which keeps positional
+construction working and lets `dataclasses.asdict` carry them to the MCP tools
+with no further plumbing.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +30,9 @@ class SectionScore:
     strengths: list[str] = field(default_factory=list)
     weaknesses: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
+    related_findings: list[str] = field(default_factory=list)
+    """Section-level, not per-strength: citing each item individually would mean
+    turning these plain lists into dataclasses."""
 
 
 @dataclass
@@ -19,6 +40,7 @@ class ReviewResult:
     overall_score: float
     sections: list[SectionScore] = field(default_factory=list)
     top_priorities: list[str] = field(default_factory=list)
+    context_notes: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -26,6 +48,7 @@ class CoverResult:
     letter: str
     word_count: int
     key_alignments: list[str] = field(default_factory=list)
+    context_notes: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -36,6 +59,7 @@ class Suggestion:
     current: str | None
     suggested: str
     rationale: str
+    related_findings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -43,6 +67,7 @@ class SuggestResult:
     suggestions: list[Suggestion] = field(default_factory=list)
     missing_skills: list[str] = field(default_factory=list)
     summary: str = ""
+    context_notes: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -52,3 +77,4 @@ class AlignResult:
     repositioning: list[str] = field(default_factory=list)
     tone_gaps: list[str] = field(default_factory=list)
     strengths: list[str] = field(default_factory=list)
+    context_notes: list[str] = field(default_factory=list)
