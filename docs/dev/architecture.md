@@ -436,7 +436,7 @@ ai/suggest.py    ← suggest():  same pattern → SuggestResult
 ai/align.py      ← align():    runs match() first, passes keyword analysis as context → AlignResult
 ```
 
-`cv_to_text(data, show_sections)` in `provider.py` serializes the resolved CV to plain text for LLM input. It respects section visibility.
+`cv_to_text(data, show_sections, locale=None)` in `provider.py` serializes the resolved CV to plain text for LLM input. It respects section visibility, and walks `sections.DEFAULT_SECTION_ORDER` rather than a list of its own — a hand-written list here went stale the moment a section was added, leaving `certifications`, `publications`, `awards` and `languages` invisible to every AI command even when the profile showed them. `skills` and `basics` stay bespoke, for the same reason they sit outside the registry. The optional `locale` pack supplies the section headings, so the model reads the CV under the same words the rendered document uses.
 
 `resolve_ai_config(root)` in `provider.py` is the single place the two config layers meet: `CVLOOM_AI_*` beats `cvloom.yaml`'s `ai:` block, which beats the built-in default. It returns an `AIConfig` carrying `base_url_source` / `model_source` alongside the values, because with two layers "which model is it actually using" needs an answer that `cvloom ai config` can print. `is_configured`, `get_client`, `get_model` and `get_config` all route through it and all take `root` **optionally** — the Python API is part of the public contract, so a required parameter would be a breaking change. A malformed `cvloom.yaml` degrades to the environment layer rather than raising: `ai config` is the command a user runs to understand a problem, and failing it on an unrelated typo hides the output that explains it.
 

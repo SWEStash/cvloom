@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from cvloom import config
+from cvloom import config, locale, sections
 from cvloom.ai.provider import (
     AINotConfiguredError,
     cv_to_text,
@@ -189,8 +189,15 @@ def _sample_data() -> dict:
         "basics": {
             "headline": "Senior Engineer",
             "summary": "Builds scalable systems.",
+            "links": [{"label": "GitHub", "url": "https://example.com/jane"}],
         },
         "contact": {"name": "Jane Doe"},
+        "publications": [{"name": "On Loom Theory", "publisher": "ACM", "release_date": "2022-03"}],
+        "certifications": [
+            {"name": "AWS SA", "issuer": "Amazon", "date": "2023", "expiry_date": "2026"}
+        ],
+        "awards": [{"title": "Best Paper", "awarder": "ACM", "date": "2022"}],
+        "languages": [{"language": "Spanish", "fluency": "native"}],
         "work": [
             {
                 "company": "Acme",
@@ -242,6 +249,31 @@ def test_cv_to_text_includes_all_sections() -> None:
     assert "Go" in text
     assert "cvloom" in text
     assert "Built in Python." in text
+
+
+def test_cv_to_text_covers_every_registry_section() -> None:
+    """Every section a profile shows reaches the model, not just the original four."""
+    data = _sample_data()
+    show = dict.fromkeys(sections.DEFAULT_SECTION_ORDER, True)
+    text = cv_to_text(data, show)
+    for expected in ("On Loom Theory", "AWS SA", "Best Paper", "Spanish"):
+        assert expected in text
+    # Registry-driven detail: publisher, issuer, awarder and fluency all ride along.
+    assert "ACM" in text
+    assert "native" in text
+    assert "expires 2026" in text
+
+
+def test_cv_to_text_includes_links_and_skill_levels() -> None:
+    text = cv_to_text(_sample_data(), {"skills": True})
+    assert "https://example.com/jane" in text
+    assert "Go (advanced)" in text
+
+
+def test_cv_to_text_uses_locale_section_titles() -> None:
+    pack, _ = locale.load_pack("es")
+    text = cv_to_text(_sample_data(), {"work": True}, pack)
+    assert f"## {pack.section_titles['work']}" in text
 
 
 def test_cv_to_text_respects_show_sections() -> None:

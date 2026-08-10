@@ -7,10 +7,8 @@ from typing import Any
 
 from cvloom.ai.models import Suggestion, SuggestResult
 from cvloom.ai.prompts import SYSTEM_ANALYSIS, cv_context_block
-from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
 from cvloom.models import ResolvedProfile
-
-_KNOWN_SECTIONS = ("work", "education", "skills", "projects")
 
 
 def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) -> str:
@@ -69,9 +67,9 @@ def suggest(
     role_context: str = "",
 ) -> SuggestResult:
     """Generate content improvement suggestions for the CV."""
-    cv_text = cv_to_text(resolved.data, resolved.show_sections)
-    sections = [s for s in _KNOWN_SECTIONS if resolved.show_sections.get(s, True)]
-    prompt = _build_suggest_prompt(cv_text, sections, role_context)
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
+    shown = visible_sections(resolved)
+    prompt = _build_suggest_prompt(cv_text, shown, role_context)
 
     return complete_json(
         client,

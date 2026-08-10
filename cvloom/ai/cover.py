@@ -56,7 +56,7 @@ def _parse_cover_result(raw_json: str) -> CoverResult:
 
 def generate_cover(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> CoverResult:
     """Generate a tailored cover letter for the given job description."""
-    cv_text = cv_to_text(resolved.data, resolved.show_sections)
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     job_context: dict[str, Any] = resolved.profile.get("job_context") or {}
     prompt = _build_cover_prompt(cv_text, jd_text, job_context)
 

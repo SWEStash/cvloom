@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from cvloom import config, sections
+from cvloom.locale import LocalePack
+from cvloom.models import ResolvedProfile
 
 _DEFAULT_MODEL = "gpt-4o"
 
@@ -192,88 +194,155 @@ def get_config(root: Path | None = None) -> dict[str, str | bool]:
 # ---------------------------------------------------------------------------
 
 
-def cv_to_text(data: dict[str, Any], show_sections: dict[str, bool]) -> str:
+# Prose fields get their own line rather than joining the headline.
+_PROSE_FIELDS = ("summary", "description")
+
+# ``degree`` and ``field`` are joined by sections.degree_line, which knows the
+# entry's own connector; emitting them separately would lose it.
+_HEADLINE_SKIP = frozenset({*_PROSE_FIELDS, "degree", "field"})
+
+
+def _entry_dates(section: sections.Section, entry: dict[str, Any]) -> str:
+    """The date fragment for an entry, driven by the registry rather than per-section keys."""
+    if section.range_keys:
+        start_key, end_key = section.range_keys
+        start = str(entry.get(start_key, ""))
+        end = str(entry.get(end_key) or "Present")
+        if start:
+            return f"{start} – {end}"
+        return ""
+    for key in section.sort_date_keys:
+        value = entry.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+def _entry_lines(section: sections.Section, entry: dict[str, Any]) -> list[str]:
+    """Serialize one array-section entry: headline, prose, then highlights."""
+    headline = [sections.entry_label(section.name, entry)]
+
+    if section.name == "education":
+        degree = sections.degree_line(entry)
+        if degree:
+            headline.append(degree)
+
+    # ENTRY_TEXT_FIELDS is the registry's own union of text-bearing scalars, so a
+    # new field on any section reaches the model without a change here.
+    headline += [
+        str(entry[key])
+        for key in sections.ENTRY_TEXT_FIELDS
+        if key != section.label_key
+        and key not in _HEADLINE_SKIP
+        and isinstance(entry.get(key), str)
+        and entry[key]
+    ]
+
+    line = " — ".join(headline)
+    tags = [str(tag) for tag in entry.get("tags") or []]
+    if tags:
+        line += f" [{', '.join(tags)}]"
+    dates = _entry_dates(section, entry)
+    if dates:
+        line += f" | {dates}"
+    if section.expiry_key and entry.get(section.expiry_key):
+        line += f" (expires {entry[section.expiry_key]})"
+
+    lines = [f"\n{line}"]
+    for key in _PROSE_FIELDS:
+        prose = entry.get(key)
+        if isinstance(prose, str) and prose.strip():
+            lines.append(prose.strip())
+    for hl in entry.get("highlights") or []:
+        text = sections.highlight_text(hl)
+        if text:
+            lines.append(f"- {text}")
+    return lines
+
+
+def _skill_text(item: Any) -> str:
+    """A skill's name, carrying its level where one is declared."""
+    name = sections.skill_name(item)
+    level = item.get("level") if isinstance(item, dict) else None
+    return f"{name} ({level})" if name and level else name
+
+
+def cv_to_text(
+    data: dict[str, Any],
+    show_sections: dict[str, bool],
+    locale: LocalePack | None = None,
+) -> str:
     """Serialize resolved CV data to clean readable text for use in AI prompts.
 
-    Respects section visibility from the resolved profile. Produces plain
-    text (not YAML) that is compact, readable, and works well as LLM context.
+    Walks :data:`cvloom.sections.SECTIONS` so every section a profile shows reaches
+    the model — a hand-written list here went stale the moment a section was added.
+    ``skills`` and ``basics`` stay bespoke, for the same reason they sit outside the
+    registry: their shapes differ.
+
+    Respects section visibility from the resolved profile. Produces plain text (not
+    YAML) that is compact, readable, and works well as LLM context. Headings follow
+    the project's locale pack when one is passed, so the model reads the CV under the
+    same words the document uses.
     """
     parts: list[str] = []
+    titles = locale.section_titles if locale else {}
+
+    def heading(name: str) -> str:
+        return f"\n## {titles.get(name) or name.replace('_', ' ').title()}"
 
     basics: dict[str, Any] = data.get("basics") or {}
     contact: dict[str, Any] = data.get("contact") or {}
 
-    name = contact.get("name", "")
-    headline = basics.get("headline", "")
-    summary = basics.get("summary", "")
-
-    header_parts = [p for p in [name, headline] if p]
+    header_parts = [p for p in [contact.get("name", ""), basics.get("headline", "")] if p]
     if header_parts:
         parts.append(" | ".join(header_parts))
+    summary = basics.get("summary", "")
     if summary:
         parts.append(summary.strip())
 
-    if show_sections.get("work", True):
-        work: list[dict[str, Any]] = data.get("work") or []
-        if work:
-            parts.append("\n## Work Experience")
-            for entry in work:
-                company = entry.get("company", "")
-                title = entry.get("title", "")
-                location = entry.get("location", "")
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "Present")
-                loc_str = f" ({location})" if location else ""
-                parts.append(f"\n{company} — {title}{loc_str} | {start} – {end}")
-                for h in entry.get("highlights") or []:
-                    text = sections.highlight_text(h)
-                    if text:
-                        parts.append(f"- {text}")
+    # Profile links carry their own lint rule (wl-010), so the model cannot judge
+    # them unless it can see them.
+    links = [
+        f"{link.get('label') or ''} {link.get('url') or ''}".strip()
+        for link in basics.get("links") or []
+    ]
+    if links:
+        parts.append("Links: " + ", ".join(link for link in links if link))
 
-    if show_sections.get("education", True):
-        education: list[dict[str, Any]] = data.get("education") or []
-        if education:
-            parts.append("\n## Education")
-            for entry in education:
-                institution = entry.get("institution", "")
-                degree = entry.get("degree", "")
-                field = entry.get("field", "")
-                start = entry.get("start_date", "")
-                end = entry.get("end_date", "")
-                field_str = f" in {field}" if field else ""
-                date_str = f" | {start}–{end}" if start else ""
-                parts.append(f"\n{institution} — {degree}{field_str}{date_str}")
-                for h in entry.get("highlights") or []:
-                    text = sections.highlight_text(h)
-                    if text:
-                        parts.append(f"- {text}")
-
-    if show_sections.get("skills", True):
-        skills: list[dict[str, Any]] = data.get("skills") or []
-        if skills:
-            parts.append("\n## Skills")
-            for cat in skills:
-                category = cat.get("category", "")
-                items = cat.get("items") or []
-                item_names = [sections.skill_name(item) for item in items]
-                if item_names:
-                    parts.append(f"{category}: {', '.join(item_names)}")
-
-    if show_sections.get("projects", True):
-        projects: list[dict[str, Any]] = data.get("projects") or []
-        if projects:
-            parts.append("\n## Projects")
-            for entry in projects:
-                name_p = entry.get("name", "")
-                description = entry.get("description", "")
-                tags = entry.get("tags") or []
-                tag_str = f" [{', '.join(tags)}]" if tags else ""
-                parts.append(f"\n{name_p}{tag_str}")
-                if description:
-                    parts.append(description.strip())
-                for h in entry.get("highlights") or []:
-                    text = sections.highlight_text(h)
-                    if text:
-                        parts.append(f"- {text}")
+    # DEFAULT_SECTION_ORDER, not SECTIONS, because it is the one place that knows
+    # where the registry-less `skills` sits among the entry-list sections.
+    for name in sections.DEFAULT_SECTION_ORDER:
+        if not show_sections.get(name, True):
+            continue
+        if name == "skills":
+            lines = _skills_lines(data.get("skills") or [])
+        else:
+            section = sections.SECTIONS_BY_NAME[name]
+            lines = [
+                line for entry in (data.get(name) or []) for line in _entry_lines(section, entry)
+            ]
+        if lines:
+            parts.append(heading(name))
+            parts += lines
 
     return "\n".join(parts)
+
+
+def visible_sections(resolved: ResolvedProfile) -> list[str]:
+    """The section names a profile shows, in render order — what the model was given."""
+    return [
+        name
+        for name in sections.DEFAULT_SECTION_ORDER
+        if resolved.show_sections.get(name, True) and (resolved.data.get(name) or [])
+    ]
+
+
+def _skills_lines(skills: list[dict[str, Any]]) -> list[str]:
+    """One line per skill category, each item carrying its level where declared."""
+    lines: list[str] = []
+    for cat in skills:
+        items = [_skill_text(item) for item in cat.get("items") or []]
+        named = [item for item in items if item]
+        if named:
+            lines.append(f"{cat.get('category', '')}: {', '.join(named)}")
+    return lines
