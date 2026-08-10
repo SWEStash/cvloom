@@ -17,6 +17,7 @@ import re
 
 import pytest
 
+from cvloom.ai.analysis import SCOPE_FULL, analysis_context_block
 from cvloom.ai.provider import cv_to_text
 from cvloom.ai.suggest import suggest
 from cvloom.models import ResolvedProfile
@@ -168,3 +169,56 @@ def test_every_suggestion_is_grounded(suggested: str) -> None:
     suggestions, source = _run_suggest(resolved, suggested)
     for text in suggestions:
         assert ungrounded_numbers(text, source) == set(), f"invented figures in: {text}"
+
+
+# ── Citations must trace to a finding the model was actually shown ──
+
+
+def _cited_response(rule_ids: list[str]) -> str:
+    return json.dumps(
+        {
+            "suggestions": [
+                {
+                    "section": "work",
+                    "entry": "Acme Corp",
+                    "type": "reword",
+                    "current": "Responsible for the payments service.",
+                    "suggested": "Owned the payments service end to end.",
+                    "rationale": "Leads with an outcome.",
+                    "related_findings": rule_ids,
+                }
+            ],
+            "missing_skills": [],
+            "summary": "Reframe as outcomes.",
+        }
+    )
+
+
+def _rule_ids_in_context(resolved: ResolvedProfile) -> set[str]:
+    """The rule ids the model could legitimately have read."""
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
+    block = analysis_context_block(resolved, cv_text, scope=SCOPE_FULL)
+    return set(re.findall(r"wl-\d{3}", block.text))
+
+
+def test_the_analysis_block_offers_rule_ids_to_cite() -> None:
+    """Without this the two tests below pass for the wrong reason — an empty set is
+    trivially a subset of anything."""
+    assert _rule_ids_in_context(_metric_free_cv())
+
+
+def test_a_citation_the_model_was_shown_is_accepted() -> None:
+    resolved = _metric_free_cv()
+    offered = sorted(_rule_ids_in_context(resolved))
+    result = suggest(resolved, FakeClient(_cited_response(offered[:1])), "test-model")
+    assert set(result.suggestions[0].related_findings) <= _rule_ids_in_context(resolved)
+
+
+def test_a_citation_the_model_invented_is_visible_rather_than_dropped() -> None:
+    """The parser deliberately does not filter unknown ids: silently dropping one
+    hides a misbehaving model, whereas a rule id absent from `cvloom check` is a
+    symptom the user can see and report."""
+    resolved = _metric_free_cv()
+    result = suggest(resolved, FakeClient(_cited_response(["wl-999"])), "test-model")
+    assert result.suggestions[0].related_findings == ["wl-999"]
+    assert not set(result.suggestions[0].related_findings) <= _rule_ids_in_context(resolved)
