@@ -148,6 +148,7 @@ def complete_json(
     prompt: str,
     temperature: float,
     parse: Callable[[str], _T],
+    seed: int | None = None,
 ) -> _T:
     """Run a JSON-mode chat completion and parse the response.
 
@@ -155,16 +156,30 @@ def complete_json(
     with ``response_format={"type": "json_object"}``, then hands the raw content
     to *parse*. Wraps a JSON decode failure in a RuntimeError carrying the raw
     response for debugging.
+
+    *seed* makes a run reproducible on backends that support it. Support is not
+    universal across OpenAI-compatible backends, so a client that does not accept
+    the parameter is retried without it rather than failing the command.
     """
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
-        temperature=temperature,
-        response_format={"type": "json_object"},
-    )
+        "temperature": temperature,
+        "response_format": {"type": "json_object"},
+    }
+    if seed is not None:
+        kwargs["seed"] = seed
+
+    try:
+        response = client.chat.completions.create(**kwargs)
+    except TypeError:
+        if seed is None:
+            raise
+        del kwargs["seed"]
+        response = client.chat.completions.create(**kwargs)
     raw = response.choices[0].message.content or ""
     try:
         return parse(raw)

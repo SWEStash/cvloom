@@ -36,7 +36,9 @@ def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) 
         + "}\n\n"
         + f"Sections to review: {sections_str}\n"
         + "Produce 5-10 suggestions ordered by impact. Be specific — include exact wording for "
-        + "new bullets and rewords. missing_skills lists skills worth adding given the role."
+        + "new bullets and rewords, built only from what the CV already states. "
+        + "missing_skills lists skills the role calls for that the CV does not evidence; it is "
+        + "a list of gaps for the candidate to consider, not skills to add to the CV."
     )
 
 
@@ -76,6 +78,8 @@ def suggest(
         model,
         system=SYSTEM_ANALYSIS,
         prompt=prompt,
-        temperature=0.7,
+        # Low: this command rewords the candidate's own achievements, and variety in
+        # that output is fabrication, not style. `cover` keeps 0.7 — see cover.py.
+        temperature=0.2,
         parse=_parse_suggest_result,
     )

@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from cvloom import config, locale, sections
 from cvloom.ai.provider import (
     AINotConfiguredError,
+    complete_json,
     cv_to_text,
     get_config,
     get_model,
     is_configured,
     resolve_ai_config,
 )
+from tests.ai_fakes import FakeClient
 
 # ---------------------------------------------------------------------------
 # is_configured / get_config
@@ -297,3 +301,38 @@ def test_cv_to_text_handles_missing_sections() -> None:
 def test_cv_to_text_handles_empty_data() -> None:
     text = cv_to_text({}, {})
     assert isinstance(text, str)
+
+
+# ---------------------------------------------------------------------------
+# complete_json — seed passthrough
+# ---------------------------------------------------------------------------
+
+
+class _SeedBlindClient(FakeClient):
+    """A backend whose client signature predates `seed`, as several proxies do."""
+
+    def __init__(self, response_content: str) -> None:
+        super().__init__(response_content)
+        self.rejected = 0
+
+    def create(self, **kwargs: Any) -> Any:
+        if "seed" in kwargs:
+            self.rejected += 1
+            raise TypeError("unexpected keyword argument 'seed'")
+        return super().create(**kwargs)
+
+
+def test_seed_is_passed_through_when_the_backend_accepts_it() -> None:
+    client = FakeClient('{"ok": true}')
+    complete_json(client, "m", system="s", prompt="p", temperature=0.0, parse=json.loads, seed=7)
+    assert client.calls[0]["seed"] == 7
+
+
+def test_a_backend_that_rejects_seed_still_answers() -> None:
+    client = _SeedBlindClient('{"ok": true}')
+    result = complete_json(
+        client, "m", system="s", prompt="p", temperature=0.0, parse=json.loads, seed=7
+    )
+    assert result == {"ok": True}
+    assert client.rejected == 1
+    assert "seed" not in client.calls[-1]

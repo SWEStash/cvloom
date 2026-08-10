@@ -65,6 +65,9 @@ def generate_cover(resolved: ResolvedProfile, jd_text: str, client: Any, model: 
         model,
         system=SYSTEM_CREATIVE,
         prompt=prompt,
+        # Higher than the analysis commands on purpose: a cover letter is prose, and
+        # its voice genuinely benefits from the variety. The grounding clause in
+        # SYSTEM_CREATIVE is what keeps that variety off the facts.
         temperature=0.7,
         parse=_parse_cover_result,
     )
