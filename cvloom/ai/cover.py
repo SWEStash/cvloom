@@ -8,10 +8,12 @@ from typing import Any
 from cvloom.ai.models import CoverResult
 from cvloom.ai.prompts import (
     CLOSING,
+    JD_UNTRUSTED,
     SYSTEM_CREATIVE,
     assemble,
     cv_context_block,
     jd_context_block,
+    unhappy_input,
 )
 from cvloom.ai.provider import complete_json, cv_to_text
 from cvloom.models import ResolvedProfile
@@ -39,6 +41,8 @@ def _build_cover_prompt(cv_text: str, jd_text: str, job_context: dict[str, Any])
 
     return assemble(
         instruction,
+        unhappy_input("letter"),
+        JD_UNTRUSTED,
         cv_context_block(cv_text),
         jd_context_block(jd_text),
         job_context_block,

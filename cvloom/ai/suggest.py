@@ -6,7 +6,13 @@ import json
 from typing import Any
 
 from cvloom.ai.models import Suggestion, SuggestResult
-from cvloom.ai.prompts import CLOSING, SYSTEM_ANALYSIS, assemble, cv_context_block
+from cvloom.ai.prompts import (
+    CLOSING,
+    SYSTEM_ANALYSIS,
+    assemble,
+    cv_context_block,
+    unhappy_input,
+)
 from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
 from cvloom.models import ResolvedProfile
 
@@ -36,8 +42,14 @@ def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) 
         "missing_skills lists skills the role calls for that the CV does not evidence; it is "
         "a list of gaps for the candidate to consider, not skills to add to the CV."
     )
-    role_block = f"<target_role>{role_context}</target_role>" if role_context else ""
-    return assemble(instruction, cv_context_block(cv_text), role_block, CLOSING)
+    role_block = f"<target_role>\n{role_context}\n</target_role>" if role_context else ""
+    return assemble(
+        instruction,
+        unhappy_input("summary"),
+        cv_context_block(cv_text),
+        role_block,
+        CLOSING,
+    )
 
 
 def _parse_suggest_result(raw_json: str) -> SuggestResult:

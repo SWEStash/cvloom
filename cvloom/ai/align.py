@@ -8,10 +8,12 @@ from typing import Any
 from cvloom.ai.models import AlignResult
 from cvloom.ai.prompts import (
     CLOSING,
+    JD_UNTRUSTED,
     SYSTEM_ANALYSIS,
     assemble,
     cv_context_block,
     jd_context_block,
+    unhappy_input,
 )
 from cvloom.ai.provider import complete_json, cv_to_text
 from cvloom.match import MatchReport, analyze_match
@@ -50,6 +52,8 @@ def _build_align_prompt(cv_text: str, jd_text: str, match_report: MatchReport) -
     )
     return assemble(
         instruction,
+        unhappy_input("narrative"),
+        JD_UNTRUSTED,
         keyword_block,
         cv_context_block(cv_text),
         jd_context_block(jd_text),
