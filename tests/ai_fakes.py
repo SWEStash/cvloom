@@ -25,8 +25,7 @@ class _FakeCompletions:
         self._client = client
 
     def create(self, **kwargs: Any) -> _FakeResponse:
-        self._client.calls.append(kwargs)
-        return _FakeResponse(self._client.response_content)
+        return self._client.create(**kwargs)
 
 
 class _FakeChat:
@@ -41,3 +40,8 @@ class FakeClient:
         self.response_content = response_content
         self.calls: list[dict[str, Any]] = []
         self.chat = _FakeChat(self)
+
+    def create(self, **kwargs: Any) -> _FakeResponse:
+        """The seam a subclass overrides to reject a parameter or script a sequence."""
+        self.calls.append(kwargs)
+        return _FakeResponse(self.response_content)
