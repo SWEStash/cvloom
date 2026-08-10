@@ -13,13 +13,39 @@ from cvloom.ai.prompts import (
     assemble,
     cv_context_block,
     jd_context_block,
+    locale_context_block,
     unhappy_input,
 )
 from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.locale import LocalePack
 from cvloom.models import ResolvedProfile
 
 
-def _build_cover_prompt(cv_text: str, jd_text: str, job_context: dict[str, Any]) -> str:
+def _furniture(locale: LocalePack, job_context: dict[str, Any]) -> str:
+    """Dictate the greeting and closing, in the same words the template would use.
+
+    ``cover-letter/*.html.j2`` builds its salutation and sign-off from the pack via
+    ``filters.cover_letter_text``, resolving a ``job_context`` override first. This
+    mirrors that rule so the two cover-letter paths agree on the three strings the
+    pack owns, instead of the AI inventing English furniture for a Spanish letter.
+
+    Keeping the model writing the furniture (rather than stripping it afterwards)
+    is what lets a later body-only mode be pure subtraction: drop this instruction
+    and the template supplies the same strings from the same pack.
+    """
+    greeting = job_context.get("greeting") or locale.cover_letter["greeting"]
+    closing = job_context.get("closing") or locale.cover_letter["closing"]
+    salutee = job_context.get("hiring_manager") or locale.cover_letter["fallback_salutee"]
+    return (
+        f"Open the letter with exactly this salutation, on its own line: {greeting} {salutee},\n"
+        f"Close with exactly {closing} on its own line, followed by the candidate's name "
+        "on the line after it. Everything between those two is yours to write."
+    )
+
+
+def _build_cover_prompt(
+    cv_text: str, jd_text: str, job_context: dict[str, Any], locale: LocalePack
+) -> str:
     instruction = (
         "Generate a tailored, professional cover letter for this role. "
         "Respond with valid JSON matching this schema exactly:\n"
@@ -29,7 +55,8 @@ def _build_cover_prompt(cv_text: str, jd_text: str, job_context: dict[str, Any])
         '  "key_alignments": ["<bullet>", ...]\n'
         "}\n\n"
         "key_alignments: 3–5 brief bullets explaining why this candidate fits the role.\n"
-        "Keep the letter under 400 words. Write in first person, professional tone."
+        "Keep the letter under 400 words. Write in first person, professional tone.\n"
+        + _furniture(locale, job_context)
     )
 
     _jc_keys = ("company", "role", "hiring_manager")
@@ -40,6 +67,7 @@ def _build_cover_prompt(cv_text: str, jd_text: str, job_context: dict[str, Any])
         job_context_block = "\n".join(["<job_context>", *jc_lines, "</job_context>"])
 
     return assemble(
+        locale_context_block(locale),
         instruction,
         unhappy_input("letter"),
         JD_UNTRUSTED,
@@ -65,7 +93,7 @@ def generate_cover(resolved: ResolvedProfile, jd_text: str, client: Any, model: 
     """Generate a tailored cover letter for the given job description."""
     cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     job_context: dict[str, Any] = resolved.profile.get("job_context") or {}
-    prompt = _build_cover_prompt(cv_text, jd_text, job_context)
+    prompt = _build_cover_prompt(cv_text, jd_text, job_context, resolved.locale)
 
     return complete_json(
         client,

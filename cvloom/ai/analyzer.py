@@ -11,15 +11,17 @@ from cvloom.ai.prompts import (
     SYSTEM_ANALYSIS,
     assemble,
     cv_context_block,
+    locale_context_block,
     unhappy_input,
 )
 from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
+from cvloom.locale import LocalePack
 from cvloom.models import ResolvedProfile
 
 _MAX_PER_SECTION = 3
 
 
-def _build_review_prompt(cv_text: str, sections: list[str]) -> str:
+def _build_review_prompt(cv_text: str, sections: list[str], locale: LocalePack) -> str:
     sections_str = ", ".join(sections) if sections else "all sections"
     instruction = (
         "Score each section of this CV. Respond with valid JSON matching this schema exactly:\n"
@@ -44,6 +46,7 @@ def _build_review_prompt(cv_text: str, sections: list[str]) -> str:
         "strength gets one item, not three padded ones."
     )
     return assemble(
+        locale_context_block(locale),
         instruction,
         # review has no prose field of its own, so the report lands in the one
         # free-text list it does have.
@@ -84,7 +87,7 @@ def review(resolved: ResolvedProfile, client: Any, model: str) -> ReviewResult:
     """Score each visible CV section with AI-powered feedback."""
     cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     shown = visible_sections(resolved)
-    prompt = _build_review_prompt(cv_text, shown)
+    prompt = _build_review_prompt(cv_text, shown, resolved.locale)
 
     return complete_json(
         client,

@@ -2,6 +2,7 @@
 
 Every prompt is assembled in one canonical order, stable content first::
 
+    <locale>                      <- one line per project
     instruction + JSON schema     <- constant per command
     <keyword_analysis>            <- varies with the job description
     <cv>                          <- varies with the profile
@@ -13,6 +14,10 @@ what precedes the first byte that changed, and the schema is the same on every
 run while the CV is not. Putting the CV first, as these prompts once did, meant
 nothing was ever reusable.
 
+<locale> leads because it is the most stable content of all — a project's
+language changes never — and because it governs how everything after it is
+answered.
+
 CLOSING breaks the ordering rule deliberately. It sits after the volatile blocks,
 so it is never cached, but it is one short line and it restores recency for a
 small local model that has just read several thousand characters of CV since the
@@ -20,6 +25,8 @@ last instruction.
 """
 
 from __future__ import annotations
+
+from cvloom.locale import LocalePack
 
 GROUNDING = (
     "\n\nGrounding rules, which override every other instruction:\n"
@@ -101,6 +108,37 @@ def assemble(*parts: str) -> str:
     site — and the order stays readable as a single expression.
     """
     return "\n\n".join(part for part in parts if part)
+
+
+_LANGUAGE_NAMES = {"en": "English", "es": "Spanish"}
+"""English names for the locales that ship a pack.
+
+Deliberately not a ``LocalePack`` field: that would be a new required pack key,
+so a ``schemas/`` change and a completeness-contract change on every pack, for a
+string only the prompt layer wants. An unknown code degrades to naming the code
+itself, which a model handles better than silence.
+"""
+
+
+def locale_context_block(pack: LocalePack) -> str:
+    """State the CV's language, and which strings must not be translated into it.
+
+    The second half is the part that earns its place. ``cli.py`` colours a
+    suggestion by its ``type`` (bullet/skill/reword/remove) and matches ``section``
+    against CV section names; a model told only "answer in Spanish" returns
+    ``"type": "viñeta"`` and every badge falls through to the default colour. So a
+    naive locale instruction does not merely fail to help — it breaks the CLI.
+    """
+    language = _LANGUAGE_NAMES.get(pack.code, f"the language with code '{pack.code}'")
+    return (
+        "<locale>\n"
+        f"The CV below is written in {language} ({pack.code}).\n"
+        "Write every human-readable string in your JSON response in that same language: "
+        "summaries, rationales, narrative prose, suggested bullet text, the letter itself.\n"
+        "JSON keys, section names and enum values stay in English exactly as the schema "
+        "shows them — they are parsed by software, not read by a person.\n"
+        "</locale>"
+    )
 
 
 def cv_context_block(cv_text: str) -> str:
