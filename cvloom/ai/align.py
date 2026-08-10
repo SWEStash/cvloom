@@ -6,7 +6,13 @@ import json
 from typing import Any
 
 from cvloom.ai.models import AlignResult
-from cvloom.ai.prompts import SYSTEM_ANALYSIS, cv_context_block, jd_context_block
+from cvloom.ai.prompts import (
+    CLOSING,
+    SYSTEM_ANALYSIS,
+    assemble,
+    cv_context_block,
+    jd_context_block,
+)
 from cvloom.ai.provider import complete_json, cv_to_text
 from cvloom.match import MatchReport, analyze_match
 from cvloom.models import ResolvedProfile
@@ -27,26 +33,27 @@ def _build_align_prompt(cv_text: str, jd_text: str, match_report: MatchReport) -
         "</keyword_analysis>"
     )
 
-    return (
-        cv_context_block(cv_text)
-        + "\n\n"
-        + jd_context_block(jd_text)
-        + "\n\n"
-        + keyword_block
-        + "\n\n"
-        + "Analyze how well this CV positions the candidate for the job description above. "
-        + "The keyword analysis provides quantitative context — focus on qualitative insights "
-        + "(tone, framing, narrative, positioning) that go beyond keyword matching. "
-        + "Respond with valid JSON matching this schema exactly:\n"
-        + "{\n"
-        + '  "alignment_score": <float 1.0-10.0, overall CV-to-JD fit>,\n'
-        + '  "narrative": <string, 2-3 paragraph qualitative summary of alignment>,\n'
-        + '  "repositioning": [<string, concrete action ordered by impact>, ...],\n'
-        + '  "tone_gaps": [<string, tone/framing mismatch>, ...],\n'
-        + '  "strengths": [<string, what already aligns well>, ...]\n'
-        + "}\n\n"
-        + "Be specific and actionable. repositioning items should describe exact changes, "
-        + "not vague advice. tone_gaps should contrast JD language with CV language."
+    instruction = (
+        "Analyze how well this CV positions the candidate for the job description below. "
+        "The keyword analysis provides quantitative context — focus on qualitative insights "
+        "(tone, framing, narrative, positioning) that go beyond keyword matching. "
+        "Respond with valid JSON matching this schema exactly:\n"
+        "{\n"
+        '  "alignment_score": <float 1.0-10.0, overall CV-to-JD fit>,\n'
+        '  "narrative": <string, 2-3 paragraph qualitative summary of alignment>,\n'
+        '  "repositioning": [<string, concrete action ordered by impact>, ...],\n'
+        '  "tone_gaps": [<string, tone/framing mismatch>, ...],\n'
+        '  "strengths": [<string, what already aligns well>, ...]\n'
+        "}\n\n"
+        "Be specific and actionable. repositioning items should describe exact changes, "
+        "not vague advice. tone_gaps should contrast JD language with CV language."
+    )
+    return assemble(
+        instruction,
+        keyword_block,
+        cv_context_block(cv_text),
+        jd_context_block(jd_text),
+        CLOSING,
     )
 
 

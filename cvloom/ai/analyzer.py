@@ -6,34 +6,33 @@ import json
 from typing import Any
 
 from cvloom.ai.models import ReviewResult, SectionScore
-from cvloom.ai.prompts import SYSTEM_ANALYSIS, cv_context_block
+from cvloom.ai.prompts import CLOSING, SYSTEM_ANALYSIS, assemble, cv_context_block
 from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
 from cvloom.models import ResolvedProfile
 
 
 def _build_review_prompt(cv_text: str, sections: list[str]) -> str:
     sections_str = ", ".join(sections) if sections else "all sections"
-    return (
-        cv_context_block(cv_text)
-        + "\n\n"
-        + "Score each section of this CV. Respond with valid JSON matching this schema exactly:\n"
-        + "{\n"
-        + '  "overall_score": <float 1.0-10.0, weighted average across sections>,\n'
-        + '  "sections": [\n'
-        + "    {\n"
-        + '      "section": <string, section name>,\n'
-        + '      "score": <float 1.0-10.0>,\n'
-        + '      "strengths": [<string>, ...],\n'
-        + '      "weaknesses": [<string>, ...],\n'
-        + '      "suggestions": [<string>, ...]\n'
-        + "    }\n"
-        + "  ],\n"
-        + '  "top_priorities": [<string>, <string>, <string>]\n'
-        + "}\n\n"
-        + f"Sections to review: {sections_str}\n"
-        + "Be honest and specific. "
-        + "top_priorities lists the 3 highest-impact improvements across all sections."
+    instruction = (
+        "Score each section of this CV. Respond with valid JSON matching this schema exactly:\n"
+        "{\n"
+        '  "overall_score": <float 1.0-10.0, weighted average across sections>,\n'
+        '  "sections": [\n'
+        "    {\n"
+        '      "section": <string, section name>,\n'
+        '      "score": <float 1.0-10.0>,\n'
+        '      "strengths": [<string>, ...],\n'
+        '      "weaknesses": [<string>, ...],\n'
+        '      "suggestions": [<string>, ...]\n'
+        "    }\n"
+        "  ],\n"
+        '  "top_priorities": [<string>, <string>, <string>]\n'
+        "}\n\n"
+        f"Sections to review: {sections_str}\n"
+        "Be honest and specific. "
+        "top_priorities lists the 3 highest-impact improvements across all sections."
     )
+    return assemble(instruction, cv_context_block(cv_text), CLOSING)
 
 
 def _parse_review_result(raw_json: str) -> ReviewResult:

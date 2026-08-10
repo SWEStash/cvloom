@@ -1,4 +1,23 @@
-"""Shared prompt construction utilities for AI analysis features."""
+"""Shared prompt construction utilities for AI analysis features.
+
+Every prompt is assembled in one canonical order, stable content first::
+
+    instruction + JSON schema     <- constant per command
+    <keyword_analysis>            <- varies with the job description
+    <cv>                          <- varies with the profile
+    <job_description> / <target_role> / <job_context>
+    CLOSING
+
+The point is the prefix: a provider that caches prompt prefixes can only reuse
+what precedes the first byte that changed, and the schema is the same on every
+run while the CV is not. Putting the CV first, as these prompts once did, meant
+nothing was ever reusable.
+
+CLOSING breaks the ordering rule deliberately. It sits after the volatile blocks,
+so it is never cached, but it is one short line and it restores recency for a
+small local model that has just read several thousand characters of CV since the
+last instruction.
+"""
 
 from __future__ import annotations
 
@@ -33,6 +52,19 @@ SYSTEM_ANALYSIS = (
 )
 
 SYSTEM_CREATIVE = _PERSONA + "Write in a clear, professional tone." + GROUNDING
+
+
+CLOSING = "Respond with JSON only, matching the schema above."
+
+
+def assemble(*parts: str) -> str:
+    """Join the non-empty prompt parts, in the order given, with a blank line between.
+
+    Callers pass parts in the canonical order documented above. Empty parts drop
+    out, so an optional block is an empty string rather than a branch at the call
+    site — and the order stays readable as a single expression.
+    """
+    return "\n\n".join(part for part in parts if part)
 
 
 def cv_context_block(cv_text: str) -> str:
