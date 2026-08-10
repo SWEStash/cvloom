@@ -181,6 +181,59 @@ Two things stay English on purpose:
 A locale with no pack of its own falls back the way everything else does: the prompt
 names the language by code, and the model does the rest.
 
+## What the model is told, besides your CV
+
+Every `ai` command sends an `<analysis>` block alongside the CV text: what
+`cvloom check`, `cvloom trim` and the template's measured parse rating already
+know. Its purpose is to stop the AI guessing at things cvloom answers exactly.
+
+```
+<analysis>
+locale: en — 24 of 25 lint rules ran (wl-025 has no en implementation)
+length: 252 words, about 1 page against a 3-page target
+template: cv/ats-clean — 1 column, PDF text extraction rated "safe"
+findings: 22 (writing 17, structure 1, ats-parse 4)
+
+wl-005 [writing/warning] x4 — fix: Add context, impact, or metrics …
+  - education / State University, bullet 1: Highlight too short (2 words, min 8).
+  ... and 1 more of wl-005
+not shown: wl-013 x3, wl-016 x6
+</analysis>
+```
+
+This changes what `ai review` is **for**. It no longer re-derives, worse, what the
+linter computes exactly — it is told not to repeat those findings back, and asked
+instead for what no rule can produce: whether an achievement is credible for the
+seniority claimed, whether the career narrative holds, and which of the findings
+actually matter for this application. Run `cvloom check` for the findings
+themselves; run `ai review` to find out which ones to spend your time on.
+
+`ai review` and `ai suggest` can cite the rule they address, shown as
+`(addresses wl-004)`. A cited id always appears in your own `cvloom check` output
+— if one does not, the model invented it, and cvloom shows it rather than hiding
+it so you can see that happening.
+
+**Each command gets only what it can act on.** `ai align` receives counts and the
+aggregate writing signal, not individual bullets. `ai cover` receives no defect
+findings at all — instead it is told which entries already carry a quantified
+outcome, so it leads with them. Telling a cover-letter generator "this entry has
+no metric" is how you get an invented metric.
+
+### When the analysis has to be cut down
+
+The block is budgeted as a fraction of your CV, so it can never crowd the CV out
+of a small model's context window. If your CV has more findings than fit, cvloom
+sheds the lowest-priority ones, lists them under `not shown:`, and prints a note:
+
+```
+note: 14 lower-priority lint findings were left out of the AI context to keep
+      the CV itself in the prompt.
+```
+
+That note only appears when something was actually dropped. See
+[Context length](#context-length--read-this-before-running-ai-on-a-long-cv) for
+the related failure, where the *backend* truncates the prompt rather than cvloom.
+
 ## Commands
 
 ### `ai config`
@@ -206,6 +259,10 @@ looks identical to it working.
 ### `ai review`
 
 Scores each visible CV section 1–10 with strengths, weaknesses, and concrete improvement suggestions. Produces an overall score and a prioritised list of the three highest-impact changes across the whole CV.
+
+It is handed everything `cvloom check` found and told not to repeat it, so it
+complements that command rather than restating it — see
+[What the model is told](#what-the-model-is-told-besides-your-cv).
 
 ```bash
 cvloom ai review --profile general
