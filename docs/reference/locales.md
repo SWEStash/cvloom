@@ -42,6 +42,11 @@ Two independent axes, resolved separately:
 | **Document pack** | `cvloom/locales/<code>.yaml` | The rendered document — `lang` attribute, section headings, the open-ended date word, the `--public` placeholder contact, and a cover letter's greeting, sign-off and date |
 | **Linter data** | `cvloom/linter_locales/<code>.py` | How `cvloom check` and `cvloom match` grade the writing — lexicons, thresholds, stop words |
 
+The document pack also governs **what language the `ai` commands answer in**. That
+is the same axis, not a third one: an AI review is feedback on the document, and a
+generated cover letter *is* a document. See
+[AI features](../user/ai-features.md#language).
+
 They are keyed by the same locale code but looked up independently, so a language
 can have one without the other. A locale with a document pack and no linter module
 produces a correctly-written document that is then graded by **English** heuristics.
@@ -167,6 +172,11 @@ setting `hiring_manager` is the way to say who you are writing to.
 The date needs nothing from you. `strftime` would read the machine's C locale,
 which is English whatever your project says, so cvloom writes the date from the
 pack's own `months` and `date_format`.
+
+`cvloom ai cover` resolves the greeting, salutee and closing through the **same
+two sources in the same order**, and instructs the model to use them verbatim. A
+generated letter and a rendered one therefore open and close identically, which is
+what makes the generated body safe to paste into `job_context.notes`.
 
 ## Resolution and fallback
 

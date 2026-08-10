@@ -161,6 +161,26 @@ export CVLOOM_AI_API_KEY=sk-...
 export CVLOOM_AI_MODEL=gpt-4o
 ```
 
+## Language
+
+Every `ai` command answers in **your project's language**, taken from `locale:` in
+`cvloom.yaml`. On an `es` project, `ai review` returns Spanish feedback, `ai suggest`
+writes Spanish replacement bullets, and `ai cover` writes a Spanish letter that opens
+and closes with the same words `cvloom build` would use — see
+[Cover-letter furniture](../reference/locales.md#cover-letter-furniture-two-sources-narrowest-wins).
+
+Two things stay English on purpose:
+
+- **The terminal output around the answer.** Labels, headings and warnings are the
+  CLI's, and the CLI is English everywhere — the same rule `cvloom check` follows.
+- **JSON keys, section names and the suggestion `type`** (`bullet`, `skill`,
+  `reword`, `remove`). These are parsed by cvloom, not read by you. The prompt says
+  so explicitly, because a model told only "answer in Spanish" will happily return
+  `"type": "viñeta"` and leave the CLI unable to categorize its own output.
+
+A locale with no pack of its own falls back the way everything else does: the prompt
+names the language by code, and the model does the rest.
+
 ## Commands
 
 ### `ai config`
