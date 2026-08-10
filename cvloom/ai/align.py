@@ -63,7 +63,7 @@ def _parse_align_result(raw_json: str) -> AlignResult:
 
 def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> AlignResult:
     """Qualitative AI analysis of how well the CV aligns to a job description."""
-    cv_text = cv_to_text(resolved.data, resolved.show_sections)
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     match_report = analyze_match(resolved, jd_text)
     prompt = _build_align_prompt(cv_text, jd_text, match_report)
 

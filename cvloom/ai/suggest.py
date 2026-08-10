@@ -7,10 +7,8 @@ from typing import Any
 
 from cvloom.ai.models import Suggestion, SuggestResult
 from cvloom.ai.prompts import SYSTEM_ANALYSIS, cv_context_block
-from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
 from cvloom.models import ResolvedProfile
-
-_KNOWN_SECTIONS = ("work", "education", "skills", "projects")
 
 
 def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) -> str:
@@ -38,7 +36,9 @@ def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) 
         + "}\n\n"
         + f"Sections to review: {sections_str}\n"
         + "Produce 5-10 suggestions ordered by impact. Be specific — include exact wording for "
-        + "new bullets and rewords. missing_skills lists skills worth adding given the role."
+        + "new bullets and rewords, built only from what the CV already states. "
+        + "missing_skills lists skills the role calls for that the CV does not evidence; it is "
+        + "a list of gaps for the candidate to consider, not skills to add to the CV."
     )
 
 
@@ -69,15 +69,17 @@ def suggest(
     role_context: str = "",
 ) -> SuggestResult:
     """Generate content improvement suggestions for the CV."""
-    cv_text = cv_to_text(resolved.data, resolved.show_sections)
-    sections = [s for s in _KNOWN_SECTIONS if resolved.show_sections.get(s, True)]
-    prompt = _build_suggest_prompt(cv_text, sections, role_context)
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
+    shown = visible_sections(resolved)
+    prompt = _build_suggest_prompt(cv_text, shown, role_context)
 
     return complete_json(
         client,
         model,
         system=SYSTEM_ANALYSIS,
         prompt=prompt,
-        temperature=0.7,
+        # Low: this command rewords the candidate's own achievements, and variety in
+        # that output is fabrication, not style. `cover` keeps 0.7 — see cover.py.
+        temperature=0.2,
         parse=_parse_suggest_result,
     )

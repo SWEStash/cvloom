@@ -14,7 +14,7 @@ import pytest
 from cvloom.ai.align import align
 from cvloom.ai.analyzer import review
 from cvloom.ai.cover import generate_cover
-from cvloom.ai.prompts import SYSTEM_ANALYSIS, SYSTEM_CREATIVE
+from cvloom.ai.prompts import GROUNDING, SYSTEM_ANALYSIS, SYSTEM_CREATIVE
 from cvloom.ai.suggest import suggest
 from cvloom.models import ResolvedProfile
 from tests.ai_fakes import FakeClient
@@ -194,3 +194,36 @@ def test_align_malformed_json_raises() -> None:
     client = FakeClient("<html>error</html>")
     with pytest.raises(RuntimeError, match="invalid JSON"):
         align(_make_resolved(), "jd text", client, "test-model")
+
+
+# ---------------------------------------------------------------------------
+# The grounding contract
+# ---------------------------------------------------------------------------
+
+
+def test_every_orchestrator_sends_the_grounding_contract() -> None:
+    """The one thing standing between a creative model and a fabricated CV.
+
+    Asserted per orchestrator rather than on the constants alone: a future feature
+    that assembles its own system prompt would pass a constants-only test while
+    shipping an ungrounded command.
+    """
+    resolved = _make_resolved()
+    for call in (
+        lambda c: review(resolved, c, "test-model"),
+        lambda c: suggest(resolved, c, "test-model"),
+        lambda c: generate_cover(resolved, "jd text", c, "test-model"),
+        lambda c: align(resolved, "jd text", c, "test-model"),
+    ):
+        client = FakeClient(json.dumps({"narrative": "ok", "letter": "ok"}))
+        call(client)
+        system = client.calls[0]["messages"][0]["content"]
+        assert GROUNDING in system
+        assert "[add metric" in system
+
+
+def test_suggest_runs_cold() -> None:
+    """Variety in a reworded achievement is fabrication, not style."""
+    client = FakeClient(json.dumps({"suggestions": []}))
+    suggest(_make_resolved(), client, "test-model")
+    assert client.calls[0]["temperature"] == 0.2

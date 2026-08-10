@@ -7,10 +7,8 @@ from typing import Any
 
 from cvloom.ai.models import ReviewResult, SectionScore
 from cvloom.ai.prompts import SYSTEM_ANALYSIS, cv_context_block
-from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
 from cvloom.models import ResolvedProfile
-
-_KNOWN_SECTIONS = ("work", "education", "skills", "projects")
 
 
 def _build_review_prompt(cv_text: str, sections: list[str]) -> str:
@@ -59,9 +57,9 @@ def _parse_review_result(raw_json: str) -> ReviewResult:
 
 def review(resolved: ResolvedProfile, client: Any, model: str) -> ReviewResult:
     """Score each visible CV section with AI-powered feedback."""
-    cv_text = cv_to_text(resolved.data, resolved.show_sections)
-    sections = [s for s in _KNOWN_SECTIONS if resolved.show_sections.get(s, True)]
-    prompt = _build_review_prompt(cv_text, sections)
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
+    shown = visible_sections(resolved)
+    prompt = _build_review_prompt(cv_text, shown)
 
     return complete_json(
         client,

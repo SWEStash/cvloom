@@ -56,7 +56,7 @@ def _parse_cover_result(raw_json: str) -> CoverResult:
 
 def generate_cover(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> CoverResult:
     """Generate a tailored cover letter for the given job description."""
-    cv_text = cv_to_text(resolved.data, resolved.show_sections)
+    cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     job_context: dict[str, Any] = resolved.profile.get("job_context") or {}
     prompt = _build_cover_prompt(cv_text, jd_text, job_context)
 
@@ -65,6 +65,9 @@ def generate_cover(resolved: ResolvedProfile, jd_text: str, client: Any, model: 
         model,
         system=SYSTEM_CREATIVE,
         prompt=prompt,
+        # Higher than the analysis commands on purpose: a cover letter is prose, and
+        # its voice genuinely benefits from the variety. The grounding clause in
+        # SYSTEM_CREATIVE is what keeps that variety off the facts.
         temperature=0.7,
         parse=_parse_cover_result,
     )
