@@ -90,6 +90,22 @@ def _cited(rule_ids: list[str]) -> str:
     return f"  [dim](addresses {', '.join(rule_ids)})[/dim]" if rule_ids else ""
 
 
+def _notes_block(text: str) -> str:
+    """Render *text* as a pasteable ``job_context.notes`` YAML block.
+
+    Hand-formatted rather than ``yaml.dump``: PyYAML needs a custom representer to
+    emit a ``|`` literal block, and would still requote and reflow the rest. What
+    the user wants is the exact fragment to paste into a file cvloom deliberately
+    does not rewrite — every writer in this repo replaces a whole file and drops
+    comments, which a hand-maintained profile cannot survive.
+
+    Trailing whitespace is stripped per line: it survives a literal block and shows
+    up as invisible drift in the next diff of the user's profile.
+    """
+    body = "\n".join(f"    {line}".rstrip() for line in text.strip().splitlines())
+    return f"job_context:\n  notes: |\n{body}"
+
+
 def _resolve(root: Path, profile: str, *, public: bool) -> ResolvedProfile:
     """Resolve a profile, rendering ResolveError to stderr and warnings after."""
     try:
@@ -1295,8 +1311,22 @@ def ai_review(profile: str) -> None:
     default=None,
     help="Write cover letter to this file instead of printing.",
 )
-def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
-    """Generate a tailored cover letter from your CV and a job description."""
+@click.option(
+    "--body-only",
+    is_flag=True,
+    default=False,
+    help="Write body paragraphs only, as a pasteable job_context.notes block.",
+)
+def ai_cover(profile: str, jd_file: str, output: str | None, body_only: bool) -> None:
+    """Generate a tailored cover letter from your CV and a job description.
+
+    With --body-only the model writes the letter's argument and nothing else, and
+    the output is a job_context.notes block to paste into the profile. A
+    cover-letter/* template then renders the greeting, closing and signature from
+    the locale pack, so the finished letter has exactly one of each. cvloom does
+    not edit the profile itself: it has no comment-preserving YAML writer, and a
+    hand-maintained profile would lose its comments and key order to one.
+    """
     from cvloom.ai import AINotConfiguredError, get_client, get_model, is_configured
     from cvloom.ai.cover import generate_cover
 
@@ -1309,7 +1339,7 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
     resolved = _resolve(root, profile, public=True)
     try:
         client = get_client(root)
-        result = generate_cover(resolved, jd_text, client, get_model(root))
+        result = generate_cover(resolved, jd_text, client, get_model(root), body_only=body_only)
     except AINotConfiguredError as exc:
         _console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)
@@ -1317,21 +1347,34 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
         _console.print(f"[red]AI error:[/red] {exc}")
         raise SystemExit(1)
 
+    payload = _notes_block(result.letter) if body_only else result.letter
+
+    _console.print()
+    _emit_context_notes(result.context_notes)
+    if body_only and (resolved.profile.get("job_context") or {}).get("notes"):
+        _console.print(
+            f"[yellow]Warning:[/yellow] {profile} already has job_context.notes — "
+            "pasting this replaces it.\n"
+        )
+
     if output:
-        Path(output).write_text(result.letter, encoding="utf-8")
+        Path(output).write_text(payload, encoding="utf-8")
         _console.print(
             f"[green]✓[/green] Cover letter written to {output}  ({result.word_count} words)"
         )
     else:
-        _console.print()
-        _emit_context_notes(result.context_notes)
         _console.print(f"[bold]Cover Letter[/bold]  profile: {profile}\n")
-        _console.print(result.letter)
+        # Escaped: the letter is model output, and rich reads a bracketed run like
+        # [placeholder] as a style tag and prints nothing where it stood.
+        _console.print(escape(payload))
         _console.print(f"\n[dim]{result.word_count} words[/dim]")
-        if result.key_alignments:
-            _console.print("\n[bold]Key alignments:[/bold]")
-            for a in result.key_alignments:
-                _console.print(f"  • {a}")
+
+    if body_only:
+        _console.print(f"[dim]Paste the block above into profiles/{profile}.yaml[/dim]")
+    if result.key_alignments:
+        _console.print("\n[bold]Key alignments:[/bold]")
+        for a in result.key_alignments:
+            _console.print(f"  • {escape(a)}")
 
 
 @ai.command("suggest")

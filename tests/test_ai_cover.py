@@ -97,3 +97,51 @@ def test_prompt_partial_job_context_omits_missing_fields() -> None:
     # Scoped to the block on purpose: the pack's fallback salutee names a hiring
     # manager in the salutation instruction, which is not this test's subject.
     assert "Hiring Manager" not in block
+
+
+# ---------------------------------------------------------------------------
+# body_only
+# ---------------------------------------------------------------------------
+
+
+def _instruction(prompt: str) -> str:
+    """The instruction half — everything before the first context block."""
+    return prompt[: prompt.index("<cv>")]
+
+
+def test_body_only_drops_the_furniture_instruction() -> None:
+    pack = default_pack()
+    prompt = _build_cover_prompt("cv", "jd", {}, pack, body_only=True)
+    instruction = _instruction(prompt)
+    assert pack.cover_letter["greeting"] not in instruction
+    assert pack.cover_letter["closing"] not in instruction
+    assert pack.cover_letter["fallback_salutee"] not in instruction
+
+
+def test_body_only_says_the_document_supplies_the_furniture() -> None:
+    prompt = _build_cover_prompt("cv", "jd", {}, default_pack(), body_only=True)
+    instruction = _instruction(prompt).lower()
+    for banned in ("salutation", "closing", "signature"):
+        assert f"no {banned}" in instruction
+
+
+def test_body_only_keeps_the_job_context_block() -> None:
+    # The template still builds its greeting from hiring_manager, so dropping the
+    # furniture instruction must not drop the facts the letter argues from.
+    prompt = _build_cover_prompt(
+        "cv",
+        "jd",
+        {"company": "Acme", "hiring_manager": "Dana Reyes"},
+        default_pack(),
+        body_only=True,
+    )
+    block = prompt[prompt.index("<job_context>") : prompt.index("</job_context>")]
+    assert "Acme" in block
+    assert "Dana Reyes" in block
+
+
+def test_full_letter_remains_the_default() -> None:
+    pack = default_pack()
+    prompt = _build_cover_prompt("cv", "jd", {}, pack)
+    assert pack.cover_letter["greeting"] in prompt
+    assert pack.cover_letter["closing"] in prompt

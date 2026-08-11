@@ -500,7 +500,10 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
 
 @mcp.tool()
 def ai_generate_cover(
-    profile: str = "general", jd_text: str = "", project_root: str | None = None
+    profile: str = "general",
+    jd_text: str = "",
+    project_root: str | None = None,
+    body_only: bool = False,
 ) -> str:
     """Generate a tailored cover letter from the CV and a job description.
 
@@ -508,7 +511,11 @@ def ai_generate_cover(
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
     Pass the full job description text as jd_text.
-    Returns JSON with letter, word_count, key_alignments and context_notes.
+    Set body_only to get the letter's body paragraphs alone, for a profile's
+    job_context.notes: a cover-letter/* template renders the greeting, closing
+    and signature itself, so a full letter there would produce two of each.
+    Returns JSON with letter, word_count, key_alignments, context_notes and
+    body_only.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.cover import generate_cover
@@ -527,7 +534,7 @@ def ai_generate_cover(
     try:
         resolved = builder.resolve_project(root, profile, public=True)
         client = get_client(root)
-        result = generate_cover(resolved, jd_text, client, get_model(root))
+        result = generate_cover(resolved, jd_text, client, get_model(root), body_only=body_only)
     except builder.ResolveError as exc:
         return json.dumps({"error": "resolve failed", "details": exc.errors})
     except (AINotConfiguredError, RuntimeError) as exc:

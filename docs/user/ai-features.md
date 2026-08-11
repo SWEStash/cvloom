@@ -301,6 +301,46 @@ cvloom ai cover --profile backend-role --jd stripe-infra.txt --output cover.md
 
 If `job_context` is set in the profile (`company`, `role`, `hiring_manager`), the prompt is personalised automatically.
 
+#### Feeding the cover-letter template: `--body-only`
+
+By default `ai cover` writes a complete letter — its own salutation and sign-off
+included. That is the right shape for pasting into an email, and the wrong shape for
+a `cover-letter/*` template, which renders the body from `job_context.notes` and
+supplies the greeting, closing and signature itself from the locale pack. Pasting a
+full letter there gives you two of each.
+
+`--body-only` asks the model for the body paragraphs alone and prints them as a
+pasteable block:
+
+```bash
+cvloom ai cover --profile cover-letter --jd stripe-infra.txt --body-only
+```
+
+```yaml
+job_context:
+  notes: |
+    I have spent the last six years building payment infrastructure, and the
+    ingestion work you describe is the part of that I would choose again.
+
+    At Acme I owned the pipeline end to end, which is the closest thing I have
+    to the problem in your posting.
+```
+
+Paste the `notes:` key into your profile's existing `job_context:` block, then
+`cvloom build --profile cover-letter`. The letter comes out with exactly one
+greeting, one closing and one signature, in the project's locale — the model never
+writes those, so it cannot write them in the wrong language.
+
+cvloom prints the block rather than editing the profile for you. It has no
+comment-preserving YAML writer, and rewriting a hand-maintained profile would drop
+its comments, blank lines and key order. If the profile already has `notes`, the
+command says so before you paste over it. With `--output FILE`, the block is written
+to that file instead of printed.
+
+> The two shipped cover-letter templates differ in one respect: `standard` renders the
+> pack's closing word (`Sincerely,` / `Atentamente,`) above the signature, and `brief`
+> ends on the name alone. Both render the greeting.
+
 ### `ai suggest`
 
 Suggests specific content improvements for a target role: new bullet points, skill additions, rewordings, and items to remove. Suggestions are non-destructive — they are ideas to apply manually.
@@ -372,7 +412,7 @@ If you use the [MCP server](../reference/mcp-server.md), all four AI commands ar
 | Tool | What it does |
 |---|---|
 | `ai_review_cv(profile, project_root)` | Section scoring and feedback |
-| `ai_generate_cover(profile, jd_text, project_root)` | Cover letter generation |
+| `ai_generate_cover(profile, jd_text, project_root, body_only)` | Cover letter generation |
 | `ai_suggest_improvements(profile, role, project_root)` | Content improvement suggestions |
 | `ai_align_to_jd(profile, jd_text, project_root)` | Qualitative JD alignment analysis |
 
