@@ -7,6 +7,7 @@ import json
 import pytest
 
 from cvloom.ai.suggest import _build_suggest_prompt, _parse_suggest_result
+from cvloom.locale import default_pack
 
 # ---------------------------------------------------------------------------
 # _parse_suggest_result
@@ -81,12 +82,14 @@ def test_parse_suggestion_null_entry_and_current() -> None:
 
 
 def test_prompt_contains_cv_text() -> None:
-    prompt = _build_suggest_prompt("Jane Doe | Backend Engineer", ["work", "skills"], "")
+    prompt = _build_suggest_prompt(
+        "Jane Doe | Backend Engineer", ["work", "skills"], "", default_pack()
+    )
     assert "Jane Doe | Backend Engineer" in prompt
 
 
 def test_prompt_contains_schema_keys() -> None:
-    prompt = _build_suggest_prompt("cv text", ["work"], "")
+    prompt = _build_suggest_prompt("cv text", ["work"], "", default_pack())
     assert "section" in prompt
     assert "suggested" in prompt
     assert "rationale" in prompt
@@ -94,11 +97,11 @@ def test_prompt_contains_schema_keys() -> None:
 
 
 def test_prompt_includes_role_when_provided() -> None:
-    prompt = _build_suggest_prompt("cv text", ["work"], "Senior Backend Engineer")
+    prompt = _build_suggest_prompt("cv text", ["work"], "Senior Backend Engineer", default_pack())
     assert "Senior Backend Engineer" in prompt
     assert "<target_role>" in prompt
 
 
 def test_prompt_excludes_role_block_when_empty() -> None:
-    prompt = _build_suggest_prompt("cv text", ["work"], "")
+    prompt = _build_suggest_prompt("cv text", ["work"], "", default_pack())
     assert "<target_role>" not in prompt

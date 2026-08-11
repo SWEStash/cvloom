@@ -68,8 +68,15 @@ def make_resolved(
     output_filename: str = "cv",
     warnings: list[str] | None = None,
     profile_name: str = "general",
+    locale_pack: locale.LocalePack | None = None,
 ) -> ResolvedProfile:
-    """Build a ResolvedProfile with sensible defaults; override any part."""
+    """Build a ResolvedProfile with sensible defaults; override any part.
+
+    ``locale_pack`` is named for the field it fills rather than the field's own
+    name, so it does not shadow the ``cvloom.locale`` import in a caller that
+    needs both. Omitting it leaves ``ResolvedProfile``'s own default pack (en).
+    """
+    kwargs: dict[str, Any] = {} if locale_pack is None else {"locale": locale_pack}
     return ResolvedProfile(
         profile=profile if profile is not None else {},
         data={
@@ -90,6 +97,7 @@ def make_resolved(
         output_filename=output_filename,
         warnings=warnings or [],
         profile_name=profile_name,
+        **kwargs,
     )
 
 

@@ -16,6 +16,7 @@ from cvloom.ai.analyzer import _build_review_prompt
 from cvloom.ai.cover import _build_cover_prompt
 from cvloom.ai.prompts import CLOSING, JD_UNTRUSTED, assemble
 from cvloom.ai.suggest import _build_suggest_prompt
+from cvloom.locale import default_pack
 from cvloom.match import KeywordMatch, MatchReport
 
 _CV = "Jane Doe | Senior Engineer\n\n## Work Experience\n\nAcme — Engineer | 2020 – Present"
@@ -43,19 +44,32 @@ def _block_at(prompt: str, tag: str) -> int:
 
 
 def _prompts() -> dict[str, str]:
+    pack = default_pack()
     return {
-        "review": _build_review_prompt(_CV, ["work", "skills"]),
-        "suggest": _build_suggest_prompt(_CV, ["work"], "Senior Backend Engineer"),
-        "align": _build_align_prompt(_CV, _JD, _match_report()),
-        "cover": _build_cover_prompt(_CV, _JD, {"company": "Acme", "role": "Engineer"}),
+        "review": _build_review_prompt(_CV, ["work", "skills"], pack),
+        "suggest": _build_suggest_prompt(_CV, ["work"], "Senior Backend Engineer", pack),
+        "align": _build_align_prompt(_CV, _JD, _match_report(), pack),
+        "cover": _build_cover_prompt(_CV, _JD, {"company": "Acme", "role": "Engineer"}, pack),
     }
 
 
 @pytest.mark.parametrize("name", ["review", "suggest", "align", "cover"])
+def test_the_locale_block_leads(name: str) -> None:
+    """The language to answer in is the most stable content, and governs the rest."""
+    assert _prompts()[name].startswith("<locale>\n"), f"{name}: <locale> must lead"
+
+
+@pytest.mark.parametrize("name", ["review", "suggest", "align", "cover"])
 def test_the_schema_precedes_the_cv(name: str) -> None:
-    """The instruction and its JSON schema are the cacheable prefix, so they come first."""
+    """The instruction and its JSON schema are the cacheable prefix, so they come first.
+
+    Anchored on the end of ``<locale>`` rather than on the prompt's first ``"``: that
+    older form only worked while no block before the schema happened to contain a
+    double quote, which is a property of the wording, not of the ordering.
+    """
     prompt = _prompts()[name]
-    assert prompt.index('"') < _block_at(prompt, "<cv>"), f"{name}: schema must precede <cv>"
+    schema = prompt.index('"', prompt.index("</locale>"))
+    assert schema < _block_at(prompt, "<cv>"), f"{name}: schema must precede <cv>"
 
 
 @pytest.mark.parametrize("name", ["review", "suggest", "align", "cover"])

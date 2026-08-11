@@ -7,6 +7,7 @@ import json
 import pytest
 
 from cvloom.ai.align import _build_align_prompt, _parse_align_result
+from cvloom.locale import default_pack
 from cvloom.match import KeywordMatch, MatchReport
 
 # ---------------------------------------------------------------------------
@@ -80,25 +81,30 @@ def _make_match_report(gaps: list[str] | None = None) -> MatchReport:
 
 def test_prompt_contains_cv_text() -> None:
     prompt = _build_align_prompt(
-        "Jane Doe | Backend Engineer", "We need a Python developer.", _make_match_report()
+        "Jane Doe | Backend Engineer",
+        "We need a Python developer.",
+        _make_match_report(),
+        default_pack(),
     )
     assert "Jane Doe | Backend Engineer" in prompt
 
 
 def test_prompt_contains_jd_text() -> None:
-    prompt = _build_align_prompt("cv text", "We need a Python developer.", _make_match_report())
+    prompt = _build_align_prompt(
+        "cv text", "We need a Python developer.", _make_match_report(), default_pack()
+    )
     assert "We need a Python developer." in prompt
 
 
 def test_prompt_contains_match_data() -> None:
     prompt = _build_align_prompt(
-        "cv text", "jd text", _make_match_report(gaps=["kubernetes", "terraform"])
+        "cv text", "jd text", _make_match_report(gaps=["kubernetes", "terraform"]), default_pack()
     )
     assert "kubernetes" in prompt
 
 
 def test_prompt_contains_schema_keys() -> None:
-    prompt = _build_align_prompt("cv text", "jd text", _make_match_report())
+    prompt = _build_align_prompt("cv text", "jd text", _make_match_report(), default_pack())
     assert "alignment_score" in prompt
     assert "narrative" in prompt
     assert "repositioning" in prompt
@@ -107,5 +113,5 @@ def test_prompt_contains_schema_keys() -> None:
 
 
 def test_prompt_includes_coverage() -> None:
-    prompt = _build_align_prompt("cv text", "jd text", _make_match_report())
+    prompt = _build_align_prompt("cv text", "jd text", _make_match_report(), default_pack())
     assert "65%" in prompt

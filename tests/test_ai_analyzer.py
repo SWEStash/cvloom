@@ -7,6 +7,7 @@ import json
 import pytest
 
 from cvloom.ai.analyzer import _build_review_prompt, _parse_review_result
+from cvloom.locale import default_pack
 
 # ---------------------------------------------------------------------------
 # _parse_review_result
@@ -85,25 +86,25 @@ def test_parse_score_coerced_to_float() -> None:
 
 
 def test_prompt_contains_cv_text() -> None:
-    prompt = _build_review_prompt("Jane Doe | Senior Engineer", ["work", "skills"])
+    prompt = _build_review_prompt("Jane Doe | Senior Engineer", ["work", "skills"], default_pack())
     assert "Jane Doe | Senior Engineer" in prompt
 
 
 def test_prompt_contains_sections_list() -> None:
-    prompt = _build_review_prompt("cv text", ["education", "projects"])
+    prompt = _build_review_prompt("cv text", ["education", "projects"], default_pack())
     assert "education" in prompt
     assert "projects" in prompt
 
 
 def test_prompt_contains_schema_keys() -> None:
-    prompt = _build_review_prompt("cv text", ["work"])
+    prompt = _build_review_prompt("cv text", ["work"], default_pack())
     assert "overall_score" in prompt
     assert "sections" in prompt
     assert "top_priorities" in prompt
 
 
 def test_prompt_asks_for_at_most_three_points_per_section() -> None:
-    prompt = _build_review_prompt("cv text", ["work"])
+    prompt = _build_review_prompt("cv text", ["work"], default_pack())
     assert "At most 3 items in each of strengths, weaknesses and suggestions" in prompt
     assert "not three padded ones" in prompt, "the cap must not read as a quota"
 

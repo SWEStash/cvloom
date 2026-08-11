@@ -16,13 +16,15 @@ from cvloom.ai.analyzer import review
 from cvloom.ai.cover import generate_cover
 from cvloom.ai.prompts import GROUNDING, SYSTEM_ANALYSIS, SYSTEM_CREATIVE
 from cvloom.ai.suggest import suggest
+from cvloom.locale import LocalePack, load_pack
 from cvloom.models import ResolvedProfile
 from tests.ai_fakes import FakeClient
 from tests.conftest import make_resolved
 
 
-def _make_resolved() -> ResolvedProfile:
+def _make_resolved(locale_pack: LocalePack | None = None) -> ResolvedProfile:
     return make_resolved(
+        locale_pack=locale_pack,
         profile={"job_context": {"company": "Acme", "role": "Backend Engineer"}},
         basics={
             "headline": "Backend Engineer",
@@ -220,6 +222,24 @@ def test_every_orchestrator_sends_the_grounding_contract() -> None:
         system = client.calls[0]["messages"][0]["content"]
         assert GROUNDING in system
         assert "[add metric" in system
+
+
+def test_every_orchestrator_sends_the_projects_own_language() -> None:
+    """Asserted through the orchestrator, not the builder, because the pack has to be
+    read off ``ResolvedProfile`` and passed down — a builder-only test passes while
+    an orchestrator quietly hands over the default."""
+    resolved = _make_resolved(locale_pack=load_pack("es")[0])
+    for call in (
+        lambda c: review(resolved, c, "test-model"),
+        lambda c: suggest(resolved, c, "test-model"),
+        lambda c: generate_cover(resolved, "jd text", c, "test-model"),
+        lambda c: align(resolved, "jd text", c, "test-model"),
+    ):
+        client = FakeClient(json.dumps({"narrative": "ok", "letter": "ok"}))
+        call(client)
+        prompt = client.calls[0]["messages"][1]["content"]
+        assert prompt.startswith("<locale>\n")
+        assert "Spanish (es)" in prompt
 
 
 def test_suggest_runs_cold() -> None:

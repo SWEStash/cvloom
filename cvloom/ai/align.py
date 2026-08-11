@@ -13,14 +13,18 @@ from cvloom.ai.prompts import (
     assemble,
     cv_context_block,
     jd_context_block,
+    locale_context_block,
     unhappy_input,
 )
 from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.locale import LocalePack
 from cvloom.match import MatchReport, analyze_match
 from cvloom.models import ResolvedProfile
 
 
-def _build_align_prompt(cv_text: str, jd_text: str, match_report: MatchReport) -> str:
+def _build_align_prompt(
+    cv_text: str, jd_text: str, match_report: MatchReport, locale: LocalePack
+) -> str:
     matched_keywords = ", ".join(m.keyword for m in match_report.matched[:20])
     gap_keywords = ", ".join(match_report.gaps[:20])
     coverage = f"{match_report.cv_keywords_coverage:.0%}"
@@ -51,6 +55,7 @@ def _build_align_prompt(cv_text: str, jd_text: str, match_report: MatchReport) -
         "not vague advice. tone_gaps should contrast JD language with CV language."
     )
     return assemble(
+        locale_context_block(locale),
         instruction,
         unhappy_input("narrative"),
         JD_UNTRUSTED,
@@ -76,7 +81,7 @@ def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> A
     """Qualitative AI analysis of how well the CV aligns to a job description."""
     cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     match_report = analyze_match(resolved, jd_text)
-    prompt = _build_align_prompt(cv_text, jd_text, match_report)
+    prompt = _build_align_prompt(cv_text, jd_text, match_report, resolved.locale)
 
     return complete_json(
         client,

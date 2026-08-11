@@ -11,13 +11,17 @@ from cvloom.ai.prompts import (
     SYSTEM_ANALYSIS,
     assemble,
     cv_context_block,
+    locale_context_block,
     unhappy_input,
 )
 from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
+from cvloom.locale import LocalePack
 from cvloom.models import ResolvedProfile
 
 
-def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) -> str:
+def _build_suggest_prompt(
+    cv_text: str, sections: list[str], role_context: str, locale: LocalePack
+) -> str:
     sections_str = ", ".join(sections) if sections else "all sections"
     instruction = (
         "Suggest specific improvements to this CV. "
@@ -44,6 +48,7 @@ def _build_suggest_prompt(cv_text: str, sections: list[str], role_context: str) 
     )
     role_block = f"<target_role>\n{role_context}\n</target_role>" if role_context else ""
     return assemble(
+        locale_context_block(locale),
         instruction,
         unhappy_input("summary"),
         cv_context_block(cv_text),
@@ -81,7 +86,7 @@ def suggest(
     """Generate content improvement suggestions for the CV."""
     cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     shown = visible_sections(resolved)
-    prompt = _build_suggest_prompt(cv_text, shown, role_context)
+    prompt = _build_suggest_prompt(cv_text, shown, role_context, resolved.locale)
 
     return complete_json(
         client,
