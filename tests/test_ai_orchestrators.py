@@ -247,3 +247,39 @@ def test_suggest_runs_cold() -> None:
     client = FakeClient(json.dumps({"suggestions": []}))
     suggest(_make_resolved(), client, "test-model")
     assert client.calls[0]["temperature"] == 0.2
+
+
+def test_every_orchestrator_sends_the_deterministic_analysis() -> None:
+    """Through the orchestrator, since the block is built there and a builder-level
+    test cannot tell whether anything actually passed it."""
+    resolved = _make_resolved()
+    for call in (
+        lambda c: review(resolved, c, "test-model"),
+        lambda c: suggest(resolved, c, "test-model"),
+        lambda c: generate_cover(resolved, "jd text", c, "test-model"),
+        lambda c: align(resolved, "jd text", c, "test-model"),
+    ):
+        client = FakeClient(json.dumps({"narrative": "ok", "letter": "ok"}))
+        call(client)
+        prompt = client.calls[0]["messages"][1]["content"]
+        assert "<analysis>" in prompt
+        assert "findings:" in prompt
+
+
+def test_the_cover_prompt_carries_no_writing_findings() -> None:
+    """At temperature 0.7, "no quantified outcome in this entry" is an invitation to
+    supply the number. `cover` gets evidence to lead with, not defects to fix."""
+    client = FakeClient(json.dumps({"letter": "ok", "word_count": 1}))
+    generate_cover(_make_resolved(), "jd text", client, "test-model")
+    prompt = client.calls[0]["messages"][1]["content"]
+    analysis = prompt[prompt.index("<analysis>") : prompt.index("</analysis>")]
+    assert "— fix:" not in analysis
+    assert "entries with a quantified outcome:" in analysis
+
+
+def test_the_cover_prompt_gains_the_jd_keyword_analysis() -> None:
+    """`align` had it and `cover` did not, yet a keyword gap is what a cover letter
+    exists to address in prose."""
+    client = FakeClient(json.dumps({"letter": "ok", "word_count": 1}))
+    generate_cover(_make_resolved(), "We need Python and Kubernetes.", client, "test-model")
+    assert "<keyword_analysis>" in client.calls[0]["messages"][1]["content"]

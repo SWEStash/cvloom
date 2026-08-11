@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from cvloom.ai.analysis import SCOPE_BRIEF, analysis_context_block
 from cvloom.ai.models import AlignResult
 from cvloom.ai.prompts import (
     CLOSING,
@@ -13,6 +14,7 @@ from cvloom.ai.prompts import (
     assemble,
     cv_context_block,
     jd_context_block,
+    keyword_context_block,
     locale_context_block,
     unhappy_input,
 )
@@ -23,21 +25,13 @@ from cvloom.models import ResolvedProfile
 
 
 def _build_align_prompt(
-    cv_text: str, jd_text: str, match_report: MatchReport, locale: LocalePack
+    cv_text: str,
+    jd_text: str,
+    match_report: MatchReport,
+    locale: LocalePack,
+    analysis: str = "",
 ) -> str:
-    matched_keywords = ", ".join(m.keyword for m in match_report.matched[:20])
-    gap_keywords = ", ".join(match_report.gaps[:20])
-    coverage = f"{match_report.cv_keywords_coverage:.0%}"
-    reorder_hints = "\n".join(match_report.reorder_hints) if match_report.reorder_hints else "none"
-
-    keyword_block = (
-        "<keyword_analysis>\n"
-        f"coverage: {coverage} of unique JD keywords found in CV\n"
-        f"matched: {matched_keywords or 'none'}\n"
-        f"gaps: {gap_keywords or 'none'}\n"
-        f"reorder hints: {reorder_hints}\n"
-        "</keyword_analysis>"
-    )
+    keyword_block = keyword_context_block(match_report)
 
     instruction = (
         "Analyze how well this CV positions the candidate for the job description below. "
@@ -52,13 +46,19 @@ def _build_align_prompt(
         '  "strengths": [<string, what already aligns well>, ...]\n'
         "}\n\n"
         "Be specific and actionable. repositioning items should describe exact changes, "
-        "not vague advice. tone_gaps should contrast JD language with CV language."
+        "not vague advice. tone_gaps should contrast JD language with CV language.\n"
+        "<analysis> reports what cvloom's own checks found. It carries counts rather "
+        "than individual bullets on purpose: use it to judge length pressure and "
+        "whether the CV's overall register matches what the job description asks for. "
+        "A CV the writing rules flag repeatedly, read against a posting that demands "
+        "ownership, is a tone gap even when every individual bullet is accurate."
     )
     return assemble(
         locale_context_block(locale),
         instruction,
         unhappy_input("narrative"),
         JD_UNTRUSTED,
+        analysis,
         keyword_block,
         cv_context_block(cv_text),
         jd_context_block(jd_text),
@@ -81,9 +81,10 @@ def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> A
     """Qualitative AI analysis of how well the CV aligns to a job description."""
     cv_text = cv_to_text(resolved.data, resolved.show_sections, resolved.locale)
     match_report = analyze_match(resolved, jd_text)
-    prompt = _build_align_prompt(cv_text, jd_text, match_report, resolved.locale)
+    block = analysis_context_block(resolved, cv_text, scope=SCOPE_BRIEF)
+    prompt = _build_align_prompt(cv_text, jd_text, match_report, resolved.locale, block.text)
 
-    return complete_json(
+    result = complete_json(
         client,
         model,
         system=SYSTEM_ANALYSIS,
@@ -91,3 +92,5 @@ def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> A
         temperature=0.3,
         parse=_parse_align_result,
     )
+    result.context_notes = list(block.notes)
+    return result

@@ -71,6 +71,25 @@ def _emit_warnings(warnings: list[str]) -> None:
         _err.print(f"[yellow]Warning:[/yellow] {escape(w)}")
 
 
+def _emit_context_notes(notes: list[str]) -> None:
+    """Report what the AI layer had to leave out of the model's context.
+
+    Not gated on ``--verbose``: the whole point is to surface the trade when it
+    bites, and a note only exists when something was actually given up. This
+    cannot go through ``_emit_warnings``, which runs inside ``_resolve`` — before
+    the AI call that produces these.
+    """
+    for note in notes:
+        _console.print(f"[dim]note: {note}[/dim]")
+    if notes:
+        _console.print()
+
+
+def _cited(rule_ids: list[str]) -> str:
+    """Render a rule-id citation as provenance, not content."""
+    return f"  [dim](addresses {', '.join(rule_ids)})[/dim]" if rule_ids else ""
+
+
 def _resolve(root: Path, profile: str, *, public: bool) -> ResolvedProfile:
     """Resolve a profile, rendering ResolveError to stderr and warnings after."""
     try:
@@ -1227,10 +1246,12 @@ def ai_review(profile: str) -> None:
         _console.print(f"[red]AI error:[/red] {exc}")
         raise SystemExit(1)
 
+    _console.print()
+    _emit_context_notes(result.context_notes)
     score_color = (
         "green" if result.overall_score >= 7 else "yellow" if result.overall_score >= 5 else "red"
     )
-    _console.print(f"\n[bold]CV Review[/bold]  profile: {profile}")
+    _console.print(f"[bold]CV Review[/bold]  profile: {profile}")
     _console.print(f"Overall score: [{score_color}]{result.overall_score:.1f}/10[/{score_color}]\n")
 
     for sec in result.sections:
@@ -1242,6 +1263,8 @@ def ai_review(profile: str) -> None:
             _console.print(f"  [red]–[/red] {w}")
         for sg in sec.suggestions:
             _console.print(f"  [dim]→[/dim] {sg}")
+        if sec.related_findings:
+            _console.print(_cited(sec.related_findings))
         _console.print()
 
     if result.top_priorities:
@@ -1300,7 +1323,9 @@ def ai_cover(profile: str, jd_file: str, output: str | None) -> None:
             f"[green]✓[/green] Cover letter written to {output}  ({result.word_count} words)"
         )
     else:
-        _console.print(f"\n[bold]Cover Letter[/bold]  profile: {profile}\n")
+        _console.print()
+        _emit_context_notes(result.context_notes)
+        _console.print(f"[bold]Cover Letter[/bold]  profile: {profile}\n")
         _console.print(result.letter)
         _console.print(f"\n[dim]{result.word_count} words[/dim]")
         if result.key_alignments:
@@ -1348,7 +1373,9 @@ def ai_suggest(profile: str, role_context: str) -> None:
         raise SystemExit(1)
 
     role_label = f"  target role: {effective_role}" if effective_role else ""
-    _console.print(f"\n[bold]Improvement Suggestions[/bold]  profile: {profile}{role_label}\n")
+    _console.print()
+    _emit_context_notes(result.context_notes)
+    _console.print(f"[bold]Improvement Suggestions[/bold]  profile: {profile}{role_label}\n")
 
     if result.summary:
         _console.print(result.summary)
@@ -1358,13 +1385,17 @@ def ai_suggest(profile: str, role_context: str) -> None:
 
     for s in result.suggestions:
         colour = _TYPE_COLOUR.get(s.type, "white")
-        badge = f"[{colour}][{s.type}][/{colour}]"
+        # The type is escaped because rich reads a bare `[bullet]` as a style tag
+        # and renders it as nothing — the badge this line exists to print was
+        # invisible for every suggestion cvloom has ever shown.
+        badge = f"[{colour}]{escape(f'[{s.type}]')}[/{colour}]"
         context = s.section + (f" / {s.entry}" if s.entry else "")
-        _console.print(f"  {badge} [dim]{context}[/dim]")
+        _console.print(f"  {badge} [dim]{context}[/dim]{_cited(s.related_findings)}")
         if s.current:
-            _console.print(f"    [dim]before:[/dim] {s.current}")
-        _console.print(f"    [green]{s.suggested}[/green]")
-        _console.print(f"    [dim]{s.rationale}[/dim]")
+            _console.print(f"    [dim]before:[/dim] {escape(s.current)}")
+        if s.suggested:
+            _console.print(f"    [green]{escape(s.suggested)}[/green]")
+        _console.print(f"    [dim]{escape(s.rationale)}[/dim]")
         _console.print()
 
     if result.missing_skills:
@@ -1410,9 +1441,11 @@ def ai_align(profile: str, jd_file: str) -> None:
         _console.print(f"[red]AI error:[/red] {exc}")
         raise SystemExit(1)
 
+    _console.print()
+    _emit_context_notes(result.context_notes)
     score = result.alignment_score
     score_colour = "green" if score >= 7 else ("yellow" if score >= 5 else "red")
-    _console.print(f"\n[bold]JD Alignment[/bold]  profile: {profile}\n")
+    _console.print(f"[bold]JD Alignment[/bold]  profile: {profile}\n")
     _console.print(f"[bold]Alignment Score:[/bold] [{score_colour}]{score:.1f}/10[/{score_colour}]")
     _console.print()
     _console.print(result.narrative)

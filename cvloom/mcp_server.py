@@ -468,7 +468,9 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
     Requires an AI provider: CVLOOM_AI_BASE_URL, or an `ai.base_url` in the
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
-    Returns JSON with overall_score, per-section scores, and top_priorities.
+    Returns JSON with overall_score, per-section scores, and top_priorities. Each
+    section carries related_findings, the lint rule ids its assessment reflects.
+    context_notes reports any deterministic context dropped to fit the model.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.analyzer import review
@@ -506,7 +508,7 @@ def ai_generate_cover(
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
     Pass the full job description text as jd_text.
-    Returns JSON with letter, word_count, and key_alignments.
+    Returns JSON with letter, word_count, key_alignments and context_notes.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.cover import generate_cover
@@ -546,7 +548,8 @@ def ai_suggest_improvements(
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
     Pass role to target suggestions for a specific position.
-    Returns JSON with suggestions, missing_skills, and summary.
+    Returns JSON with suggestions, missing_skills, summary and context_notes.
+    Each suggestion carries related_findings, the lint rule ids it resolves.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.provider import AINotConfiguredError
@@ -586,7 +589,8 @@ def ai_align_to_jd(
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
     jd_text is the full text of the job description.
-    Returns JSON with alignment_score, narrative, repositioning, tone_gaps, strengths.
+    Returns JSON with alignment_score, narrative, repositioning, tone_gaps,
+    strengths and context_notes.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.align import align

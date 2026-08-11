@@ -45,6 +45,14 @@ leaves the rest to the human.
 | **JD keyword coverage** | Deterministic *given a job description*: how many of the JD's keywords/skills your CV contains. | `cvloom match --jd FILE` |
 | **Parseability** | The real ATS failure mode: is the rendered PDF machine-readable, single-column, standard-headed, consistently dated? | Partly `cvloom check` rules tagged `ats-parse` (dates, in-context keywords); the rest is a *rendering* concern — see the limitation below. |
 
+The AI layer sits **on top of** these three, never beside them. `cvloom ai review`
+and `cvloom ai suggest` receive the findings all three axes produce, in an
+`<analysis>` block, and are told not to restate them. Their job is what a rule
+cannot do: judge which findings actually matter for a given application, whether
+an achievement is credible for the seniority claimed, and whether the career
+narrative holds together. Nothing the AI returns feeds back into the axes, and no
+AI output is a parseability measurement — that stays measured, not predicted.
+
 The `cvloom check` output and the `check_cv` MCP tool tag every finding with its axis
 (`writing` / `structure` / `ats-parse`), and print a per-axis breakdown instead of a score.
 

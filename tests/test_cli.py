@@ -1119,6 +1119,7 @@ _REVIEW_JSON = json.dumps(
                 "strengths": ["QUANTIFIED"],
                 "weaknesses": ["THIN"],
                 "suggestions": ["ADDMETRICS"],
+                "related_findings": ["wl-002"],
             }
         ],
         "top_priorities": ["QUANTIFYMORE"],
@@ -1143,6 +1144,7 @@ _SUGGEST_JSON = json.dumps(
                 "current": "OLDBULLET",
                 "suggested": "NEWBULLET",
                 "rationale": "WHYBULLET",
+                "related_findings": ["wl-004"],
             }
         ],
         "missing_skills": ["KUBERNETES"],
@@ -1324,6 +1326,35 @@ def test_ai_review_renders_every_part_of_the_result(
     assert "7.5/10" in result.output
     for token in ("QUANTIFIED", "THIN", "ADDMETRICS", "QUANTIFYMORE"):
         assert token in result.output
+    assert "addresses wl-002" in result.output
+
+
+def test_ai_review_is_quiet_when_nothing_was_dropped_from_the_context(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A notice on every run is a notice nobody reads, so it must stay off the
+    normal path and appear only when the analysis block actually had to shed."""
+    _patch_ai(monkeypatch, _REVIEW_JSON)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0
+    assert "note:" not in result.output
+
+
+def test_ai_review_reports_a_context_the_findings_did_not_fit(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The counterpart: when the block degrades, the user is told rather than left
+    wondering why the feedback thinned out."""
+    from cvloom.ai import analysis
+
+    _patch_ai(monkeypatch, _REVIEW_JSON)
+    monkeypatch.setattr(analysis, "_BUDGET_RATIO", dict.fromkeys(analysis._BUDGET_RATIO, 0.01))
+    monkeypatch.setattr(analysis, "_BUDGET_FLOOR", 1)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0
+    assert "note:" in result.output
 
 
 def test_ai_cover_prints_the_letter(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1357,6 +1388,7 @@ def test_ai_suggest_renders_the_suggestions(
     result = CliRunner().invoke(cli, ["ai", "suggest", "--role", "Staff Engineer"])
     assert result.exit_code == 0
     assert "Staff Engineer" in result.output
+    assert "addresses wl-004" in result.output
     for token in ("SUMMARYLINE", "OLDBULLET", "NEWBULLET", "WHYBULLET", "KUBERNETES"):
         assert token in result.output
 
@@ -1385,3 +1417,44 @@ def test_ai_align_renders_every_part_of_the_result(
     assert "6.5/10" in result.output
     for token in ("NARRATIVEBODY", "ALIGNSTRENGTH", "TONEGAP", "REPOSITIONME"):
         assert token in result.output
+
+
+def test_ai_suggest_shows_the_type_badge(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rich reads a bare `[bullet]` as a style tag and renders it as nothing, so the
+    badge has to be escaped — without this the label was invisible on every run."""
+    _patch_ai(monkeypatch, _SUGGEST_JSON)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "suggest"])
+    assert result.exit_code == 0
+    assert "[bullet]" in result.output
+
+
+def test_ai_suggest_omits_a_null_replacement_rather_than_printing_none(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_ai(
+        monkeypatch,
+        json.dumps(
+            {
+                "suggestions": [
+                    {
+                        "section": "work",
+                        "entry": "Acme",
+                        "type": "remove",
+                        "current": "OLDBULLET",
+                        "suggested": None,
+                        "rationale": "WHYREMOVE",
+                    }
+                ],
+                "missing_skills": [],
+                "summary": "SUMMARYLINE",
+            }
+        ),
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "suggest"])
+    assert result.exit_code == 0
+    assert "None" not in result.output
+    assert "WHYREMOVE" in result.output

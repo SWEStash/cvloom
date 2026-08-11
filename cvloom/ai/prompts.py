@@ -27,6 +27,7 @@ last instruction.
 from __future__ import annotations
 
 from cvloom.locale import LocalePack
+from cvloom.match import MatchReport
 
 GROUNDING = (
     "\n\nGrounding rules, which override every other instruction:\n"
@@ -100,6 +101,18 @@ cacheable.
 """
 
 
+RELATED_FINDINGS = (
+    "related_findings may only contain rule ids that appear in <analysis>. Leave it "
+    "empty when an item addresses nothing the rules found — that is the normal case "
+    "for the most valuable observations. Never write a rule id you did not read above."
+)
+"""Constrains the citation field without a parser-side filter.
+
+Dropping unknown ids silently would hide a model inventing them; a rule id that
+does not appear in `cvloom check` is a symptom the user can see and report.
+"""
+
+
 def assemble(*parts: str) -> str:
     """Join the non-empty prompt parts, in the order given, with a blank line between.
 
@@ -138,6 +151,26 @@ def locale_context_block(pack: LocalePack) -> str:
         "JSON keys, section names and enum values stay in English exactly as the schema "
         "shows them — they are parsed by software, not read by a person.\n"
         "</locale>"
+    )
+
+
+def keyword_context_block(match_report: MatchReport) -> str:
+    """Summarise deterministic JD keyword coverage.
+
+    Kept separate from `<analysis>` rather than merged into it: this is derived
+    from the job description, that is derived from the CV, and a model told where
+    a fact came from weighs it differently.
+    """
+    matched = ", ".join(m.keyword for m in match_report.matched[:20])
+    gaps = ", ".join(match_report.gaps[:20])
+    hints = "\n".join(match_report.reorder_hints) if match_report.reorder_hints else "none"
+    return (
+        "<keyword_analysis>\n"
+        f"coverage: {match_report.cv_keywords_coverage:.0%} of unique JD keywords found in CV\n"
+        f"matched: {matched or 'none'}\n"
+        f"gaps: {gaps or 'none'}\n"
+        f"reorder hints: {hints}\n"
+        "</keyword_analysis>"
     )
 
 
