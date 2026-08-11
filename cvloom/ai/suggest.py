@@ -78,15 +78,21 @@ def _build_suggest_prompt(
 
 
 def _parse_suggest_result(raw_json: str) -> SuggestResult:
+    """Parse a suggestion response, coalescing nulls to the empty value.
+
+    ``dict.get(key, default)`` returns ``None`` when the key is *present* and null,
+    which is exactly what a model emits for a "remove" suggestion's ``suggested``
+    field — and the CLI then printed the string "None" as the replacement text.
+    """
     data = json.loads(raw_json)
     suggestions = [
         Suggestion(
             section=s["section"],
             entry=s.get("entry"),
-            type=s.get("type", "bullet"),
+            type=s.get("type") or "bullet",
             current=s.get("current"),
-            suggested=s.get("suggested", ""),
-            rationale=s.get("rationale", ""),
+            suggested=s.get("suggested") or "",
+            rationale=s.get("rationale") or "",
             related_findings=s.get("related_findings") or [],
         )
         for s in (data.get("suggestions") or [])

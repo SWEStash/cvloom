@@ -1417,3 +1417,44 @@ def test_ai_align_renders_every_part_of_the_result(
     assert "6.5/10" in result.output
     for token in ("NARRATIVEBODY", "ALIGNSTRENGTH", "TONEGAP", "REPOSITIONME"):
         assert token in result.output
+
+
+def test_ai_suggest_shows_the_type_badge(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rich reads a bare `[bullet]` as a style tag and renders it as nothing, so the
+    badge has to be escaped — without this the label was invisible on every run."""
+    _patch_ai(monkeypatch, _SUGGEST_JSON)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "suggest"])
+    assert result.exit_code == 0
+    assert "[bullet]" in result.output
+
+
+def test_ai_suggest_omits_a_null_replacement_rather_than_printing_none(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_ai(
+        monkeypatch,
+        json.dumps(
+            {
+                "suggestions": [
+                    {
+                        "section": "work",
+                        "entry": "Acme",
+                        "type": "remove",
+                        "current": "OLDBULLET",
+                        "suggested": None,
+                        "rationale": "WHYREMOVE",
+                    }
+                ],
+                "missing_skills": [],
+                "summary": "SUMMARYLINE",
+            }
+        ),
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "suggest"])
+    assert result.exit_code == 0
+    assert "None" not in result.output
+    assert "WHYREMOVE" in result.output

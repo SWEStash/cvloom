@@ -1385,13 +1385,17 @@ def ai_suggest(profile: str, role_context: str) -> None:
 
     for s in result.suggestions:
         colour = _TYPE_COLOUR.get(s.type, "white")
-        badge = f"[{colour}][{s.type}][/{colour}]"
+        # The type is escaped because rich reads a bare `[bullet]` as a style tag
+        # and renders it as nothing — the badge this line exists to print was
+        # invisible for every suggestion cvloom has ever shown.
+        badge = f"[{colour}]{escape(f'[{s.type}]')}[/{colour}]"
         context = s.section + (f" / {s.entry}" if s.entry else "")
         _console.print(f"  {badge} [dim]{context}[/dim]{_cited(s.related_findings)}")
         if s.current:
-            _console.print(f"    [dim]before:[/dim] {s.current}")
-        _console.print(f"    [green]{s.suggested}[/green]")
-        _console.print(f"    [dim]{s.rationale}[/dim]")
+            _console.print(f"    [dim]before:[/dim] {escape(s.current)}")
+        if s.suggested:
+            _console.print(f"    [green]{escape(s.suggested)}[/green]")
+        _console.print(f"    [dim]{escape(s.rationale)}[/dim]")
         _console.print()
 
     if result.missing_skills:

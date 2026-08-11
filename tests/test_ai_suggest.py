@@ -105,3 +105,27 @@ def test_prompt_includes_role_when_provided() -> None:
 def test_prompt_excludes_role_block_when_empty() -> None:
     prompt = _build_suggest_prompt("cv text", ["work"], "", default_pack())
     assert "<target_role>" not in prompt
+
+
+def test_a_null_field_becomes_an_empty_value_not_the_string_none() -> None:
+    """`dict.get(key, default)` returns None when the key is present and null, which
+    is what a model emits for a "remove" suggestion — and the CLI then printed the
+    word "None" where the replacement text belongs."""
+    raw = json.dumps(
+        {
+            "suggestions": [
+                {
+                    "section": "work",
+                    "entry": "Acme",
+                    "type": None,
+                    "current": "Old bullet.",
+                    "suggested": None,
+                    "rationale": None,
+                }
+            ]
+        }
+    )
+    s = _parse_suggest_result(raw).suggestions[0]
+    assert s.suggested == ""
+    assert s.rationale == ""
+    assert s.type == "bullet"
