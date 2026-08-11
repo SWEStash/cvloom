@@ -216,6 +216,27 @@ not shown: wl-013 x3, wl-016 x6
 </analysis>
 ```
 
+One rule sends more than its findings. When a weak opener is flagged, the block
+also names **every** opener wl-004 checks for:
+
+```
+openers wl-004 will flag again — avoid starting a bullet with any of them:
+"helped", "assisted", "worked on", "was responsible for", "participated in",
+"was involved in". Any other verb is yours to choose.
+```
+
+Without it the model knows only that *your* opener is weak, so it rewrites
+"was responsible for" into "participated in" — also on the list — and the finding
+fires again on the bullet it just fixed. It appears only when a wl-004 finding is
+already in the block, so a CV that does not have this problem does not pay for
+the sentence. The openers are in your project's language; the Spanish set is
+longer, and it is the case that makes this worth sending, since those phrases are
+cvloom's own editorial judgement rather than something a model can infer.
+
+What is deliberately **not** sent is a list of verbs to use instead. Sharing the
+rule leaves the wording yours; handing over five approved verbs is how every CV
+written with an AI's help ends up opening the same way.
+
 This changes what `ai review` is **for**. It no longer re-derives, worse, what the
 linter computes exactly — it is told not to repeat those findings back, and asked
 instead for what no rule can produce: whether an achievement is credible for the

@@ -38,7 +38,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
-from cvloom import linter, sections, templates_meta, trim
+from cvloom import linter, linter_locales, sections, templates_meta, trim
 from cvloom.models import ResolvedProfile
 
 SCOPE_FULL = "full"
@@ -353,6 +353,34 @@ def _quantified_entries(resolved: ResolvedProfile, findings: list[linter.LintFin
     return line
 
 
+_WEAK_OPENER_RULE = "wl-004"
+
+
+def _weak_opener_constraint(resolved: ResolvedProfile) -> str:
+    """Name the openers wl-004 will flag, so a rewrite does not land on another one.
+
+    Without this the model is told *this* opener is weak and never told what the
+    full set is, so it rewrites `was responsible for` into `participated in`, the
+    finding fires again on the bullet it just fixed, and cvloom contradicts itself
+    in front of the user.
+
+    Only the constraint set is sent, never `strong_verb_examples`. Sharing the
+    rubric leaves the vocabulary open; supplying five verbs to use instead is what
+    collapses every generated bullet onto the same five words — the same reason
+    wl-004's own fix hint stopped naming them.
+
+    The phrases are quoted in the CV's language while the sentence around them
+    stays English, matching how finding messages already carry Spanish bullets
+    into an English block.
+    """
+    openers = linter_locales.pack_for(resolved.locale.code).weak_openers
+    quoted = ", ".join(f'"{opener}"' for opener in openers)
+    return (
+        f"openers {_WEAK_OPENER_RULE} will flag again — avoid starting a bullet with "
+        f"any of them: {quoted}. Any other verb is yours to choose."
+    )
+
+
 def _writing_tone(findings: list[linter.LintFinding]) -> str:
     """The aggregate the writing rules imply, without pointing at any one bullet."""
     tally = Counter(f.rule_id for f in findings if f.category == linter.CATEGORY_WRITING)
@@ -401,6 +429,15 @@ def analysis_context_block(
     if len(text) > body_budget:
         level = LEVEL_COUNTS
         text, shown, notes = _render_counts(header, findings)
+
+    # Appended after the walk, and gated on the rendered text rather than on
+    # `findings`: if shedding dropped the wl-004 group, the constraint would be a
+    # rule the model is told to obey with nothing above it explaining why. Being
+    # outside the budget is deliberate for the same reason the header is — this
+    # is not detail to shed, and it is one line.
+    if _WEAK_OPENER_RULE in text:
+        text += "\n\n" + _weak_opener_constraint(resolved)
+
     return _wrap(text, level, len(findings), shown, budget, tuple(notes))
 
 

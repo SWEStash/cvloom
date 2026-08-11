@@ -178,6 +178,69 @@ def test_instances_are_capped_per_rule_and_the_remainder_is_counted(monkeypatch)
     assert "and 6 more of wl-005" in text
 
 
+# ── The weak-opener constraint ──────────────────────────────────────
+
+
+def _opener_block(highlight: str, code: str = "en", scope: str = SCOPE_FULL):  # type: ignore[no-untyped-def]
+    resolved = make_resolved(
+        work=[
+            {
+                "company": "Acme Corp",
+                "title": "Engineer",
+                "start_date": "2020-01",
+                "end_date": "Present",
+                "highlights": [highlight],
+            }
+        ],
+        skills=[{"category": "Languages", "items": ["Python"]}],
+        show={"work": True, "skills": True},
+        section_order=["work", "skills"],
+        locale_pack=load_pack(code)[0],
+    )
+    return analysis_context_block(resolved, _CV, scope=scope)
+
+
+def test_a_weak_opener_finding_brings_the_whole_flagged_set_with_it() -> None:
+    """Told only that one opener is weak, a model rewrites it into another one and
+    the finding fires again on the bullet it just fixed."""
+    text = _opener_block("Helped the team ship the new billing service on time.").text
+    for opener in ("helped", "assisted", "was responsible for", "was involved in"):
+        assert f'"{opener}"' in text
+    assert "Any other verb is yours to choose." in text
+
+
+def test_the_constraint_is_absent_without_a_weak_opener_finding() -> None:
+    """Otherwise it is permanent prompt weight, paid for on every call."""
+    text = _opener_block("Cut deploy time by 40% across twelve services.").text
+    assert "yours to choose" not in text
+    assert '"assisted"' not in text
+
+
+def test_the_spanish_constraint_carries_the_spanish_openers() -> None:
+    """The `es` set is cvloom's own editorial judgement — fourteen phrases no
+    model can guess, which is what makes sending it worth the tokens."""
+    text = _opener_block("Ayudé a migrar el monolito a una arquitectura de servicios.", "es").text
+    assert '"ayudé a"' in text
+    assert '"estuve involucrada en"' in text
+    assert '"helped"' not in text, "the openers follow the CV's language"
+
+
+def test_the_constraint_never_suggests_verbs_to_use_instead() -> None:
+    """Five verbs presented as a menu is what collapses generated bullets onto the
+    same vocabulary — the reason wl-004's own fix hint stopped naming them."""
+    text = _opener_block("Helped the team ship the new billing service on time.").text
+    for verb in ("Designed", "Implemented", "Reduced", "Delivered", "Architected"):
+        assert verb not in text
+
+
+def test_the_narrow_scopes_never_carry_the_constraint() -> None:
+    """`cover` gets no defect findings at all, and `align` cannot act on the
+    wording of one bullet."""
+    for scope in (SCOPE_BRIEF, SCOPE_EVIDENCE):
+        text = _opener_block("Helped the team ship the new billing service.", scope=scope).text
+        assert "yours to choose" not in text, scope
+
+
 # ── The budget and the downward walk ────────────────────────────────
 
 

@@ -453,6 +453,8 @@ The block is budgeted as a fraction of `cv_text` and renders through a downward 
 
 Scope decides what each command receives, keyed on what its consumer can act on rather than on the command name. `review` and `suggest` get every finding; `align` gets counts and an aggregate writing signal; `cover` gets **no defect findings at all** — at temperature 0.7, "No quantified outcome in this entry" is an invitation to invent the number, so it receives the inverse instead: which entries already carry a metric.
 
+One rule sends more than its findings. When `wl-004` survives into the rendered block, `_weak_opener_constraint` appends the locale's whole `weak_openers` set — otherwise the model knows only that *this* opener is weak, rewrites it into another one on the list, and the finding fires again on the bullet it just fixed. It is appended after the walk and sits outside the budget, like the header: one line, and not detail to shed. Gating on the rendered text rather than on `findings` keeps the constraint from appearing without the finding that motivates it when shedding drops that group. `strong_verb_examples` is deliberately never sent alongside it — sharing the rule leaves the vocabulary open, while supplying five approved verbs collapses every generated bullet onto the same ones, which is also why `wl-004`'s own `fix_hint` stopped naming them.
+
 What the block had to shed reaches the user through `context_notes` on each result dataclass, not `ResolvedProfile.warnings` — `cli._resolve` emits those before the AI call runs.
 
 All AI functions require `openai` (installed via `--extra ai`). They import it at function call time so the rest of the codebase works without it.
