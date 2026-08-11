@@ -1,4 +1,4 @@
-"""AI-powered CV section scoring and feedback."""
+"""AI-powered CV section assessment and feedback."""
 
 from __future__ import annotations
 
@@ -6,8 +6,10 @@ import json
 from typing import Any
 
 from cvloom.ai.analysis import SCOPE_FULL, analysis_context_block
-from cvloom.ai.models import ReviewResult, SectionScore
+from cvloom.ai.models import ReviewResult, SectionAssessment
 from cvloom.ai.prompts import (
+    BAND_RUBRIC,
+    BANDS,
     CLOSING,
     RELATED_FINDINGS,
     SYSTEM_ANALYSIS,
@@ -33,19 +35,35 @@ _ANALYSIS_TASK = (
     "findings can still be strong.\n"
 )
 
+_SEVERITY = {band: rank for rank, band in enumerate(BANDS)}
+
+
+def _aggregate_band(sections: list[SectionAssessment]) -> str:
+    """The worst band across *sections*.
+
+    Worst rather than average, and derived rather than asked for: a CV is read by
+    someone who stops at the first section that fails, so the aggregate a reader
+    can act on is the weakest link, not the mean. An unrecognised label sorts as
+    the best, so an off-rubric answer in one section cannot silently drag the
+    whole review down.
+    """
+    if not sections:
+        return ""
+    return max((s.band for s in sections), key=lambda band: _SEVERITY.get(band, -1))
+
 
 def _build_review_prompt(
     cv_text: str, sections: list[str], locale: LocalePack, analysis: str = ""
 ) -> str:
     sections_str = ", ".join(sections) if sections else "all sections"
     instruction = (
-        "Score each section of this CV. Respond with valid JSON matching this schema exactly:\n"
+        "Assess each section of this CV. Respond with valid JSON matching this schema "
+        "exactly:\n"
         "{\n"
-        '  "overall_score": <float 1.0-10.0, weighted average across sections>,\n'
         '  "sections": [\n'
         "    {\n"
         '      "section": <string, section name>,\n'
-        '      "score": <float 1.0-10.0>,\n'
+        '      "band": <string, one of "strong", "adequate", "needs work">,\n'
         '      "strengths": [<string>, ...],\n'
         '      "weaknesses": [<string>, ...],\n'
         '      "suggestions": [<string>, ...],\n'
@@ -55,7 +73,8 @@ def _build_review_prompt(
         '  "top_priorities": [<string>, <string>, <string>]\n'
         "}\n\n"
         f"Sections to review: {sections_str}\n"
-        "top_priorities lists the 3 highest-impact improvements across all sections.\n"
+        + BAND_RUBRIC
+        + "\ntop_priorities lists the 3 highest-impact improvements across all sections.\n"
         f"At most {_MAX_PER_SECTION} items in each of strengths, weaknesses and "
         "suggestions — the ones that matter most. A section with only one real "
         "strength gets one item, not three padded ones.\n" + _ANALYSIS_TASK + RELATED_FINDINGS
@@ -83,9 +102,9 @@ def _parse_review_result(raw_json: str) -> ReviewResult:
     """
     data = json.loads(raw_json)
     sections = [
-        SectionScore(
+        SectionAssessment(
             section=s["section"],
-            score=float(s["score"]),
+            band=str(s.get("band") or "").strip().lower(),
             strengths=(s.get("strengths") or [])[:_MAX_PER_SECTION],
             weaknesses=(s.get("weaknesses") or [])[:_MAX_PER_SECTION],
             suggestions=(s.get("suggestions") or [])[:_MAX_PER_SECTION],
@@ -94,7 +113,7 @@ def _parse_review_result(raw_json: str) -> ReviewResult:
         for s in (data.get("sections") or [])
     ]
     return ReviewResult(
-        overall_score=float(data.get("overall_score") or 0.0),
+        overall_band=_aggregate_band(sections),
         sections=sections,
         top_priorities=data.get("top_priorities") or [],
     )

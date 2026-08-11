@@ -24,9 +24,11 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class SectionScore:
+class SectionAssessment:
     section: str
-    score: float
+    band: str
+    """One of `prompts.BANDS`, though an off-rubric label the model returned is
+    kept verbatim rather than coerced — same reasoning as `related_findings`."""
     strengths: list[str] = field(default_factory=list)
     weaknesses: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
@@ -37,8 +39,12 @@ class SectionScore:
 
 @dataclass
 class ReviewResult:
-    overall_score: float
-    sections: list[SectionScore] = field(default_factory=list)
+    overall_band: str
+    """The worst band across `sections`, computed by cvloom rather than asked of
+    the model — a model asked to aggregate its own answer is doing arithmetic it
+    has no better view of than the caller does."""
+
+    sections: list[SectionAssessment] = field(default_factory=list)
     top_priorities: list[str] = field(default_factory=list)
     context_notes: list[str] = field(default_factory=list)
 
@@ -76,7 +82,10 @@ class SuggestResult:
 
 @dataclass
 class AlignResult:
-    alignment_score: float
+    alignment_band: str
+    """Asked of the model, unlike `ReviewResult.overall_band`: alignment has no
+    per-section members to aggregate, so there is nothing to derive it from."""
+
     narrative: str
     repositioning: list[str] = field(default_factory=list)
     tone_gaps: list[str] = field(default_factory=list)

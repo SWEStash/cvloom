@@ -90,6 +90,21 @@ def _cited(rule_ids: list[str]) -> str:
     return f"  [dim](addresses {', '.join(rule_ids)})[/dim]" if rule_ids else ""
 
 
+_BAND_COLOUR = {"strong": "green", "adequate": "yellow", "needs work": "red"}
+
+
+def _band(band: str) -> str:
+    """Colour an assessment band, leaving an unrecognised one legible.
+
+    The AI layer keeps an off-rubric label rather than coercing it, so this has to
+    render one. It falls through to no colour instead of guessing a severity: a
+    model that answered outside the rubric is a thing the user should be able to
+    see, not something to normalise away at the last step.
+    """
+    colour = _BAND_COLOUR.get(band)
+    return f"[{colour}]{band}[/{colour}]" if colour else band or "unrated"
+
+
 def _notes_block(text: str) -> str:
     """Render *text* as a pasteable ``job_context.notes`` YAML block.
 
@@ -1264,15 +1279,11 @@ def ai_review(profile: str) -> None:
 
     _console.print()
     _emit_context_notes(result.context_notes)
-    score_color = (
-        "green" if result.overall_score >= 7 else "yellow" if result.overall_score >= 5 else "red"
-    )
     _console.print(f"[bold]CV Review[/bold]  profile: {profile}")
-    _console.print(f"Overall score: [{score_color}]{result.overall_score:.1f}/10[/{score_color}]\n")
+    _console.print(f"Overall: {_band(result.overall_band)} [dim](weakest section)[/dim]\n")
 
     for sec in result.sections:
-        color = "green" if sec.score >= 7 else "yellow" if sec.score >= 5 else "red"
-        _console.print(f"[bold]{sec.section}[/bold]  [{color}]{sec.score:.1f}/10[/{color}]")
+        _console.print(f"[bold]{sec.section}[/bold]  {_band(sec.band)}")
         for s in sec.strengths:
             _console.print(f"  [green]+[/green] {s}")
         for w in sec.weaknesses:
@@ -1486,10 +1497,8 @@ def ai_align(profile: str, jd_file: str) -> None:
 
     _console.print()
     _emit_context_notes(result.context_notes)
-    score = result.alignment_score
-    score_colour = "green" if score >= 7 else ("yellow" if score >= 5 else "red")
     _console.print(f"[bold]JD Alignment[/bold]  profile: {profile}\n")
-    _console.print(f"[bold]Alignment Score:[/bold] [{score_colour}]{score:.1f}/10[/{score_colour}]")
+    _console.print(f"[bold]Alignment:[/bold] {_band(result.alignment_band)}")
     _console.print()
     _console.print(result.narrative)
     if result.strengths:

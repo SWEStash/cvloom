@@ -168,7 +168,7 @@ is committed.
 
 ### Commands
 
-**`ai review`** — score each CV section 1–10 with strengths, weaknesses, and the three highest-impact improvements across the whole CV.
+**`ai review`** — band each CV section `strong` / `adequate` / `needs work` against written criteria, with strengths, weaknesses, and the three highest-impact improvements across the whole CV.
 
 ```bash
 cvloom ai review --profile general

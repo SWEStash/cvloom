@@ -206,16 +206,64 @@ dilutes the signal of specialised skills.
 
 Flags highlights that begin with one of these weak openers:
 
-- helped, assisted, worked on, was responsible for, participated in, was involved in, contributed to
+- helped, assisted, worked on, was responsible for, participated in, was involved in
 
-**Basis:** weak openers describe involvement rather than ownership; strong action verbs read
-as accountability for the outcome.
+**Basis:** two independent lines of evidence, and they do not cover the list evenly.
+
+University career offices name these phrases directly. Purdue's Business career service
+tells students to "avoid starting with 'responsible for,' 'assisted with,' or 'helped
+with' as these phrases are a weak representation of your accomplishments". Columbia's
+career education guidance names "participated" and "received" among the passive verbs to
+replace, and elsewhere lists "Assisted" and "Worked" among openers that describe duties
+instead of value added. Yale's advice is the general form: go beyond what you were
+responsible for and say what you accomplished, improved or changed. That covers *helped*,
+*assisted*, *worked on*, *was responsible for* and *participated in*.
+
+The organisational-psychology literature reaches the same phrases from a different
+direction. Madera, Hebl & Martin (2009, *Journal of Applied Psychology* 94, 1591–1599)
+found that communal descriptions — "helpful", "kind" — predicted **lower** hireability
+ratings than agentic ones, and that the effect held when evaluators did not know the
+applicant's gender. Schmader, Whitehead & Wysocki (2007, *Sex Roles*) classify
+`responsib*` as a "grindstone" term, the category that co-occurs with *fewer* standout
+and ability terms. A 2024 study in the *Journal of Business and Psychology* took this to
+résumés specifically, coding more than 2,500 of them from a job board, and found communal
+language associated with lower perceived leadership ability and hireability.
+
+**That literature describes a bias, not a merit.** Its central finding is that communal
+language is penalised, and that women write more of it — so the effect it documents is
+about how applications are *read*, not about how good the work was. cvloom flags these
+openers because they cost the user something in a process the user does not control. It is
+worth being explicit that this is the reason, rather than implying the flagged phrasing is
+inferior writing.
+
+**Not evenly sourced, and deliberately recorded that way.** *was involved in* has no
+direct source in either line of evidence; it is kept as the passive-involvement archetype
+that *participated in* and *worked on* are attested forms of, at low cost — the fix is
+always available and never changes a claim's truth. Anything asserting a specific
+percentage lift from action verbs was excluded: that figure circulates widely on
+resume-advice sites with no primary study behind it.
+
+**`contributed to` was removed** (and `colaboré en` / `contribuí a` with it). No career
+office in the sources above names it, and it is the *accurate* description of genuine team
+work. Flagging it told users their truthful framing was a defect, and the only way to
+clear the finding was to claim more sole credit than they had — which contradicts
+cvloom's own grounding position that a weak but true CV beats a strong invented one, and
+which behavioural interviewing is designed to expose anyway. Where the rule and the
+honesty contract conflicted, the rule was wrong.
 
 **Bad:** "Helped the team implement the new API"
 
 **Good:** "Implemented the new API, reducing integration time by 30%"
 
-**Fix hint:** Start with a strong action verb: 'Designed', 'Implemented', 'Reduced', 'Delivered', 'Architected'.
+**Fix hint:** Open with the action you took and what it produced, not your involvement in it.
+
+The hint names no verbs, unlike `wl-001`'s. It is rendered into the AI layer's context on
+every finding, so a list of five suggested verbs here would be five verbs pushed at every
+user of every cvloom project — and the University of Colorado Boulder's career service
+reports that exactly this has already happened to the most-recommended ones: recruiters
+"often see the same action words on a resume — led, responsible for, managed. And quite
+frankly, they have lost their meaning." Naming the shape leaves the vocabulary to the
+writer.
 
 ---
 

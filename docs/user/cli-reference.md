@@ -215,7 +215,7 @@ Rule     Section   Entry          Message                        Fix
 ───────  ────────  ─────────────  ─────────────────────────────  ──────────────────────────
 wl-001  work      Acme Corp      "Was responsible for..."       Use active voice
 wl-002  work      Acme Corp      "Improved performance"         Add a metric (%, $, time)
-wl-004  work      Initech        "Helped build the platform"    Replace with strong verb
+wl-004  work      Initech        "Helped build the platform"    Lead with action and result
 wl-005  work      Initech        Highlight is 4 words (min 8)   Expand with details
 
 4 issues found.
@@ -749,7 +749,7 @@ see [ai-features.md#installation](ai-features.md#installation)) and a provider:
 
 ```bash
 cvloom ai config                                              # check provider status
-cvloom ai review --profile NAME                              # score CV sections
+cvloom ai review --profile NAME                              # band CV sections
 cvloom ai cover --profile NAME --jd FILE [--output FILE]     # generate cover letter
 cvloom ai cover --profile NAME --jd FILE --body-only         # body only, as job_context.notes
 cvloom ai suggest --profile NAME [--role "Role Title"]       # improvement suggestions

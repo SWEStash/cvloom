@@ -363,16 +363,20 @@ def test_ai_review_cv_success(
         monkeypatch,
         json.dumps(
             {
-                "overall_score": 8.0,
                 "sections": [
-                    {"section": "work", "score": 8.5, "strengths": ["clear"], "weaknesses": []}
+                    {
+                        "section": "work",
+                        "band": "strong",
+                        "strengths": ["clear"],
+                        "weaknesses": [],
+                    }
                 ],
                 "top_priorities": ["add metrics"],
             }
         ),
     )
     result = json.loads(ai_review_cv(profile="general", project_root=project_dir))
-    assert result["overall_score"] == 8.0
+    assert result["overall_band"] == "strong"
     assert result["sections"][0]["section"] == "work"
     assert result["top_priorities"] == ["add metrics"]
 
@@ -488,7 +492,7 @@ def test_ai_align_to_jd_success(
         monkeypatch,
         json.dumps(
             {
-                "alignment_score": 7.0,
+                "alignment_band": "strong",
                 "narrative": "Good fit.",
                 "repositioning": ["Lead with Python."],
                 "tone_gaps": [],
@@ -499,7 +503,7 @@ def test_ai_align_to_jd_success(
     result = json.loads(
         ai_align_to_jd(profile="general", jd_text="Python role", project_root=project_dir)
     )
-    assert result["alignment_score"] == 7.0
+    assert result["alignment_band"] == "strong"
     assert result["repositioning"] == ["Lead with Python."]
 
 

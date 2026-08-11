@@ -96,8 +96,6 @@ _WEAK_OPENERS = (
     "ayudé en",
     "asistí en",
     "participé en",
-    "colaboré en",
-    "contribuí a",
     "fui responsable de",
     "era responsable de",
     "encargado de",
@@ -107,6 +105,19 @@ _WEAK_OPENERS = (
     "estuve involucrado en",
     "estuve involucrada en",
 )
+"""Longer than the English list because Spanish spells these out more ways, not
+because it is a translation of it.
+
+Nine of the twelve have no English counterpart in the list — `era responsable de`
+is the imperfect beside the preterite `fui responsable de`, and the two adjectival
+openers inflect for gender, so `encargado`/`encargada` and
+`involucrado`/`involucrada` are each carried as a complete pair. The first-person
+preterites (`ayudé`, `participé`, `trabajé`) do not inflect, and `responsable` is
+epicene, so those need no pair.
+
+`colaboré en` and `contribuí a` were removed alongside English `contributed to`,
+for the same reason.
+"""
 
 _STRONG_VERB_EXAMPLES = ("Lideré", "Diseñé", "Implementé", "Reduje", "Optimicé")
 

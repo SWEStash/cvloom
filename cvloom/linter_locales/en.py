@@ -104,8 +104,16 @@ _WEAK_OPENERS = (
     "was responsible for",
     "participated in",
     "was involved in",
-    "contributed to",
 )
+"""Openers that describe involvement rather than what the candidate produced.
+
+Sourced entry by entry rather than inherited; see wl-004 in
+`docs/reference/ats-linter-rules.md` for what backs each one and what does not.
+`contributed to` was removed here: no career-office guidance names it, and it is
+the accurate word for genuine team work, so flagging it pushed users toward
+claiming sole credit — against this project's own position that a weak but true
+CV beats a strong invented one.
+"""
 
 _STRONG_VERB_EXAMPLES = ("Designed", "Implemented", "Reduced", "Delivered", "Architected")
 

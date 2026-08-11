@@ -356,7 +356,7 @@ The writing lint checks your bullet points and CV structure for common quality i
 | `wl-001` | warning | Passive voice ("was built", "is designed") |
 | `wl-002` | warning | Missing metrics (no numbers in a bullet) |
 | `wl-003` | warning | Noise skills (MS Word, Google Docs) |
-| `wl-004` | warning | Weak verbs ("helped", "assisted", "worked on") |
+| `wl-004` | warning | Weak openers ("helped", "assisted", "worked on") |
 | `wl-005` | warning | Bullet too short (<8 words) or too long (>25 words) |
 | `wl-006` | warning | Too few (<3) or too many (>8) bullets per work entry |
 | `wl-007` | warning | First-person pronouns (I/my/me) |
@@ -398,7 +398,7 @@ You will see findings like:
 Rule     Section  Entry       Message                                     Fix
 ───────  ───────  ──────────  ──────────────────────────────────────────  ────────────────────────
 wl-001  work     Acme Corp   "Was responsible for..." — passive voice    Use active voice
-wl-004  work     Acme Corp   "Helped with testing" — weak verb           Start with a strong verb
+wl-004  work     Acme Corp   "Helped with testing" — weak opener         Lead with action and result
 wl-002  work     Acme Corp   "Improved performance" — no metrics         Add a number or %
 wl-005  work     Acme Corp   3 words (min 8)                             Add context and impact
 ```
@@ -954,13 +954,13 @@ Verify your setup:
 cvloom ai config
 ```
 
-### 13.2 Score your CV sections
+### 13.2 Assess your CV sections
 
 ```bash
 cvloom ai review --profile general
 ```
 
-Each visible section gets a 1–10 score with specific strengths, weaknesses, and improvement suggestions. The overall score and top-3 highest-impact priorities are shown at the end.
+Each visible section is banded `strong`, `adequate` or `needs work`, with specific strengths, weaknesses and improvement suggestions. The overall band — the worst section, not an average — and the top-3 highest-impact priorities are shown at the end.
 
 ### 13.3 Get improvement suggestions
 

@@ -8,6 +8,7 @@ from typing import Any
 from cvloom.ai.analysis import SCOPE_BRIEF, analysis_context_block
 from cvloom.ai.models import AlignResult
 from cvloom.ai.prompts import (
+    BAND_RUBRIC,
     CLOSING,
     JD_UNTRUSTED,
     SYSTEM_ANALYSIS,
@@ -39,12 +40,15 @@ def _build_align_prompt(
         "(tone, framing, narrative, positioning) that go beyond keyword matching. "
         "Respond with valid JSON matching this schema exactly:\n"
         "{\n"
-        '  "alignment_score": <float 1.0-10.0, overall CV-to-JD fit>,\n'
+        '  "alignment_band": <string, one of "strong", "adequate", "needs work">,\n'
         '  "narrative": <string, 2-3 paragraph qualitative summary of alignment>,\n'
         '  "repositioning": [<string, concrete action ordered by impact>, ...],\n'
         '  "tone_gaps": [<string, tone/framing mismatch>, ...],\n'
         '  "strengths": [<string, what already aligns well>, ...]\n'
         "}\n\n"
+        + BAND_RUBRIC
+        + "\nHere the subject is the fit between this CV and this job description, not "
+        "the CV on its own: a strong CV for other roles can align badly with this one.\n"
         "Be specific and actionable. repositioning items should describe exact changes, "
         "not vague advice. tone_gaps should contrast JD language with CV language.\n"
         "<analysis> reports what cvloom's own checks found. It carries counts rather "
@@ -69,7 +73,7 @@ def _build_align_prompt(
 def _parse_align_result(raw_json: str) -> AlignResult:
     data = json.loads(raw_json)
     return AlignResult(
-        alignment_score=float(data.get("alignment_score") or 0.0),
+        alignment_band=str(data.get("alignment_band") or "").strip().lower(),
         narrative=data.get("narrative") or "",
         repositioning=data.get("repositioning") or [],
         tone_gaps=data.get("tone_gaps") or [],

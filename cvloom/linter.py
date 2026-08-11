@@ -222,9 +222,13 @@ def _check_noise_skills(resolved: ResolvedProfile, lex: LintLocale) -> list[Lint
 def _check_weak_action_verbs(resolved: ResolvedProfile, lex: LintLocale) -> list[LintFinding]:
     """wl-004: Flag highlights starting with weak action verbs."""
     findings: list[LintFinding] = []
-    hint = "Start with a strong action verb: {}.".format(
-        ", ".join(f"'{v}'" for v in lex.strong_verb_examples)
-    )
+    # Deliberately names no verbs, unlike wl-001's hint. This one reaches the AI
+    # layer too — the analysis block renders `fix_hint` on every wl-004 group —
+    # so a list of five verbs here is five verbs suggested to every user of every
+    # cvloom project, which is the mechanism behind career offices reporting that
+    # the most-recommended verbs have stopped carrying meaning. The rule can say
+    # what the opener should *do* without supplying the word that does it.
+    hint = "Open with the action you took and what it produced, not your involvement in it."
 
     def test(text: str, idx: int) -> LintFinding | None:
         lower = text.lower().lstrip("- ").strip()

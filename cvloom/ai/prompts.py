@@ -113,6 +113,32 @@ does not appear in `cvloom check` is a symptom the user can see and report.
 """
 
 
+BANDS = ("strong", "adequate", "needs work")
+"""The three assessment labels, worst last.
+
+Ordered so an aggregate is `max()` over the members' positions: the worst band
+present is the one the reader needs to see.
+"""
+
+BAND_RUBRIC = (
+    "Bands, which have written criteria — use them, and use no other label:\n"
+    '- "strong": nothing here would cost an interview. Achievements are specific, '
+    "quantified where the work allows, and framed as outcomes rather than duties.\n"
+    '- "adequate": accurate and readable, but it under-sells. Concrete fixes exist, '
+    "and you list them.\n"
+    '- "needs work": a recruiter skimming this would learn little, or would hit a '
+    "credibility or parsing problem."
+)
+"""What separates a band from the number it replaces.
+
+`docs/reference/ats-readiness.md` argues that an unanchored score is dishonest —
+no ground truth, no calibration, job-relative by construction. Relabelling one as
+`strong`/`adequate` fixes none of that on its own; the criteria are the fix, and
+the rubric is shared so `review` and `align` cannot drift into grading on
+different scales.
+"""
+
+
 def assemble(*parts: str) -> str:
     """Join the non-empty prompt parts, in the order given, with a blank line between.
 
