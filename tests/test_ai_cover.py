@@ -121,8 +121,16 @@ def test_body_only_drops_the_furniture_instruction() -> None:
 def test_body_only_says_the_document_supplies_the_furniture() -> None:
     prompt = _build_cover_prompt("cv", "jd", {}, default_pack(), body_only=True)
     instruction = _instruction(prompt).lower()
-    for banned in ("salutation", "closing", "signature"):
+    for banned in ("salutation", "closing", "signature", "date"):
         assert f"no {banned}" in instruction
+
+
+def test_body_only_also_rules_out_a_heading() -> None:
+    """A live qwen2.5:3b run opened with `**Cover Letter for the Position of…**`.
+    Not a salutation, so the original enumeration let it through — and it renders
+    inside the letter's body, below the greeting the template already wrote."""
+    prompt = _build_cover_prompt("cv", "jd", {}, default_pack(), body_only=True)
+    assert "no title or heading" in _instruction(prompt).lower()
 
 
 def test_body_only_keeps_the_job_context_block() -> None:

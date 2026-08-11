@@ -312,7 +312,12 @@ def complete(
         try:
             value = parse(raw)
         except json.JSONDecodeError as exc2:
-            raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc2
+            # The notes die with the exception unless they are carried on it, and
+            # this is the path where they matter most: a cropped prompt loses the
+            # schema, which is *why* the reply will not parse. Without this the
+            # user gets the raw body and no hint that the cause was context size.
+            detail = "".join(f"\n\n{note}" for note in notes)
+            raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}{detail}") from exc2
         notes.append(_REPROMPT_NOTE)
 
     return Completion(value=value, prompt_tokens=_prompt_tokens(response), notes=notes)

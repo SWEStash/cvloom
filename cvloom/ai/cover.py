@@ -47,9 +47,11 @@ def _furniture(locale: LocalePack, job_context: dict[str, Any]) -> str:
 
 
 _BODY_ONLY = (
-    "Write the body paragraphs only: no salutation, no closing, no signature, no date. "
-    "The document supplies all four around what you write, so a greeting or a sign-off "
-    "here would render twice. Begin at the first sentence of the letter's argument."
+    "Write the body paragraphs only: no salutation, no closing, no signature, no date, "
+    "and no title or heading of any kind. The document supplies the furniture around "
+    "what you write, so a greeting or a sign-off here would render twice, and a heading "
+    "would sit inside the letter's body. Begin at the first sentence of the letter's "
+    "argument, in plain paragraphs."
 )
 
 

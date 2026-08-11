@@ -510,3 +510,17 @@ def test_the_truncation_check_counts_the_system_prompt_too() -> None:
     measuring only the user turn would miss exactly the loss that matters most."""
     completion = _complete(FakeClient(_OK, prompt_tokens=200), prompt="p", system="x" * 12000)
     assert len(completion.notes) == 1
+
+
+def test_a_failure_carries_the_notes_that_explain_it() -> None:
+    """The path where the notes matter most: a cropped prompt loses the schema,
+    which is *why* the reply will not parse. Raising bare leaves the user with the
+    raw body and nothing pointing at context size."""
+    client = ScriptedClient("bad", "still bad", prompt_tokens=200)
+    with pytest.raises(RuntimeError, match="context window"):
+        _complete(client, prompt="x" * 12000)
+
+
+def test_a_failure_with_nothing_to_report_keeps_the_original_message() -> None:
+    with pytest.raises(RuntimeError, match=r"invalid JSON\. Raw response:\nstill bad$"):
+        _complete(ScriptedClient("bad", "still bad"))
