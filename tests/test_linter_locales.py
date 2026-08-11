@@ -311,6 +311,20 @@ def test_spanish_weak_openers_are_flagged() -> None:
     assert "ayudé a" in findings[0].message
 
 
+def test_spanish_collaboration_openers_are_not_flagged() -> None:
+    """`colaboré en` and `contribuí a` came out with English `contributed to`."""
+    assert _rule(["Colaboré en el rediseño de la plataforma."], "wl-004") == []
+    assert _rule(["Contribuí a la migración del monolito."], "wl-004") == []
+
+
+def test_spanish_gendered_openers_are_carried_as_complete_pairs() -> None:
+    """Only the adjectival openers inflect; missing one half would flag one
+    gender's phrasing and not the other's."""
+    pairs = ("Encargado de", "Encargada de", "Estuve involucrado en", "Estuve involucrada en")
+    for opener in pairs:
+        assert len(_rule([f"{opener} la migración del monolito."], "wl-004")) == 1, opener
+
+
 def test_a_strong_opener_sharing_a_prefix_is_not_flagged() -> None:
     """`Formé a tres ingenieros` is strong; only `formé parte de` is weak."""
     assert _rule(["Formé a tres ingenieros junior del equipo."], "wl-004") == []

@@ -202,6 +202,32 @@ def test_strong_verb_clean():
     assert len(findings) == 0
 
 
+def test_contributed_to_is_not_flagged():
+    """Truthful collaboration is not a defect.
+
+    The only way to clear this finding was to claim more sole credit than the
+    user had, which contradicts the grounding position that a weak but true CV
+    beats a strong invented one. See wl-004 in docs/reference/ats-linter-rules.md.
+    """
+    resolved = _make_resolved(
+        work=[
+            {"company": "Acme", "highlights": ["Contributed to the platform migration."]},
+        ]
+    )
+    assert lint(resolved, rule_ids=["wl-004"]) == []
+
+
+def test_the_fix_hint_names_no_verbs():
+    """It reaches the AI layer on every finding, so naming five verbs would push
+    the same five at every user of every project."""
+    resolved = _make_resolved(
+        work=[{"company": "Acme", "highlights": ["Helped build the deployment pipeline."]}]
+    )
+    hint = lint(resolved, rule_ids=["wl-004"])[0].fix_hint
+    for verb in ("Designed", "Implemented", "Reduced", "Delivered", "Architected"):
+        assert verb not in hint
+
+
 # ── wl-005: highlight length ───────────────────────────────────────
 
 

@@ -53,6 +53,19 @@ an achievement is credible for the seniority claimed, and whether the career
 narrative holds together. Nothing the AI returns feeds back into the axes, and no
 AI output is a parseability measurement — that stays measured, not predicted.
 
+**The AI layer does not print a number either**, and the reasoning above is why.
+`ai review` bands each section `strong` / `adequate` / `needs work` and `ai align`
+bands the CV-to-JD fit the same way, against criteria written out in the prompt.
+The bands are anchored where a score was not: `strong` means nothing there would
+cost an interview, `adequate` means accurate but under-selling with concrete fixes
+listed, `needs work` means a skimming recruiter would learn little or would hit a
+credibility or parsing problem. A model's aggregate is not asked for at all —
+`overall_band` is the worst section, computed by cvloom.
+
+This is a coarser answer than `7.2/10`, deliberately. A model has no more ground
+truth than the rest of the industry does; the difference between 7.2 and 6.8 was
+never real, and the decimal was the part that implied it was.
+
 The `cvloom check` output and the `check_cv` MCP tool tag every finding with its axis
 (`writing` / `structure` / `ats-parse`), and print a per-axis breakdown instead of a score.
 

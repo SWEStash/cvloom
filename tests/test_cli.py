@@ -1111,11 +1111,10 @@ def test_list_profiles_shows_a_company_without_a_role(
 
 _REVIEW_JSON = json.dumps(
     {
-        "overall_score": 7.5,
         "sections": [
             {
                 "section": "work",
-                "score": 8.0,
+                "band": "adequate",
                 "strengths": ["QUANTIFIED"],
                 "weaknesses": ["THIN"],
                 "suggestions": ["ADDMETRICS"],
@@ -1154,7 +1153,7 @@ _SUGGEST_JSON = json.dumps(
 
 _ALIGN_JSON = json.dumps(
     {
-        "alignment_score": 6.5,
+        "alignment_band": "needs work",
         "narrative": "NARRATIVEBODY",
         "repositioning": ["REPOSITIONME"],
         "tone_gaps": ["TONEGAP"],
@@ -1361,10 +1360,24 @@ def test_ai_review_renders_every_part_of_the_result(
     monkeypatch.chdir(project_root)
     result = CliRunner().invoke(cli, ["ai", "review"])
     assert result.exit_code == 0
-    assert "7.5/10" in result.output
+    assert "adequate" in result.output
     for token in ("QUANTIFIED", "THIN", "ADDMETRICS", "QUANTIFYMORE"):
         assert token in result.output
     assert "addresses wl-002" in result.output
+
+
+def test_ai_review_shows_an_off_rubric_band_rather_than_hiding_it(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A model answering outside the rubric is something the user should see."""
+    _patch_ai(
+        monkeypatch,
+        json.dumps({"sections": [{"section": "work", "band": "excellent"}], "top_priorities": []}),
+    )
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0
+    assert "excellent" in result.output
 
 
 def test_ai_review_is_quiet_when_nothing_was_dropped_from_the_context(
@@ -1523,7 +1536,7 @@ def test_ai_align_renders_every_part_of_the_result(
     monkeypatch.chdir(project_root)
     result = CliRunner().invoke(cli, ["ai", "align", "--jd", str(jd)])
     assert result.exit_code == 0
-    assert "6.5/10" in result.output
+    assert "needs work" in result.output
     for token in ("NARRATIVEBODY", "ALIGNSTRENGTH", "TONEGAP", "REPOSITIONME"):
         assert token in result.output
 

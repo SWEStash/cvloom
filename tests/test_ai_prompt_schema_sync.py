@@ -33,7 +33,7 @@ _SCHEMA_MARKER = "matching this schema exactly:\n"
 _KEY = re.compile(r'"([a-z_]+)":')
 
 _FILLED_AFTER_PARSING: dict[type, frozenset[str]] = {
-    ReviewResult: frozenset({"context_notes"}),
+    ReviewResult: frozenset({"context_notes", "overall_band"}),
     CoverResult: frozenset({"context_notes", "body_only"}),
     SuggestResult: frozenset({"context_notes"}),
     AlignResult: frozenset({"context_notes"}),
@@ -42,8 +42,12 @@ _FILLED_AFTER_PARSING: dict[type, frozenset[str]] = {
 
 `context_notes` reports what the AI layer had to shed to fit the context, and
 `body_only` records which of two shapes the caller asked for — neither is
-knowledge the model has. `related_findings` is deliberately *not* here: both
-`review` and `suggest` ask for it, and both parsers read it back.
+knowledge the model has. `overall_band` is the worst band across the sections the
+model did answer for, so asking would be asking it to aggregate its own reply.
+
+`related_findings` is deliberately *not* here: both `review` and `suggest` ask for
+it, and both parsers read it back. Nor is `AlignResult.alignment_band`, which has
+no members to aggregate and so must come from the model.
 """
 
 

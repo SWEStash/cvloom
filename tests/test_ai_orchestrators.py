@@ -55,11 +55,10 @@ def test_review_success() -> None:
     client = FakeClient(
         json.dumps(
             {
-                "overall_score": 7.5,
                 "sections": [
                     {
                         "section": "work",
-                        "score": 8.0,
+                        "band": "strong",
                         "strengths": ["quantified"],
                         "weaknesses": [],
                         "suggestions": ["add metrics"],
@@ -70,13 +69,13 @@ def test_review_success() -> None:
         )
     )
     result = review(_make_resolved(), client, "test-model")
-    assert result.overall_score == 7.5
+    assert result.overall_band == "strong"
     assert result.sections[0].section == "work"
     assert result.top_priorities == ["quantify more bullets"]
 
 
 def test_review_passes_model_and_system_prompt() -> None:
-    client = FakeClient(json.dumps({"overall_score": 5.0, "sections": [], "top_priorities": []}))
+    client = FakeClient(json.dumps({"sections": [], "top_priorities": []}))
     review(_make_resolved(), client, "test-model")
     assert len(client.calls) == 1
     call = client.calls[0]
@@ -171,7 +170,7 @@ def test_align_success() -> None:
     client = FakeClient(
         json.dumps(
             {
-                "alignment_score": 6.5,
+                "alignment_band": "adequate",
                 "narrative": "The CV aligns reasonably well.",
                 "repositioning": ["Lead with cloud experience."],
                 "tone_gaps": ["JD emphasizes leadership."],
@@ -180,12 +179,12 @@ def test_align_success() -> None:
         )
     )
     result = align(_make_resolved(), "We need a Python developer.", client, "test-model")
-    assert result.alignment_score == 6.5
+    assert result.alignment_band == "adequate"
     assert result.repositioning == ["Lead with cloud experience."]
 
 
 def test_align_prompt_includes_keyword_analysis() -> None:
-    client = FakeClient(json.dumps({"alignment_score": 5.0, "narrative": "ok"}))
+    client = FakeClient(json.dumps({"alignment_band": "adequate", "narrative": "ok"}))
     align(_make_resolved(), "We need Python and Kubernetes experience.", client, "test-model")
     prompt = client.calls[0]["messages"][1]["content"]
     assert "<keyword_analysis>" in prompt
@@ -290,9 +289,9 @@ def test_the_cover_prompt_gains_the_jd_keyword_analysis() -> None:
 # ---------------------------------------------------------------------------
 
 _RESPONSES = {
-    "review": json.dumps({"overall_score": 7, "sections": [], "top_priorities": []}),
+    "review": json.dumps({"sections": [], "top_priorities": []}),
     "suggest": json.dumps({"suggestions": [], "missing_skills": [], "summary": "s"}),
-    "align": json.dumps({"alignment_score": 7, "narrative": "n"}),
+    "align": json.dumps({"alignment_band": "strong", "narrative": "n"}),
     "cover": json.dumps({"letter": "ok", "word_count": 1}),
 }
 

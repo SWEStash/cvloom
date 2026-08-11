@@ -285,7 +285,20 @@ looks identical to it working.
 
 ### `ai review`
 
-Scores each visible CV section 1–10 with strengths, weaknesses, and concrete improvement suggestions. Produces an overall score and a prioritised list of the three highest-impact changes across the whole CV.
+Assesses each visible CV section as `strong`, `adequate` or `needs work`, with
+strengths, weaknesses and concrete improvement suggestions, plus a prioritised
+list of the three highest-impact changes across the whole CV.
+
+The bands carry written criteria, stated in the prompt: `strong` means nothing
+there would cost an interview, `adequate` means accurate but under-selling with
+concrete fixes available, and `needs work` means a skimming recruiter would learn
+little or would hit a credibility or parsing problem. The overall band is the
+**worst** section rather than an average, and cvloom computes it — the model is
+never asked to aggregate its own answer.
+
+There is deliberately no number here. `docs/reference/ats-readiness.md` sets out
+why a single score is dishonest, and an AI score was the last place in cvloom
+still printing one.
 
 It is handed everything `cvloom check` found and told not to repeat it, so it
 complements that command rather than restating it — see
@@ -299,14 +312,14 @@ Example output:
 
 ```
 CV Review  profile: general
-Overall score: 7.2/10
+Overall: adequate (weakest section)
 
-work  8.0/10
+work  strong
   + Strong quantified metrics throughout
   – Some bullets are overly long
   → Trim highlights to under 20 words each
 
-skills  6.5/10
+skills  adequate
   + Good breadth across languages and tools
   – Missing cloud platform skills
   → Add AWS or GCP experience
@@ -412,7 +425,7 @@ Example output:
 ```
 JD Alignment  profile: backend-role
 
-Alignment Score: 6.8/10
+Alignment: adequate
 
 The CV demonstrates solid backend experience but is framed around individual
 feature delivery rather than the infrastructure ownership and reliability

@@ -463,13 +463,15 @@ def match_jd(
 
 @mcp.tool()
 def ai_review_cv(profile: str = "general", project_root: str | None = None) -> str:
-    """AI-powered scoring and feedback for each CV section.
+    """AI-powered assessment and feedback for each CV section.
 
     Requires an AI provider: CVLOOM_AI_BASE_URL, or an `ai.base_url` in the
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
-    Returns JSON with overall_score, per-section scores, and top_priorities. Each
-    section carries related_findings, the lint rule ids its assessment reflects.
+    Returns JSON with overall_band, per-section band, and top_priorities. A band
+    is "strong", "adequate" or "needs work"; overall_band is the worst across
+    sections, computed rather than asked of the model. Each section carries
+    related_findings, the lint rule ids its assessment reflects.
     context_notes reports any deterministic context dropped to fit the model.
     """
     from cvloom.ai import get_client, get_model, is_configured
@@ -596,8 +598,10 @@ def ai_align_to_jd(
     target project's cvloom.yaml. Resolved against project_root, so a project
     that pins its own backend is honoured.
     jd_text is the full text of the job description.
-    Returns JSON with alignment_score, narrative, repositioning, tone_gaps,
-    strengths and context_notes.
+    Returns JSON with alignment_band, narrative, repositioning, tone_gaps,
+    strengths and context_notes. alignment_band is "strong", "adequate" or
+    "needs work", and grades the fit to this job description rather than the CV
+    on its own.
     """
     from cvloom.ai import get_client, get_model, is_configured
     from cvloom.ai.align import align
