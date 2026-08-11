@@ -18,7 +18,7 @@ from cvloom.ai.prompts import (
     locale_context_block,
     unhappy_input,
 )
-from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.ai.provider import complete, cv_to_text
 from cvloom.locale import LocalePack
 from cvloom.match import MatchReport, analyze_match
 from cvloom.models import ResolvedProfile
@@ -139,7 +139,7 @@ def generate_cover(
         cv_text, jd_text, job_context, resolved.locale, match_report, block.text, body_only
     )
 
-    result = complete_json(
+    completion = complete(
         client,
         model,
         system=SYSTEM_CREATIVE,
@@ -150,6 +150,7 @@ def generate_cover(
         temperature=0.7,
         parse=_parse_cover_result,
     )
-    result.context_notes = list(block.notes)
+    result = completion.value
+    result.context_notes = [*block.notes, *completion.notes]
     result.body_only = body_only
     return result

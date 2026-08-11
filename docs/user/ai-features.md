@@ -106,19 +106,34 @@ cvloom sends one prompt per command carrying your entire CV, plus the whole job
 description for `ai cover` and `ai align`. A one-page CV sits comfortably inside
 4k. A three-page CV with a long job description does not.
 
-**You will see an error rather than a wrong answer.** cvloom puts the JSON schema
-at the top of every prompt and the CV below it, so a discarded front takes the
-schema with it, the model stops answering in JSON, and the command fails:
+**cvloom tells you when this happens.** Backends report how many prompt tokens
+they actually ingested, and cvloom compares that against what it sent. A count far
+below the prompt's real size means the backend cropped it:
+
+```
+note: The backend counted only 2048 prompt tokens for a prompt of roughly 5200.
+It has very likely cropped the front of the prompt to fit its context window,
+which is where the instructions and the grounding rules are. Raise the model's
+context size (num_ctx on Ollama) or build a shorter profile.
+```
+
+The note appears above the normal output, which still prints. Treat everything
+below it as a review of a CV the model only partly saw. Not every backend reports
+a token count; when none comes back, cvloom stays silent rather than guessing.
+
+The prompt ordering is a second line of defence. cvloom puts the JSON schema at the
+top and the CV below it, so a discarded front takes the schema with it and the model
+stops answering in JSON — a loud failure. With the CV at the top instead, truncation
+would discard the CV and the model would return a fluent, well-formed review of a CV
+it never read, and nothing on screen would distinguish that from a real one.
+
+A reply that is not valid JSON is retried once, with the decode error shown to the
+model; most recover. Only a second unparseable reply fails the command:
 
 ```
 AI error: AI returned invalid JSON. Raw response:
 Based on the information provided, this candidate ...
 ```
-
-Treat that as the truncation signal. The ordering is deliberate: with the CV at
-the top instead, truncation discards the CV and the model returns a fluent,
-well-formed review of a CV it never read — and nothing on screen distinguishes
-that from a real one.
 
 **Fix it on the Ollama side.** cvloom talks to the OpenAI-compatible `/v1`
 endpoint, which has no field for Ollama's per-request `num_ctx`, so the context
@@ -233,6 +248,18 @@ note: 14 lower-priority lint findings were left out of the AI context to keep
 That note only appears when something was actually dropped. See
 [Context length](#context-length--read-this-before-running-ai-on-a-long-cv) for
 the related failure, where the *backend* truncates the prompt rather than cvloom.
+
+Notes are also how cvloom reports what the *call* had to give up, not just the
+prompt. Two more can appear, and neither is gated behind `--verbose` — each one is
+a caveat on the output printed below it:
+
+- **JSON mode was refused.** Some OpenAI-compatible backends reject
+  `response_format`. cvloom retries without it, since the prompt demands JSON
+  anyway, but nothing then enforces the shape of what comes back.
+- **The reply had to be requested twice.** The first response was not valid JSON
+  and the model was shown the decode error.
+
+None of them fire on a healthy run against a well-behaved backend.
 
 ## Commands
 

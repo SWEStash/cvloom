@@ -11,6 +11,7 @@ import pytest
 from cvloom import config, locale, sections
 from cvloom.ai.provider import (
     AINotConfiguredError,
+    complete,
     complete_json,
     cv_to_text,
     get_config,
@@ -18,7 +19,7 @@ from cvloom.ai.provider import (
     is_configured,
     resolve_ai_config,
 )
-from tests.ai_fakes import FakeClient
+from tests.ai_fakes import FakeAPIStatusError, FakeClient, NoJsonModeClient, ScriptedClient
 
 # ---------------------------------------------------------------------------
 # is_configured / get_config
@@ -336,3 +337,176 @@ def test_a_backend_that_rejects_seed_still_answers() -> None:
     assert result == {"ok": True}
     assert client.rejected == 1
     assert "seed" not in client.calls[-1]
+
+
+# ---------------------------------------------------------------------------
+# complete — surviving a hostile backend
+# ---------------------------------------------------------------------------
+
+_OK = '{"ok": true}'
+
+
+def _complete(client: Any, prompt: str = "p", system: str = "s") -> Any:
+    return complete(client, "m", system=system, prompt=prompt, temperature=0.0, parse=json.loads)
+
+
+def test_a_clean_run_reports_nothing() -> None:
+    """The notes channel has to stay empty on a healthy call, or the CLI prints a
+    notice on every run and users learn to skip past the ones that matter."""
+    completion = _complete(FakeClient(_OK))
+    assert completion.value == {"ok": True}
+    assert completion.notes == []
+    assert completion.prompt_tokens is None
+
+
+def test_complete_json_still_returns_the_bare_value() -> None:
+    """The wrapper is what keeps the published Python API working."""
+    client = FakeClient(_OK)
+    assert complete_json(
+        client, "m", system="s", prompt="p", temperature=0.0, parse=json.loads
+    ) == {"ok": True}
+
+
+def test_a_malformed_reply_is_reprompted_once() -> None:
+    client = ScriptedClient("not { json", _OK)
+    completion = _complete(client)
+    assert completion.value == {"ok": True}
+    assert len(client.calls) == 2
+
+
+def test_the_reprompt_shows_the_model_its_own_reply_and_the_decode_error() -> None:
+    """Echoing the bad reply lets the model repair it. Regenerating from scratch
+    would produce different prose, which at cover's temperature is a different letter."""
+    client = ScriptedClient("not { json", _OK)
+    _complete(client)
+    messages = client.calls[1]["messages"]
+    assert messages[-2] == {"role": "assistant", "content": "not { json"}
+    assert "line 1" in messages[-1]["content"]
+
+
+def test_a_reprompted_run_says_so() -> None:
+    completion = _complete(ScriptedClient("not { json", _OK))
+    assert len(completion.notes) == 1
+    assert "not valid JSON" in completion.notes[0]
+
+
+def test_two_malformed_replies_raise_the_original_error() -> None:
+    client = ScriptedClient("not { json", "still not { json")
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        _complete(client)
+    assert len(client.calls) == 2
+
+
+def test_the_raised_error_carries_the_second_reply_not_the_first() -> None:
+    """The first is already spent; the useful one is what the repair produced."""
+    client = ScriptedClient("first bad", "second bad")
+    with pytest.raises(RuntimeError, match="second bad"):
+        _complete(client)
+
+
+def test_a_backend_that_rejects_json_mode_still_answers() -> None:
+    client = NoJsonModeClient(_OK, error=FakeAPIStatusError("bad request", 400))
+    completion = _complete(client)
+    assert completion.value == {"ok": True}
+    assert client.rejected == 1
+    assert "response_format" not in client.calls[-1]
+
+
+def test_json_mode_rejection_is_detected_from_the_message_alone() -> None:
+    """Not every proxy sets a status code; some just say what they refused."""
+    client = NoJsonModeClient(_OK, error=Exception("unknown parameter: response_format"))
+    completion = _complete(client)
+    assert completion.value == {"ok": True}
+    assert client.rejected == 1
+
+
+def test_dropping_json_mode_is_reported() -> None:
+    """Nothing enforced the JSON that came back, and the user should know that
+    before trusting a review built from it."""
+    completion = _complete(NoJsonModeClient(_OK, error=FakeAPIStatusError("bad request")))
+    assert len(completion.notes) == 1
+    assert "JSON mode" in completion.notes[0]
+
+
+def test_an_unrelated_failure_is_not_retried() -> None:
+    """A dead connection is not a capability to degrade; retrying it just doubles
+    the wait before the same error reaches the user."""
+
+    class _Dead(FakeClient):
+        def create(self, **kwargs: Any) -> Any:
+            self.calls.append(kwargs)
+            raise Exception("connection refused")
+
+    client = _Dead(_OK)
+    with pytest.raises(Exception, match="connection refused"):
+        _complete(client)
+    assert len(client.calls) == 1
+
+
+def test_a_persistent_rejection_propagates_after_one_retry() -> None:
+    """The degradation latches, so a backend that 400s on everything cannot loop."""
+
+    class _Always400(FakeClient):
+        def create(self, **kwargs: Any) -> Any:
+            self.calls.append(kwargs)
+            raise FakeAPIStatusError("bad request", 400)
+
+    client = _Always400(_OK)
+    with pytest.raises(FakeAPIStatusError):
+        _complete(client)
+    assert len(client.calls) == 2
+
+
+def test_a_client_blind_to_both_seed_and_json_mode_degrades_in_two_steps() -> None:
+    class _Blind(FakeClient):
+        def create(self, **kwargs: Any) -> Any:
+            if "seed" in kwargs:
+                raise TypeError("unexpected keyword argument 'seed'")
+            if "response_format" in kwargs:
+                raise FakeAPIStatusError("response_format is not supported", 400)
+            return super().create(**kwargs)
+
+    client = _Blind(_OK)
+    completion = complete(
+        client, "m", system="s", prompt="p", temperature=0.0, parse=json.loads, seed=7
+    )
+    assert completion.value == {"ok": True}
+    assert len(client.calls) == 1  # only the successful call records
+    assert "seed" not in client.calls[-1]
+    assert "response_format" not in client.calls[-1]
+
+
+def test_a_cropped_prompt_is_reported() -> None:
+    """Ollama crops from the front and does not error, so the token count is the
+    only evidence that the model never saw the instructions."""
+    completion = _complete(FakeClient(_OK, prompt_tokens=200), prompt="x" * 12000)
+    assert len(completion.notes) == 1
+    assert "context window" in completion.notes[0]
+
+
+def test_a_plausible_token_count_is_silent() -> None:
+    completion = _complete(FakeClient(_OK, prompt_tokens=2000), prompt="x" * 12000)
+    assert completion.notes == []
+
+
+def test_a_short_prompt_never_trips_the_check() -> None:
+    """Fixed template overhead dominates a short prompt, so the ratio is noise there."""
+    completion = _complete(FakeClient(_OK, prompt_tokens=1), prompt="x" * 200)
+    assert completion.notes == []
+
+
+def test_a_response_without_usage_is_silent() -> None:
+    completion = _complete(FakeClient(_OK), prompt="x" * 12000)
+    assert completion.notes == []
+    assert completion.prompt_tokens is None
+
+
+def test_the_token_count_reaches_the_caller() -> None:
+    assert _complete(FakeClient(_OK, prompt_tokens=1234)).prompt_tokens == 1234
+
+
+def test_the_truncation_check_counts_the_system_prompt_too() -> None:
+    """GROUNDING lives in the system prompt, and the front is what gets cropped —
+    measuring only the user turn would miss exactly the loss that matters most."""
+    completion = _complete(FakeClient(_OK, prompt_tokens=200), prompt="p", system="x" * 12000)
+    assert len(completion.notes) == 1

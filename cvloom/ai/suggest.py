@@ -16,7 +16,7 @@ from cvloom.ai.prompts import (
     locale_context_block,
     unhappy_input,
 )
-from cvloom.ai.provider import complete_json, cv_to_text, visible_sections
+from cvloom.ai.provider import complete, cv_to_text, visible_sections
 from cvloom.locale import LocalePack
 from cvloom.models import ResolvedProfile
 
@@ -116,7 +116,7 @@ def suggest(
     block = analysis_context_block(resolved, cv_text, scope=SCOPE_FULL)
     prompt = _build_suggest_prompt(cv_text, shown, role_context, resolved.locale, block.text)
 
-    result = complete_json(
+    completion = complete(
         client,
         model,
         system=SYSTEM_ANALYSIS,
@@ -126,5 +126,6 @@ def suggest(
         temperature=0.2,
         parse=_parse_suggest_result,
     )
-    result.context_notes = list(block.notes)
+    result = completion.value
+    result.context_notes = [*block.notes, *completion.notes]
     return result

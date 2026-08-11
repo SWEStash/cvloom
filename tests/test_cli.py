@@ -11,7 +11,7 @@ from click.testing import CliRunner
 
 from cvloom import config
 from cvloom.cli import cli
-from tests.ai_fakes import FakeClient
+from tests.ai_fakes import FakeAPIStatusError, FakeClient, NoJsonModeClient, ScriptedClient
 
 
 @pytest.fixture
@@ -1191,6 +1191,13 @@ def _ai_argv(command: str, jd: Path) -> list[str]:
 
 _AI_COMMANDS = ["review", "cover", "suggest", "align"]
 
+_AI_RESPONSES = {
+    "review": _REVIEW_JSON,
+    "cover": _COVER_JSON,
+    "suggest": _SUGGEST_JSON,
+    "align": _ALIGN_JSON,
+}
+
 
 def test_ai_config_unconfigured_lists_the_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
@@ -1314,6 +1321,37 @@ def test_ai_command_reports_a_response_that_is_not_json(
     result = CliRunner().invoke(cli, _ai_argv(command, jd))
     assert result.exit_code == 1
     assert "AI error:" in result.output
+
+
+@pytest.mark.parametrize("command", _AI_COMMANDS)
+def test_ai_command_recovers_from_one_bad_reply(
+    command: str, project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The counterpart: one unparseable reply used to end the command. Most models
+    fix it when shown the decode error, so only the second failure is fatal."""
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    client = ScriptedClient("<html>502 Bad Gateway</html>", _AI_RESPONSES[command])
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, _ai_argv(command, jd))
+    assert result.exit_code == 0
+    assert len(client.calls) == 2
+
+
+def test_ai_review_tells_the_user_when_json_mode_was_refused(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing enforced the JSON that came back, which is a caveat on everything
+    printed below it — so it goes to stdout, not behind --verbose."""
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    client = NoJsonModeClient(_REVIEW_JSON, error=FakeAPIStatusError("bad request", 400))
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0
+    assert "note:" in result.output
+    assert "JSON mode" in result.output
 
 
 def test_ai_review_renders_every_part_of_the_result(
