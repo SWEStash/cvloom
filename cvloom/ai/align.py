@@ -18,7 +18,7 @@ from cvloom.ai.prompts import (
     locale_context_block,
     unhappy_input,
 )
-from cvloom.ai.provider import complete_json, cv_to_text
+from cvloom.ai.provider import complete, cv_to_text
 from cvloom.locale import LocalePack
 from cvloom.match import MatchReport, analyze_match
 from cvloom.models import ResolvedProfile
@@ -84,7 +84,7 @@ def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> A
     block = analysis_context_block(resolved, cv_text, scope=SCOPE_BRIEF)
     prompt = _build_align_prompt(cv_text, jd_text, match_report, resolved.locale, block.text)
 
-    result = complete_json(
+    completion = complete(
         client,
         model,
         system=SYSTEM_ANALYSIS,
@@ -92,5 +92,6 @@ def align(resolved: ResolvedProfile, jd_text: str, client: Any, model: str) -> A
         temperature=0.3,
         parse=_parse_align_result,
     )
-    result.context_notes = list(block.notes)
+    result = completion.value
+    result.context_notes = [*block.notes, *completion.notes]
     return result

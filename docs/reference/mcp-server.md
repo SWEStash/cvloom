@@ -152,7 +152,7 @@ All tools accept an optional `project_root` parameter (string). When omitted, th
 | Tool | Parameters | Returns | Description |
 |------|-----------|---------|-------------|
 | `ai_review_cv` | `profile?` (default `"general"`), `project_root?` | `{overall_score, sections: [...], top_priorities: [...]}` | AI section scoring 1–10 with strengths, weaknesses, and improvement suggestions. |
-| `ai_generate_cover` | `profile?` (default `"general"`), `jd_text` (string), `project_root?` | `{letter, word_count, key_alignments: [...]}` | AI-generated tailored cover letter from CV and job description text. |
+| `ai_generate_cover` | `profile?` (default `"general"`), `jd_text` (string), `project_root?`, `body_only?` (default `false`) | `{letter, word_count, key_alignments: [...], context_notes: [...], body_only}` | AI-generated tailored cover letter from CV and job description text. With `body_only`, `letter` is body paragraphs alone, for a profile's `job_context.notes` — a `cover-letter/*` template renders the greeting, closing and signature itself. |
 | `ai_suggest_improvements` | `profile?` (default `"general"`), `role?` (string), `project_root?` | `{suggestions: [...], missing_skills: [...], summary}` | AI content improvement suggestions for a target role. |
 | `ai_align_to_jd` | `profile?` (default `"general"`), `jd_text` (string), `project_root?` | `{alignment_score, narrative, repositioning: [...], tone_gaps: [...], strengths: [...]}` | Qualitative AI analysis of CV-to-JD alignment — tone, framing, and repositioning actions. |
 

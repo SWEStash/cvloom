@@ -18,7 +18,7 @@ from cvloom.ai.prompts import GROUNDING, SYSTEM_ANALYSIS, SYSTEM_CREATIVE
 from cvloom.ai.suggest import suggest
 from cvloom.locale import LocalePack, load_pack
 from cvloom.models import ResolvedProfile
-from tests.ai_fakes import FakeClient
+from tests.ai_fakes import FakeAPIStatusError, FakeClient, NoJsonModeClient
 from tests.conftest import make_resolved
 
 
@@ -283,3 +283,56 @@ def test_the_cover_prompt_gains_the_jd_keyword_analysis() -> None:
     client = FakeClient(json.dumps({"letter": "ok", "word_count": 1}))
     generate_cover(_make_resolved(), "We need Python and Kubernetes.", client, "test-model")
     assert "<keyword_analysis>" in client.calls[0]["messages"][1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# What the call itself had to give up reaches the user
+# ---------------------------------------------------------------------------
+
+_RESPONSES = {
+    "review": json.dumps({"overall_score": 7, "sections": [], "top_priorities": []}),
+    "suggest": json.dumps({"suggestions": [], "missing_skills": [], "summary": "s"}),
+    "align": json.dumps({"alignment_score": 7, "narrative": "n"}),
+    "cover": json.dumps({"letter": "ok", "word_count": 1}),
+}
+
+
+def _run(command: str, client: FakeClient) -> object:
+    resolved = _make_resolved()
+    if command == "review":
+        return review(resolved, client, "test-model")
+    if command == "suggest":
+        return suggest(resolved, client, "test-model")
+    if command == "align":
+        return align(resolved, "jd text", client, "test-model")
+    return generate_cover(resolved, "jd text", client, "test-model")
+
+
+@pytest.mark.parametrize("command", ["review", "suggest", "align", "cover"])
+def test_a_degraded_call_is_reported_by_every_orchestrator(command: str) -> None:
+    """Each orchestrator merges the transport's notes into its own. Parametrized
+    because the merge is four separate lines, and three of four passing is the
+    failure this catches."""
+    client = NoJsonModeClient(_RESPONSES[command], error=FakeAPIStatusError("bad request"))
+    result = _run(command, client)
+    notes = result.context_notes  # type: ignore[attr-defined]
+    assert any("JSON mode" in note for note in notes)
+
+
+def test_context_notes_run_in_the_order_they_happened(monkeypatch: pytest.MonkeyPatch) -> None:
+    """What was shed before the call comes before what the call itself gave up."""
+    from cvloom.ai import analysis
+
+    monkeypatch.setattr(analysis, "_BUDGET_RATIO", dict.fromkeys(analysis._BUDGET_RATIO, 0.01))
+    monkeypatch.setattr(analysis, "_BUDGET_FLOOR", 1)
+    client = NoJsonModeClient(_RESPONSES["review"], error=FakeAPIStatusError("bad request"))
+    result = review(_make_resolved(), client, "test-model")
+    assert len(result.context_notes) > 1
+    assert "JSON mode" in result.context_notes[-1]
+
+
+@pytest.mark.parametrize("command", ["review", "suggest", "align", "cover"])
+def test_a_healthy_call_adds_no_transport_notes(command: str) -> None:
+    result = _run(command, FakeClient(_RESPONSES[command]))
+    notes = result.context_notes  # type: ignore[attr-defined]
+    assert not any("JSON mode" in note for note in notes)

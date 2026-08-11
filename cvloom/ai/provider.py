@@ -28,9 +28,9 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar
 
 from cvloom import config, sections
 from cvloom.locale import LocalePack
@@ -140,6 +140,189 @@ def get_model(root: Path | None = None) -> str:
     return resolve_ai_config(root).model
 
 
+@dataclass(frozen=True)
+class Completion(Generic[_T]):
+    """A parsed completion, plus what the call itself revealed.
+
+    ``notes`` carries what the *transport* had to give up — JSON mode refused, a
+    reply reprompted, a prompt the backend appears to have cropped. That is the
+    same kind of fact :class:`cvloom.ai.analysis.AnalysisBlock` carries about the
+    prompt, which is why the orchestrators concatenate the two into
+    ``context_notes`` rather than inventing a second channel for it.
+    """
+
+    value: _T
+    prompt_tokens: int | None = None
+    notes: list[str] = field(default_factory=list)
+
+
+# Markers a backend uses when it means "I do not do JSON mode". Checked before the
+# status code because naming the parameter is near-certain evidence, where a bare
+# 400 covers a bad model name and an over-long context too.
+_RESPONSE_FORMAT_MARKERS = ("response_format", "json_object", "json mode", "json schema")
+
+_JSON_MODE_NOTE = (
+    "The backend rejected JSON mode, so the reply was requested as plain text. "
+    "The prompt still demands JSON, but nothing enforced it."
+)
+_REPROMPT_NOTE = "The first reply was not valid JSON and the model was asked to send it again."
+_REPAIR_INSTRUCTION = (
+    "That reply could not be parsed as JSON: {error}. Send the same content again "
+    "as a single valid JSON object and nothing else — no prose, no markdown fence, "
+    "no trailing commentary."
+)
+
+# Deliberately generous: English runs 3.5–4.5 chars per token, so dividing by 6
+# already under-counts by a third. Requiring the backend's own count to fall below
+# 60% of that under-count means a false positive needs it to report under ~40% of
+# the true number, which no tokenizer difference produces — only cropping does.
+_CHARS_PER_TOKEN = 6.0
+_TRUNCATION_RATIO = 0.6
+_TRUNCATION_FLOOR = 500
+
+
+def _rejects_response_format(exc: BaseException) -> bool:
+    """Whether *exc* plausibly means the backend does not support JSON mode.
+
+    The status-code fallback is wide on purpose. An unrelated 400 costs exactly one
+    retry that fails the same way; a missed rejection costs the whole command on a
+    backend that simply does not implement the parameter.
+    """
+    text = str(exc).lower()
+    if any(marker in text for marker in _RESPONSE_FORMAT_MARKERS):
+        return True
+    return getattr(exc, "status_code", None) in (400, 422)
+
+
+def _prompt_tokens(response: Any) -> int | None:
+    """The backend's own prompt-token count, or None when it does not report one.
+
+    ``getattr`` rather than ``try``/``except``: a proxy that omits ``usage`` is an
+    ordinary backend, not an error.
+    """
+    value = getattr(getattr(response, "usage", None), "prompt_tokens", None)
+    return value if isinstance(value, int) else None
+
+
+def _truncation_note(prompt_tokens: int | None, text: str) -> str | None:
+    """Warn when the backend counted far fewer tokens than were sent.
+
+    Ollama crops an over-long prompt from the *front* and does not error, and the
+    front is where the system prompt's grounding contract and the instructions sit.
+    A run that silently lost them still returns a confident-looking review.
+    """
+    if prompt_tokens is None:
+        return None
+    estimate = len(text) / _CHARS_PER_TOKEN
+    if estimate < _TRUNCATION_FLOOR or prompt_tokens >= estimate * _TRUNCATION_RATIO:
+        return None
+    return (
+        f"The backend counted only {prompt_tokens} prompt tokens for a prompt of "
+        f"roughly {int(estimate)}. It has very likely cropped the front of the prompt "
+        "to fit its context window, which is where the instructions and the grounding "
+        "rules are. Raise the model's context size (num_ctx on Ollama) or build a "
+        "shorter profile."
+    )
+
+
+def complete(
+    client: Any,
+    model: str,
+    *,
+    system: str,
+    prompt: str,
+    temperature: float,
+    parse: Callable[[str], _T],
+    seed: int | None = None,
+) -> Completion[_T]:
+    """Run a JSON-mode chat completion, parse it, and report what it cost.
+
+    Sends *system* + *prompt* at *temperature* with
+    ``response_format={"type": "json_object"}``, then hands the raw content to
+    *parse*. Three things can go wrong with an arbitrary OpenAI-compatible backend,
+    and each is survivable exactly once:
+
+    - the client does not accept ``seed`` (*seed* makes a run reproducible where it
+      is supported, and support is not universal);
+    - the backend rejects ``response_format``, which several implementations 400 on;
+    - the reply is not valid JSON, which one reprompt usually fixes.
+
+    The first two are capabilities: they latch off and stay off for the rest of the
+    call. The third changes the conversation instead, so it re-enters the same
+    ladder rather than reopening a capability already known to fail. Only a second
+    unparseable reply raises.
+    """
+    notes: list[str] = []
+    use_seed = seed is not None
+    use_response_format = True
+    base = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt},
+    ]
+
+    def _send(messages: list[dict[str, str]]) -> Any:
+        nonlocal use_seed, use_response_format
+        while True:
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            if use_response_format:
+                kwargs["response_format"] = {"type": "json_object"}
+            if use_seed:
+                kwargs["seed"] = seed
+            try:
+                return client.chat.completions.create(**kwargs)
+            except TypeError as exc:
+                # Checked first: a client whose signature predates a parameter
+                # raises before any request is made, which is the cheapest and
+                # least ambiguous of the three signals.
+                if use_seed:
+                    use_seed = False
+                    continue
+                if use_response_format and _rejects_response_format(exc):
+                    use_response_format = False
+                    notes.append(_JSON_MODE_NOTE)
+                    continue
+                raise
+            except Exception as exc:
+                if use_response_format and _rejects_response_format(exc):
+                    use_response_format = False
+                    notes.append(_JSON_MODE_NOTE)
+                    continue
+                raise
+
+    response = _send(base)
+    raw = response.choices[0].message.content or ""
+    note = _truncation_note(_prompt_tokens(response), system + prompt)
+    if note:
+        notes.append(note)
+
+    try:
+        value = parse(raw)
+    except json.JSONDecodeError as exc:
+        repair = [
+            *base,
+            {"role": "assistant", "content": raw},
+            {"role": "user", "content": _REPAIR_INSTRUCTION.format(error=exc)},
+        ]
+        response = _send(repair)
+        raw = response.choices[0].message.content or ""
+        try:
+            value = parse(raw)
+        except json.JSONDecodeError as exc2:
+            # The notes die with the exception unless they are carried on it, and
+            # this is the path where they matter most: a cropped prompt loses the
+            # schema, which is *why* the reply will not parse. Without this the
+            # user gets the raw body and no hint that the cause was context size.
+            detail = "".join(f"\n\n{note}" for note in notes)
+            raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}{detail}") from exc2
+        notes.append(_REPROMPT_NOTE)
+
+    return Completion(value=value, prompt_tokens=_prompt_tokens(response), notes=notes)
+
+
 def complete_json(
     client: Any,
     model: str,
@@ -150,41 +333,20 @@ def complete_json(
     parse: Callable[[str], _T],
     seed: int | None = None,
 ) -> _T:
-    """Run a JSON-mode chat completion and parse the response.
+    """The parsed value alone — :func:`complete` without the call's own report.
 
-    Shared by all AI orchestrators: sends *system* + *prompt* at *temperature*
-    with ``response_format={"type": "json_object"}``, then hands the raw content
-    to *parse*. Wraps a JSON decode failure in a RuntimeError carrying the raw
-    response for debugging.
-
-    *seed* makes a run reproducible on backends that support it. Support is not
-    universal across OpenAI-compatible backends, so a client that does not accept
-    the parameter is retried without it rather than failing the command.
+    Kept because the Python API is part of cvloom's contract. In-tree callers use
+    :func:`complete`, since a degraded call is something the user needs told.
     """
-    kwargs: dict[str, Any] = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": temperature,
-        "response_format": {"type": "json_object"},
-    }
-    if seed is not None:
-        kwargs["seed"] = seed
-
-    try:
-        response = client.chat.completions.create(**kwargs)
-    except TypeError:
-        if seed is None:
-            raise
-        del kwargs["seed"]
-        response = client.chat.completions.create(**kwargs)
-    raw = response.choices[0].message.content or ""
-    try:
-        return parse(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI returned invalid JSON. Raw response:\n{raw}") from exc
+    return complete(
+        client,
+        model,
+        system=system,
+        prompt=prompt,
+        temperature=temperature,
+        parse=parse,
+        seed=seed,
+    ).value
 
 
 def get_config(root: Path | None = None) -> dict[str, str | bool]:

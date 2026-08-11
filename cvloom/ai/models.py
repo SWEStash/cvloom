@@ -49,6 +49,10 @@ class CoverResult:
     word_count: int
     key_alignments: list[str] = field(default_factory=list)
     context_notes: list[str] = field(default_factory=list)
+    body_only: bool = False
+    """Whether ``letter`` is body paragraphs alone, for a ``cover-letter/*``
+    template's ``job_context.notes``, rather than a letter with its own greeting
+    and sign-off. A consumer cannot tell the two apart from the prose."""
 
 
 @dataclass

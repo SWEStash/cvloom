@@ -751,6 +751,7 @@ see [ai-features.md#installation](ai-features.md#installation)) and a provider:
 cvloom ai config                                              # check provider status
 cvloom ai review --profile NAME                              # score CV sections
 cvloom ai cover --profile NAME --jd FILE [--output FILE]     # generate cover letter
+cvloom ai cover --profile NAME --jd FILE --body-only         # body only, as job_context.notes
 cvloom ai suggest --profile NAME [--role "Role Title"]       # improvement suggestions
 cvloom ai align --profile NAME --jd FILE                     # qualitative JD alignment
 ```

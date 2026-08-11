@@ -11,7 +11,7 @@ from click.testing import CliRunner
 
 from cvloom import config
 from cvloom.cli import cli
-from tests.ai_fakes import FakeClient
+from tests.ai_fakes import FakeAPIStatusError, FakeClient, NoJsonModeClient, ScriptedClient
 
 
 @pytest.fixture
@@ -1191,6 +1191,13 @@ def _ai_argv(command: str, jd: Path) -> list[str]:
 
 _AI_COMMANDS = ["review", "cover", "suggest", "align"]
 
+_AI_RESPONSES = {
+    "review": _REVIEW_JSON,
+    "cover": _COVER_JSON,
+    "suggest": _SUGGEST_JSON,
+    "align": _ALIGN_JSON,
+}
+
 
 def test_ai_config_unconfigured_lists_the_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("CVLOOM_AI_BASE_URL", raising=False)
@@ -1316,6 +1323,37 @@ def test_ai_command_reports_a_response_that_is_not_json(
     assert "AI error:" in result.output
 
 
+@pytest.mark.parametrize("command", _AI_COMMANDS)
+def test_ai_command_recovers_from_one_bad_reply(
+    command: str, project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The counterpart: one unparseable reply used to end the command. Most models
+    fix it when shown the decode error, so only the second failure is fatal."""
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    client = ScriptedClient("<html>502 Bad Gateway</html>", _AI_RESPONSES[command])
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, _ai_argv(command, jd))
+    assert result.exit_code == 0
+    assert len(client.calls) == 2
+
+
+def test_ai_review_tells_the_user_when_json_mode_was_refused(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing enforced the JSON that came back, which is a caveat on everything
+    printed below it — so it goes to stdout, not behind --verbose."""
+    monkeypatch.setenv("CVLOOM_AI_BASE_URL", "http://fake/v1")
+    client = NoJsonModeClient(_REVIEW_JSON, error=FakeAPIStatusError("bad request", 400))
+    monkeypatch.setattr("cvloom.ai.get_client", lambda root=None: client)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "review"])
+    assert result.exit_code == 0
+    assert "note:" in result.output
+    assert "JSON mode" in result.output
+
+
 def test_ai_review_renders_every_part_of_the_result(
     project_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1378,6 +1416,77 @@ def test_ai_cover_output_writes_the_file_instead_of_printing(
     assert result.exit_code == 0
     assert "LETTERBODY" in out.read_text()
     assert "LETTERBODY" not in result.output
+
+
+def test_ai_cover_body_only_prints_a_pasteable_notes_block(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The output has to be the YAML fragment, not the prose: the point of the flag
+    is that the user can paste it without reformatting it."""
+    _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd), "--body-only"])
+    assert result.exit_code == 0
+    assert "job_context:" in result.output
+    assert "notes: |" in result.output
+    assert "profiles/general.yaml" in result.output
+
+
+def test_ai_cover_body_only_asks_the_model_for_no_furniture(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd), "--body-only"])
+    assert result.exit_code == 0
+    prompt = client.calls[0]["messages"][1]["content"]
+    assert "no salutation" in prompt.lower()
+    assert "Open the letter with exactly this salutation" not in prompt
+
+
+def test_ai_cover_without_the_flag_still_asks_for_a_whole_letter(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd)])
+    prompt = client.calls[0]["messages"][1]["content"]
+    assert "Open the letter with exactly this salutation" in prompt
+
+
+def test_ai_cover_body_only_warns_before_replacing_existing_notes(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """cvloom does not write the profile, so this is the only chance the user gets
+    to notice that pasting will overwrite prose they wrote themselves."""
+    (project_root / "profiles" / "letter.yaml").write_text(
+        "template: cover-letter/standard\njob_context:\n  notes: Something I wrote.\n"
+    )
+    _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(
+        cli, ["ai", "cover", "--jd", str(jd), "--profile", "letter", "--body-only"]
+    )
+    assert result.exit_code == 0
+    assert "already has job_context.notes" in result.output
+
+
+def test_ai_cover_output_carries_the_key_alignments_to_stdout(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--output redirects the letter, not the commentary about it. Both the
+    alignments and any context note used to vanish on this path."""
+    _patch_ai(monkeypatch, _COVER_JSON)
+    jd = _jd_file(project_root)
+    out = project_root / "cover.md"
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd), "--output", str(out)])
+    assert result.exit_code == 0
+    assert "PYTHONMATCH" in result.output
 
 
 def test_ai_suggest_renders_the_suggestions(

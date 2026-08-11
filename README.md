@@ -178,7 +178,12 @@ cvloom ai review --profile general
 
 ```bash
 cvloom ai cover --profile backend-role --jd stripe-infra.txt --output cover.md
+cvloom ai cover --profile cover-letter --jd stripe-infra.txt --body-only
 ```
+
+`--body-only` writes the body paragraphs alone, as a pasteable `job_context.notes`
+block — a `cover-letter/*` template supplies the greeting, closing and signature
+from the locale pack, so the finished letter has exactly one of each.
 
 **`ai suggest`** — get specific content improvements: new bullet points, skill additions, rewordings, and removals for a target role.
 
