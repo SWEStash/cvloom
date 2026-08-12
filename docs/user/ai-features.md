@@ -127,6 +127,20 @@ first. If a 3B model is what you have, treat `ai suggest` and `ai review` as
 prompts for your own thinking, check every number against your CV, and do not use
 `ai cover` output without reading it line by line.
 
+**This is not a prompt-wording problem, and it was worth checking.** Two
+plausible fixes were tested against `qwen2.5:3b-instruct` and both failed:
+restating the constraint as the very last line the model reads, which is what
+`CLOSING` exists for, changed nothing on any of the three failures; and removing
+the competing "open the letter with exactly this salutation" instruction did not
+produce a refusal either, it only added a heading. The model does what it was
+broadly asked and does not act on a conditional that would cancel that.
+
+Which points at a structural fix rather than a wording one, if these cases matter
+to you: the same model follows *structural* instructions near-perfectly. A
+separate cheap call asking "is this a job posting?" and branching on the answer
+turns a judgement it fails into a classification it does not. That is a change to
+how the feature works, not to what the prompt says, and it is not implemented.
+
 #### Context length — read this before running `ai` on a long CV
 
 Ollama does not reject a prompt that is too long for the context window it is
