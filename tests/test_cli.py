@@ -1456,7 +1456,7 @@ def test_ai_cover_body_only_asks_the_model_for_no_furniture(
     assert result.exit_code == 0
     prompt = client.calls[0]["messages"][1]["content"]
     assert "no salutation" in prompt.lower()
-    assert "Open the letter with exactly this salutation" not in prompt
+    assert "open with exactly this salutation" not in prompt
 
 
 def test_ai_cover_without_the_flag_still_asks_for_a_whole_letter(
@@ -1467,7 +1467,7 @@ def test_ai_cover_without_the_flag_still_asks_for_a_whole_letter(
     monkeypatch.chdir(project_root)
     CliRunner().invoke(cli, ["ai", "cover", "--jd", str(jd)])
     prompt = client.calls[0]["messages"][1]["content"]
-    assert "Open the letter with exactly this salutation" in prompt
+    assert "open with exactly this salutation" in prompt
 
 
 def test_ai_cover_body_only_warns_before_replacing_existing_notes(

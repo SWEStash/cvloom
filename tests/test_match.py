@@ -9,7 +9,13 @@ from click.testing import CliRunner
 
 from cvloom.cli import cli
 from cvloom.linter_locales import pack_for
-from cvloom.match import MatchReport, _extract_keywords, _suggest_section, analyze_match
+from cvloom.match import (
+    MatchReport,
+    _extract_keywords,
+    _suggest_section,
+    analyze_match,
+    looks_like_a_job_posting,
+)
 from cvloom.models import ResolvedProfile
 from tests.conftest import make_resolved
 
@@ -286,3 +292,62 @@ def test_hidden_section_does_not_count() -> None:
     )
     report = analyze_match(resolved, "We need Kubernetes experience.")
     assert "kubernetes" in set(report.gaps)
+
+
+# ── Is this even a job posting? ─────────────────────────────────────
+
+
+def test_a_real_posting_is_recognised() -> None:
+    jd = Path(__file__).parent.parent / "examples" / "stripe-infra-jd.txt"
+    assert looks_like_a_job_posting(jd.read_text(encoding="utf-8"), "en")
+
+
+def test_a_privacy_policy_is_not() -> None:
+    """The document a "save page as" produces instead of the posting."""
+    policy = (
+        "Privacy Policy — last updated March 2024\n"
+        "We collect information you provide directly to us, including when you\n"
+        "create an account. We use cookies and similar tracking technologies.\n"
+    )
+    assert not looks_like_a_job_posting(policy, "en")
+
+
+def test_a_cv_pasted_by_mistake_is_not_a_posting() -> None:
+    cv = "Jane Doe | Senior Engineer\nReduced p99 latency by 40%.\nPython, Go, SQL.\n"
+    assert not looks_like_a_job_posting(cv, "en")
+
+
+def test_one_marker_is_enough() -> None:
+    """A lenient bar on purpose: the check catches a wrong file, not a badly
+    written posting, so a false negative costs a warning and a false positive
+    costs nothing."""
+    assert looks_like_a_job_posting("Backend engineer.\n\nRequirements:\n- Python\n", "en")
+
+
+def test_the_spanish_markers_are_native_not_translated() -> None:
+    posting = (
+        "Ingeniero de Backend\n\nSe requiere experiencia en Python.\n"
+        "Se ofrece contrato indefinido.\n"
+    )
+    assert looks_like_a_job_posting(posting, "es")
+    assert not looks_like_a_job_posting(posting, "en"), "the en list must not match Spanish"
+
+
+def test_an_unknown_locale_falls_back_rather_than_crashing() -> None:
+    assert looks_like_a_job_posting("Responsibilities:\n- ship things\n", "fr")
+
+
+def test_match_warns_on_a_file_that_is_not_a_posting(
+    project_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Warned, not blocked: the check is a word list, and the user can see the
+    file. Stopping them would be cvloom overruling a judgement it cannot make."""
+    policy = project_root / "policy.txt"
+    policy.write_text("Privacy Policy\n\nWe collect information you provide to us.\n")
+    monkeypatch.chdir(project_root)
+    result = CliRunner().invoke(cli, ["match", "--jd", str(policy)])
+    assert result.exit_code == 0
+    # Whitespace-normalised: rich wraps the warning around the tmp path in it.
+    flat = " ".join(result.output.split())
+    assert "does not read like a job posting" in flat
+    assert "Coverage:" in flat, "the command still ran"

@@ -584,7 +584,70 @@ Tests live in `tests/`. The test suite uses `pytest` with no mocking of the data
 uv run pytest                          # run all tests
 uv run pytest tests/test_builder.py   # single file
 uv run pytest -k "test_overlay"       # filter by name
+uv run pytest -m evals -s             # opt in to the live-model suite (below)
 ```
+
+### The evaluation suite
+
+`tests/test_ai_evals.py` sends real prompts to a real model. Everything else under
+`tests/test_ai_*.py` feeds an orchestrator a hand-written JSON string and checks it
+parses — correct, and worth keeping, but it means no prompt change can be shown to
+have helped or hurt. That gap is what this closes.
+
+It is gated twice. `addopts = "-m 'not evals'"` deselects it from every ordinary
+run, and the tests skip without `CVLOOM_AI_BASE_URL` even when selected — so a
+contributor who happens to export a backend does not discover the suite by
+watching `uv run pytest` make dozens of model calls. A command-line `-m evals`
+replaces the `addopts` value, since the last `-m` wins.
+
+Three modules, split by what needs a backend:
+
+- `tests/ai_corpus.py` — the CVs, including the ones that go wrong. `examples/`
+  and `examples-es/` resolved through the real project path, plus synthetic cases
+  built to fail one way each: no metrics anywhere, passive throughout, four pages,
+  an empty `work`, a one-line CV, a job description that is a privacy policy. The
+  deliberately-bad Spanish CV lives here rather than in `examples-es/`, which
+  produces exactly one lint finding — enough to prove locale handling, not enough
+  to exercise the analysis block, and growing it would make the demo worse for the
+  people it is a demo for.
+- `tests/ai_rubrics.py` — pure functions returning `None` on pass and a reason on
+  failure, so a red run names the defect. Reference-free by construction: there is
+  no labelled corpus of good CV feedback, so each check asks whether the output is
+  self-consistent with its own inputs. Weaker than "is this good advice", and
+  answerable without ground truth.
+- `tests/test_ai_rubrics.py` — covers the rubrics offline, with no backend. Without
+  it the checks deciding whether a model passed would be the least-tested code in
+  the repo, and a rubric that always passes is worse than none: it reports a clean
+  run.
+
+**Gates versus measurements.** Language, groundedness, citation, unusable-input
+handling and cover-letter shape are gates — contract violations that make a model
+unusable for that feature. Restatement is measured and printed, never asserted:
+the prompt asks the model not to repeat findings the user has already seen from
+`cvloom check`, and small models ignore that reliably enough that gating on it
+would paint every pre-release run red while saying nothing about the prompt.
+
+**A red run is an answer, not a broken suite.** This qualifies a *model*; it is
+not a CI gate, which is why it is opt-in and deselected by default. The baseline
+is recorded in [ai-features.md](../user/ai-features.md#why-the-recommendation-starts-at-27b):
+`qwen2.5:3b-instruct` passes 8 of 16, and the split is the useful part — every
+check about the *shape* of the answer passes, every check about *what to say and
+what to omit* fails. The anti-fabrication instructions are the first ones a small
+model drops.
+
+Every gate echoes the graded text on failure. That is not a convenience: a run
+takes 25–40 minutes against a local model, so a failure that cannot be diagnosed
+from its own output costs another full run. The first version omitted it and
+immediately produced a language-mismatch report nobody could adjudicate.
+
+Two of the failures in that first run were bugs in the suite rather than in the
+model, both the same mistake — asserting an expectation of `AnalysisBlock` that
+contradicted its documented behaviour (narrow scopes never render instances; the
+per-rule instance cap is normal rendering and emits no note). A third graded
+`review` output against the CV alone when the model had also been handed the
+analysis block, so "trim to under 20 words" was reported as an invented `20`.
+When this suite goes red, check the rubric against the contract before believing
+it about the model.
 
 Typical fixture pattern:
 ```python

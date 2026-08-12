@@ -92,6 +92,70 @@ export CVLOOM_AI_MODEL=gemma3:27b
 
 Recommended models: `gemma3:27b`, `llama3.3:70b`, `qwen2.5:32b`
 
+#### Why the recommendation starts at ~27B
+
+Small models are not merely worse here — they fail in a specific, measurable way,
+and the repo's evaluation suite (`uv run pytest -m evals`) exists to show it.
+Measured on `qwen2.5:3b-instruct`, 2026-08-11, 8 of 16 checks passed. The split
+is not random:
+
+**Passed** — everything about the *shape* of the answer. It followed the JSON
+schema, banded every section inside the rubric, answered in the CV's language,
+cited only rule ids that were really in its context, never leaked an internal
+`section/entry` label into prose, and never rewrote a flagged opener into another
+flagged one.
+
+**Failed** — everything about *what to say and what to leave out*:
+
+- Handed a **privacy policy** in place of a job description, it wrote an
+  enthusiastic cover letter anyway, and `ai align` analysed the CV's fit against
+  it rather than reporting that the document is not a job posting.
+- `--body-only` output carried `Dear Hiring Manager` and `Sincerely` — the exact
+  duplication that flag exists to prevent, since the template supplies its own.
+- Given a CV with nothing in it, it produced improvement advice instead of saying
+  so. On a genuinely empty one it *did* say "the CV is nearly empty", then
+  returned an assessment as well.
+- It invented figures in example bullets — suggesting "Reduced backend response
+  time by 83%" for a CV that says 800ms → 120ms. The grounding rules explicitly
+  require an `[add metric: …]` placeholder here instead, and inventing a number
+  in an illustration is the same harm as inventing one anywhere: it is the string
+  the user pastes.
+
+So a small model can be trusted with the *form* of the output and not with its
+*judgement*, and the anti-fabrication rules are exactly the instructions it drops
+first. If a 3B model is what you have, treat `ai suggest` and `ai review` as
+prompts for your own thinking, check every number against your CV, and do not use
+`ai cover` output without reading it line by line.
+
+**This is not a prompt-wording problem, and it was worth checking.** Two
+plausible fixes were tested against `qwen2.5:3b-instruct` and both failed:
+restating the constraint as the very last line the model reads, which is what
+`CLOSING` exists for, changed nothing on any of the three failures; and removing
+the competing "open the letter with exactly this salutation" instruction did not
+produce a refusal either, it only added a heading. The model does what it was
+broadly asked and does not act on a conditional that would cancel that.
+
+So the guard is deterministic instead. `cvloom match`, `ai cover` and `ai align`
+check the `--jd` file for the phrases a job posting is built from — and say so
+when it has none:
+
+```
+warning: policy.txt does not read like a job posting — none of the usual phrases
+(responsibilities, requirements, what you'll do) appear in it. Continuing anyway;
+check you passed the right file.
+```
+
+A warning, not a refusal. The check is a word list, and you can see the file; one
+marker anywhere passes it, because it exists to catch the wrong file rather than
+to grade a posting. The phrases come from your project's locale, so a Spanish
+project is checked against Spanish ones.
+
+This is the same division of labour as everywhere else here: rules answer what
+rules can answer, and the AI layer sits on top. Asking a model instead would
+double the latency of every `ai cover` to re-derive what a word list settles, and
+would need a backend configured before cvloom could tell you that you passed your
+own CV by mistake.
+
 #### Context length — read this before running `ai` on a long CV
 
 Ollama does not reject a prompt that is too long for the context window it is

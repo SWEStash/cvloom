@@ -18,6 +18,7 @@ import re
 import pytest
 
 from cvloom.ai.analysis import SCOPE_FULL, analysis_context_block
+from cvloom.ai.prompts import GROUNDING
 from cvloom.ai.provider import cv_to_text
 from cvloom.ai.suggest import suggest
 from cvloom.models import ResolvedProfile
@@ -222,3 +223,18 @@ def test_a_citation_the_model_invented_is_visible_rather_than_dropped() -> None:
     result = suggest(resolved, FakeClient(_cited_response(["wl-999"])), "test-model")
     assert result.suggestions[0].related_findings == ["wl-999"]
     assert not set(result.suggestions[0].related_findings) <= _rule_ids_in_context(resolved)
+
+
+def test_the_contract_forbids_deriving_a_figure_from_the_cvs_own_numbers() -> None:
+    """Rule 2 covers a metric the CV lacks and rule 1 permits recombining what it
+    has, so nothing forbade calculating a new one. A live run turned "800ms to
+    120ms" into "by 83%" — unsourced, and wrong arithmetic besides."""
+    assert "Do not work out a new figure from figures the CV states" in GROUNDING
+    assert "Quote the figures the CV gives" in GROUNDING
+
+
+def test_a_derived_percentage_is_caught_as_ungrounded() -> None:
+    """The rubric already treats it as invented, which is how it was found."""
+    source = "Reduced p99 latency from 800ms to 120ms"
+    assert ungrounded_numbers("Reduced backend response time by 83%", source) == {"83"}
+    assert ungrounded_numbers("Reduced p99 latency from 800ms to 120ms", source) == set()

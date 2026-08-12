@@ -326,6 +326,35 @@ DIACRITIC_PATTERN = re.compile(
 
 # Without these a Spanish job description returns `de / la / que / el` as its
 # top keywords and the gap analysis is noise.
+_JD_MARKERS = (
+    "responsabilidades",
+    "requisitos",
+    "requerimientos",
+    "cualificaciones",
+    "qué harás",
+    "lo que harás",
+    "buscamos",
+    "estamos buscando",
+    "se ofrece",
+    "se requiere",
+    "el puesto",
+    "sobre el puesto",
+    "años de experiencia",
+    "valorable",
+    "beneficios",
+    "postular",
+    "postúlate",
+    "igualdad de oportunidades",
+)
+"""Native phrasing, not a translation of the English list.
+
+`se ofrece` / `se requiere` are the impersonal constructions Spanish postings are
+built from and have no English counterpart here, and `postular` is the Latin
+American verb where Spain would write `inscribirse`. Both are carried because the
+locale is one language, not one country.
+"""
+
+
 _STOP_WORDS = frozenset(
     {
         "a",
@@ -491,4 +520,5 @@ LOCALE = LintLocale(
     metric_pattern=_METRIC,
     result_framing_pattern=_RESULT_FRAMING,
     stop_words=_STOP_WORDS,
+    jd_markers=_JD_MARKERS,
 )

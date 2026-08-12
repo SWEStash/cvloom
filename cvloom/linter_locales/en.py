@@ -277,6 +277,35 @@ FK_MAX_GRADE = 12
 
 # ── match: stop words ───────────────────────────────────────────────
 
+_JD_MARKERS = (
+    "responsibilities",
+    "requirements",
+    "qualifications",
+    "what you'll do",
+    "what you will do",
+    "what we're looking for",
+    "what we are looking for",
+    "you'll be",
+    "you will be",
+    "we're hiring",
+    "we are hiring",
+    "the role",
+    "about the role",
+    "years of experience",
+    "nice to have",
+    "benefits",
+    "apply",
+    "equal opportunity",
+)
+"""Phrases a job posting has and a CV, a privacy policy or a README does not.
+
+Matched case-insensitively anywhere in the text, and the bar is one hit — the
+check exists to catch a wrong file, not to grade a posting. A real posting that
+somehow contains none of these still warns rather than failing, which is why the
+list can afford to be short.
+"""
+
+
 _STOP_WORDS = frozenset(
     {
         "a",
@@ -429,4 +458,5 @@ LOCALE = LintLocale(
     metric_pattern=_METRIC,
     result_framing_pattern=_RESULT_FRAMING,
     stop_words=_STOP_WORDS,
+    jd_markers=_JD_MARKERS,
 )

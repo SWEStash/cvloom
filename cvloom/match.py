@@ -148,6 +148,27 @@ def _build_reorder_hints(
 # ── Public API ─────────────────────────────────────────────────────
 
 
+def looks_like_a_job_posting(jd_text: str, locale_code: str) -> bool:
+    """Whether *jd_text* carries any of the phrases a job posting is built from.
+
+    Cheap, deterministic and deliberately lenient: one marker anywhere passes.
+    The failure it exists to catch is a wrong file — a CV, a README, the privacy
+    policy that a "save page as" produced instead of the posting — not a badly
+    written posting, so a false *negative* on an unusual real posting costs the
+    user one dismissable warning while a false positive costs nothing at all.
+
+    Deterministic rather than a model call, which is the same division of labour
+    the rest of the tool follows: rules answer what rules can answer, and the AI
+    layer sits on top. Asking a model would double the latency of every
+    `ai cover` to re-derive something a word list settles, and would need a
+    backend before cvloom could tell the user they passed the wrong file.
+    Measured against `qwen2.5:3b-instruct`, the model does not reliably decline a
+    non-posting from inside the generation prompt anyway.
+    """
+    lowered = jd_text.lower()
+    return any(marker in lowered for marker in pack_for(locale_code).jd_markers)
+
+
 def analyze_match(resolved: ResolvedProfile, jd_text: str) -> MatchReport:
     """Compare JD keywords against resolved CV data.
 

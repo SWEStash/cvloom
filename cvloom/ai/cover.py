@@ -35,14 +35,23 @@ def _furniture(locale: LocalePack, job_context: dict[str, Any]) -> str:
     Keeping the model writing the furniture (rather than stripping it afterwards)
     is what lets a later body-only mode be pure subtraction: drop this instruction
     and the template supplies the same strings from the same pack.
+
+    Stated as conditional on there being a letter to write. Unconditionally it
+    contradicts `unhappy_input`, which arrives later and asks for a report instead
+    of a letter when the input is unusable — leaving the prompt holding an emphatic
+    "open with exactly this" and a quiet "actually, write nothing" with nothing
+    reconciling them. Making the precondition explicit costs one clause.
     """
     greeting = job_context.get("greeting") or locale.cover_letter["greeting"]
     closing = job_context.get("closing") or locale.cover_letter["closing"]
     salutee = job_context.get("hiring_manager") or locale.cover_letter["fallback_salutee"]
     return (
-        f"Open the letter with exactly this salutation, on its own line: {greeting} {salutee},\n"
+        "When you write a letter, its furniture is fixed: open with exactly this "
+        f"salutation, on its own line: {greeting} {salutee},\n"
         f"Close with exactly {closing} on its own line, followed by the candidate's name "
-        "on the line after it. Everything between those two is yours to write."
+        "on the line after it. Everything between those two is yours to write. "
+        "This governs the shape of a letter, not whether there is one to write — "
+        "see below for when the answer is a report instead."
     )
 
 
