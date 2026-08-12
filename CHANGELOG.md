@@ -7,6 +7,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.9.0](https://github.com/SWEStash/cvloom/compare/v0.8.0...v0.9.0) (2026-08-12)
+
+
+### Features
+
+* **ai:** add --body-only cover letters and harden the provider ([#22](https://github.com/SWEStash/cvloom/issues/22)) ([5e20bc0](https://github.com/SWEStash/cvloom/commit/5e20bc02c1ec613c6a83544db5287fa14a591a16))
+* **ai:** give the model what the linter already knows ([#21](https://github.com/SWEStash/cvloom/issues/21)) ([abbf3c0](https://github.com/SWEStash/cvloom/commit/abbf3c01ff5b1869b1f7671df5ebdf07544d92f9))
+* **ai:** replace AI scores with anchored qualitative bands ([e864509](https://github.com/SWEStash/cvloom/commit/e8645093ca35cc53b50c69ba0cd80409d2e49378))
+* **ai:** tell the model which openers the linter will flag ([#25](https://github.com/SWEStash/cvloom/issues/25)) ([650bc3b](https://github.com/SWEStash/cvloom/commit/650bc3b188d273c816ff2e5be2c56dc594054957))
+
+
+### Bug Fixes
+
+* **ai:** answer in the CV's own language ([#20](https://github.com/SWEStash/cvloom/issues/20)) ([f77f771](https://github.com/SWEStash/cvloom/commit/f77f77198cbde52b58aaaadf5061b54dc5c2f105))
+* **ai:** ground the AI layer in the CV it was actually given ([#17](https://github.com/SWEStash/cvloom/issues/17)) ([c40c708](https://github.com/SWEStash/cvloom/commit/c40c708b8c100d311c284398a80fd33c10cd3703))
+* **ai:** stop the model reviewing a CV that isn't there ([#19](https://github.com/SWEStash/cvloom/issues/19)) ([b898ee8](https://github.com/SWEStash/cvloom/commit/b898ee8e7bbac444500856553c724423f54f36b6))
+
 ## [0.8.0](https://github.com/SWEStash/cvloom/compare/v0.7.0...v0.8.0) (2026-08-07)
 
 
