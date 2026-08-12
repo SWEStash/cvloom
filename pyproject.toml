@@ -103,6 +103,19 @@ include = [
     "/LICENSE",
 ]
 
+[tool.pytest.ini_options]
+markers = [
+    "evals: sends real prompts to a live model. Opt in with `-m evals`; needs CVLOOM_AI_BASE_URL.",
+]
+addopts = "-m 'not evals'"
+# Deselected by default, and skipped without a backend even when selected. Two
+# gates rather than one: a contributor who happens to export CVLOOM_AI_BASE_URL
+# should not discover it by watching `uv run pytest` make forty model calls.
+# A command-line `-m evals` replaces this, since the last -m wins.
+# Registered rather than left implicit: an unknown marker is a warning, not an
+# error, so a typo'd `@pytest.mark.eval` would silently select nothing and the
+# suite would report a clean run having called no model at all.
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
