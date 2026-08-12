@@ -71,6 +71,12 @@ class LintLocale:
     # match — tokens carrying no keyword signal.
     stop_words: frozenset[str]
 
+    # match — phrases a job posting has and other documents do not. Not a lint
+    # lexicon; it lives here for the same reason `stop_words` does, which is that
+    # `match` reads its language data from the locale the project already
+    # resolved rather than carrying a second registry.
+    jd_markers: tuple[str, ...]
+
 
 # ── Registry ────────────────────────────────────────────────────────
 

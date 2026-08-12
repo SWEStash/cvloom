@@ -135,11 +135,26 @@ the competing "open the letter with exactly this salutation" instruction did not
 produce a refusal either, it only added a heading. The model does what it was
 broadly asked and does not act on a conditional that would cancel that.
 
-Which points at a structural fix rather than a wording one, if these cases matter
-to you: the same model follows *structural* instructions near-perfectly. A
-separate cheap call asking "is this a job posting?" and branching on the answer
-turns a judgement it fails into a classification it does not. That is a change to
-how the feature works, not to what the prompt says, and it is not implemented.
+So the guard is deterministic instead. `cvloom match`, `ai cover` and `ai align`
+check the `--jd` file for the phrases a job posting is built from — and say so
+when it has none:
+
+```
+warning: policy.txt does not read like a job posting — none of the usual phrases
+(responsibilities, requirements, what you'll do) appear in it. Continuing anyway;
+check you passed the right file.
+```
+
+A warning, not a refusal. The check is a word list, and you can see the file; one
+marker anywhere passes it, because it exists to catch the wrong file rather than
+to grade a posting. The phrases come from your project's locale, so a Spanish
+project is checked against Spanish ones.
+
+This is the same division of labour as everywhere else here: rules answer what
+rules can answer, and the AI layer sits on top. Asking a model instead would
+double the latency of every `ai cover` to re-derive what a word list settles, and
+would need a backend configured before cvloom could tell you that you passed your
+own CV by mistake.
 
 #### Context length — read this before running `ai` on a long CV
 

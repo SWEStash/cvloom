@@ -85,6 +85,26 @@ def _emit_context_notes(notes: list[str]) -> None:
         _console.print()
 
 
+def _warn_if_not_a_job_posting(jd_text: str, jd_path: str, locale_code: str) -> None:
+    """Say so when the ``--jd`` file does not read like a job posting.
+
+    A warning rather than a refusal: the check is a word list, so it is the
+    user — who can see the file — who should decide, not cvloom. It runs before
+    the AI call because the model will not make this call reliably from inside
+    the generation prompt, and a confident cover letter written from someone's
+    privacy policy is a worse outcome than a warning they ignore.
+    """
+    from cvloom.match import looks_like_a_job_posting
+
+    if looks_like_a_job_posting(jd_text, locale_code):
+        return
+    _console.print(
+        f"[yellow]warning:[/yellow] {jd_path} does not read like a job posting — "
+        "none of the usual phrases (responsibilities, requirements, what you'll do) "
+        "appear in it. Continuing anyway; check you passed the right file."
+    )
+
+
 def _cited(rule_ids: list[str]) -> str:
     """Render a rule-id citation as provenance, not content."""
     return f"  [dim](addresses {', '.join(rule_ids)})[/dim]" if rule_ids else ""
@@ -793,6 +813,7 @@ def match(profile: str, jd: str) -> None:
     resolved = _resolve(root, profile, public=True)
 
     jd_text = Path(jd).read_text(encoding="utf-8")
+    _warn_if_not_a_job_posting(jd_text, jd, resolved.locale.code)
     report = analyze_match(resolved, jd_text)
 
     _console.print(
@@ -1348,6 +1369,7 @@ def ai_cover(profile: str, jd_file: str, output: str | None, body_only: bool) ->
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
     resolved = _resolve(root, profile, public=True)
+    _warn_if_not_a_job_posting(jd_text, jd_file, resolved.locale.code)
     try:
         client = get_client(root)
         result = generate_cover(resolved, jd_text, client, get_model(root), body_only=body_only)
@@ -1485,6 +1507,7 @@ def ai_align(profile: str, jd_file: str) -> None:
 
     jd_text = Path(jd_file).read_text(encoding="utf-8")
     resolved = _resolve(root, profile, public=True)
+    _warn_if_not_a_job_posting(jd_text, jd_file, resolved.locale.code)
     try:
         client = get_client(root)
         result = align(resolved, jd_text, client, get_model(root))

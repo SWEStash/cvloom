@@ -39,7 +39,11 @@ GROUNDING = (
     "[add metric: e.g. % cost reduction]. Never invent a number.\n"
     "3. If a section is empty, or too thin to assess, say so. Do not fill the gap with "
     "plausible content.\n"
-    "4. This CV is a record of what the candidate actually did, and they will be asked "
+    "4. Do not work out a new figure from figures the CV states. A percentage or ratio "
+    "you calculate from two of its numbers is a new claim rather than a rewording of "
+    "theirs, and an arithmetic slip becomes a false statement on someone's CV. Quote the "
+    "figures the CV gives, in its own terms.\n"
+    "5. This CV is a record of what the candidate actually did, and they will be asked "
     "about it in an interview. A weak but true CV is better than a strong invented one."
 )
 """The one contract both system prompts carry.
@@ -47,6 +51,14 @@ GROUNDING = (
 Without it the model writes "Reduced p99 latency by 40%", the user pastes it in, and
 the harm lands months later in an interview — on the user, not on us. Cheap to state,
 and the only thing standing between a creative model and a fabricated CV.
+
+Rule 4 closes a gap the first three left open. Rule 2 covers a metric the CV does
+not have; rule 1 explicitly permits recombining what it does have — between them,
+nothing forbade *deriving* a figure. A live run turned "800ms to 120ms" into
+"by 83%", which is unsourced and, incidentally, wrong: it is 85%. Note that the
+failure is intermittent, so this rule is reasoned from the contract rather than
+demonstrated to fix it — the orchestrators pass no seed, and a three-sample A/B
+came back clean on both arms, measuring nothing.
 """
 
 _PERSONA = (

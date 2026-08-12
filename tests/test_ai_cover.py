@@ -77,6 +77,23 @@ def test_prompt_contains_schema_keys() -> None:
     assert "key_alignments" in prompt
 
 
+def test_the_furniture_order_is_conditional_on_there_being_a_letter() -> None:
+    """It used to read "Open the letter with exactly this salutation", flatly,
+    while `unhappy_input` arrived later asking for a report instead of a letter
+    when the job description is not one. Two instructions, opposite answers, and
+    nothing in the prompt reconciling them.
+
+    (Making it conditional did not change what a 3B model does — measured — so
+    this guards the prompt's internal consistency, not a behaviour.)
+    """
+    prompt = _build_cover_prompt("cv text", "jd text", {}, default_pack())
+    furniture = prompt.index("open with exactly this salutation")
+    unusable = prompt.index("is not a CV at all")
+    assert furniture < unusable, "the precondition must be stated before the exception"
+    assert "When you write a letter" in prompt
+    assert "not whether there is one to write" in prompt
+
+
 def test_prompt_includes_job_context_when_present() -> None:
     job_context = {"company": "Stripe", "role": "Senior Engineer", "hiring_manager": "Jane Smith"}
     prompt = _build_cover_prompt("cv text", "jd text", job_context, default_pack())
