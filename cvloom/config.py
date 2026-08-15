@@ -51,11 +51,29 @@ class AIConfig:
 
 
 @dataclass(frozen=True)
+class PdfConfig:
+    """The ``pdf:`` block of ``cvloom.yaml``.
+
+    ``variant`` names a PDF conformance level to declare — ``pdf/ua-1`` for
+    accessibility, the ``pdf/a-*`` set for archival. ``None`` means none is
+    declared, which is what cvloom did before this block existed; the document is
+    a tagged PDF either way, since :func:`~cvloom.builder._render_pdf` passes
+    ``pdf_tags=True`` unconditionally.
+
+    Deliberately not a per-profile setting: a profile says how one variant of the
+    document is *tailored*, and conformance is a property of the document itself.
+    """
+
+    variant: str | None = None
+
+
+@dataclass(frozen=True)
 class ProjectConfig:
     """Parsed ``cvloom.yaml``. Defaults match cvloom's behaviour with no file."""
 
     locale: str = DEFAULT_LOCALE
     ai: AIConfig = field(default_factory=AIConfig)
+    pdf: PdfConfig = field(default_factory=PdfConfig)
 
 
 def load_project_config(root: Path) -> ProjectConfig:
@@ -105,7 +123,11 @@ def load_project_config(root: Path) -> ProjectConfig:
     if errors:
         raise ConfigError(errors)
 
+    raw_pdf = raw.get("pdf")
+    pdf_block: dict[str, Any] = raw_pdf if isinstance(raw_pdf, dict) else {}
+
     return ProjectConfig(
         locale=raw.get("locale", DEFAULT_LOCALE),
         ai=AIConfig(base_url=ai_block.get("base_url"), model=ai_block.get("model")),
+        pdf=PdfConfig(variant=pdf_block.get("variant")),
     )

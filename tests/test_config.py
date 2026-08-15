@@ -114,6 +114,41 @@ def test_non_mapping_is_rejected(tmp_path: Path) -> None:
     assert "mapping" in exc.value.errors[0]
 
 
+def test_pdf_variant_is_read(tmp_path: Path) -> None:
+    _write(tmp_path, "pdf:\n  variant: pdf/ua-1\n")
+    assert config.load_project_config(tmp_path).pdf.variant == "pdf/ua-1"
+
+
+def test_no_pdf_block_declares_no_variant(tmp_path: Path) -> None:
+    """The absent block is what every project before this setting had."""
+    _write(tmp_path, "locale: en\n")
+    assert config.load_project_config(tmp_path).pdf.variant is None
+
+
+def test_unknown_pdf_key_is_rejected(tmp_path: Path) -> None:
+    _write(tmp_path, "pdf:\n  varient: pdf/ua-1\n")
+    with pytest.raises(config.ConfigError):
+        config.load_project_config(tmp_path)
+
+
+def test_unsupported_pdf_variant_is_rejected(tmp_path: Path) -> None:
+    """A variant WeasyPrint knows but a CV has no use for still fails here.
+
+    `pdf/x-4` is a print-production profile. Accepting it would mean carrying it
+    through the conformance tests for no reader that exists.
+    """
+    _write(tmp_path, "pdf:\n  variant: pdf/x-4\n")
+    with pytest.raises(config.ConfigError):
+        config.load_project_config(tmp_path)
+
+
+def test_misspelled_pdf_variant_is_rejected(tmp_path: Path) -> None:
+    """Silently ignoring this would ship a document claiming no conformance."""
+    _write(tmp_path, "pdf:\n  variant: pdf/ua1\n")
+    with pytest.raises(config.ConfigError):
+        config.load_project_config(tmp_path)
+
+
 def test_config_is_frozen() -> None:
     """Immutable so a cached or shared instance cannot drift."""
     cfg = config.ProjectConfig()
