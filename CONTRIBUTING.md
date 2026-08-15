@@ -46,8 +46,8 @@ To try the tool against the sample CV, build from [`examples/`](examples/)
 ## Development workflow
 
 ```bash
-uv run ruff check cvloom tests           # lint
-uv run ruff format --check cvloom tests  # format check
+uv run ruff check cvloom tests scripts           # lint
+uv run ruff format --check cvloom tests scripts  # format check
 uv run mypy cvloom                       # type-check (strict mode)
 uv run pytest -v                            # tests with output
 ```
@@ -154,7 +154,7 @@ release upgrades in one command — is [docs/dev/releasing.md](docs/dev/releasin
 ## Pull request checklist
 
 - [ ] `uv run pytest` passes
-- [ ] `uv run ruff check cvloom tests` and `uv run ruff format --check cvloom tests` pass
+- [ ] `uv run ruff check cvloom tests scripts` and `uv run ruff format --check cvloom tests scripts` pass
 - [ ] `uv run mypy cvloom` passes
 - [ ] Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org/)
       — release-please generates CHANGELOG.md from them; do not hand-edit it

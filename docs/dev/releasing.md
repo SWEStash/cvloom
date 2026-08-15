@@ -34,7 +34,7 @@ git log --format='%B' "$(git describe --tags --abbrev=0)"..origin/main \
 
 ```bash
 uv run pytest
-uv run ruff check cvloom tests && uv run ruff format --check cvloom tests
+uv run ruff check cvloom tests scripts && uv run ruff format --check cvloom tests scripts
 uv run mypy cvloom
 cd examples    && uv run cvloom build --all --public && uv run cvloom check --profile general
 cd examples-es && uv run cvloom build --all --public && uv run cvloom check --profile general

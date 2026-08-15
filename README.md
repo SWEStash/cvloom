@@ -6,7 +6,7 @@ Per-job **overlays** let you tailor a CV for each application by declarative con
 copying files — so twenty variants stay consistent with one source of truth, and every variant is
 diffable and reviewable.
 
-> RenderCV renders one CV beautifully; cvloom manages twenty tailored variants of one dataset — with an agent-safe MCP layer.
+> Most CV tools render one document well. cvloom manages twenty tailored variants of one dataset — deterministically, with an agent-safe MCP layer and PII kept out of git.
 
 ![PyPI](https://img.shields.io/pypi/v/cvloom)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
