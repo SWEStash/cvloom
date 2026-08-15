@@ -120,6 +120,61 @@ None of them *is* an ATS. Agreement between engines that read the document by di
 is evidence the text layer is unambiguous; it is not a certificate. You can produce these files
 for your own CV with `cvloom build --extract-text`, which writes one per engine.
 
+### The recall report
+
+Five files is more than anyone reads. `cvloom build --extract-text` also scores them,
+against the words in your own data:
+
+```
+Text layer, 198 rendered token(s):
+  construction  198/198  100.0%
+  poppler       198/198  100.0%
+  pypdf         198/198  100.0%
+  pdfminer      198/198  100.0%
+  structure     198/198  100.0%
+```
+
+When an engine does lose a word, its row names it — `(lost: ångström)` — so you know
+which word and which reader, not just that the count dropped.
+
+**Two different failures are reported separately, because the fixes are different.** A word
+*no* engine found was never painted on the page — the template does not render that field —
+so it is reported against the template and left out of every engine's denominator:
+
+```
+10 of 198 source token(s) are not on the page — this template does not render
+them, so no extractor can find them: anytown, gpa, teaching, assistant, …
+```
+
+Charging that to the extractors is how `cv/sidebar-compact`, which renders no education
+detail at all, read as a 95% extraction failure it has no part in. What is left is
+per-engine, and there a disagreement *between* engines is the signal that matters.
+
+**This is not an ATS score**, and everything above about why cvloom does not print one still
+holds. The difference is the denominator: this counts specific words you wrote, it says which
+ones went missing and under which reader, and it is never averaged into a single figure. There
+is no model of recruiter behaviour in it and no prediction of an outcome.
+
+### Non-ASCII content
+
+A glyph can go missing two ways that clean HTML does not prevent: a `/ToUnicode` map that
+does not round-trip the codepoint, and a ligature substitution mapping `ffi` onto one glyph
+that has to give back three characters. Both are properties of the font subset, not the
+markup.
+
+`tests/test_extraction_fidelity.py` therefore builds a fixture of Latin diacritics
+(`Ångström-Muñoz`, `Universität Tübingen`, `Ærø`), Cyrillic, ligature bait (`office`,
+`affluent`, `Difficult`, `flying`, `fjord`), curly quotes and `×`, and requires every token
+back from every engine on every single-column template. A second fixture builds under
+`locale: es` and checks the pack's own headings survive — the stricter case, because most
+templates set `text-transform: uppercase` on `h2` and WeasyPrint applies the transform
+before emitting glyphs, so the pack's `Formación` reaches the text layer as `FORMACIÓN`,
+and `Ó` is subset separately from `ó`.
+
+All of it passes today. It is a fence against a font-subsetting or shaping regression
+arriving from a dependency upgrade, which would otherwise land silently: the page still
+looks right, and only the extracted text is wrong.
+
 Using one is not enough, and that is the most useful thing this exercise produced. They
 disagree, and they disagree destructively: a `float: right` date inside an `overflow: hidden`
 header reads perfectly under pdftotext and comes back under pypdf with the title fused to the
@@ -205,6 +260,32 @@ Two constraints are enforced by tests:
   anonymous `/Div`.
 - Every date reads back inside its own entry, under all five engines, on multi-page documents,
   with short bullets — the worst case.
+
+**A project can declare a conformance variant on top of that.** `cvloom.yaml`:
+
+```yaml
+pdf:
+  variant: pdf/ua-1   # optional; absent = a tagged PDF declaring nothing
+```
+
+Absent by default, because it buys nothing for parsing — the tagged structure tree above is
+the part a parser can use, and a variant adds conformance metadata for accessibility and
+archival consumers. A test asserts that declaring one moves no glyph and changes no structure
+tree; if it ever did, this would be a parseability setting wearing a metadata label.
+
+Five values are accepted — `pdf/ua-1`, `pdf/a-2b`, `pdf/a-2u`, `pdf/a-3b`, `pdf/a-3u` — and
+the list is short because every one of them passes veraPDF on all six shipped templates.
+`scripts/check_pdf_conformance.py` runs that matrix in CI and reads its variant list from the
+schema, so a variant cannot be offered without a conformance run behind it. Three WeasyPrint
+variants were measured and are deliberately not offered: `pdf/a-4u`, which is written with a
+`pdfaid:conformance` entry PDF/A-4 forbids; `pdf/a-1b`, whose 2005 ban on transparency rules
+out `cv/timeline-clean`'s radial shadings and `cv/sidebar-compact`'s soft masks; and the
+print-oriented `pdf/x-*` set.
+
+PDF/A also needs an sRGB output intent and a file identifier, which WeasyPrint does not write
+by default — without them a `pdf/a-2b` build declares conformance and then fails validation.
+cvloom sets both whenever a PDF/A level is asked for, since they are requirements of the
+standard rather than choices.
 
 Ratings are derived, not judged. Each template is built and read back with every
 installed engine, and the rating follows from how many of them find a defect:

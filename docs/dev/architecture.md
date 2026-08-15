@@ -46,6 +46,8 @@ cvloom/
 ├── trim.py             # Per-section word count analysis
 ├── diff.py             # Profile comparison
 ├── match.py            # Keyword gap analysis from job descriptions
+├── extract.py          # Read a built PDF's text layer back out; five engines
+├── fidelity.py         # Recall of the CV's own words in that text layer
 ├── export.py           # to_json_resume(), markdown, text, docx exporters
 ├── importer.py         # from_json_resume(); PII-aware split into data/ + private/
 ├── mcp_server.py       # FastMCP server exposing 17 tools
@@ -186,7 +188,7 @@ Note `project` types a *portfolio project entry* (`data/projects/*.yaml`); the p
 
 ### `config.py` — project-level configuration
 
-`cvloom.yaml` at the project root holds settings owned by the project as a whole rather than by one build profile. A profile says how one output variant renders; this says what the project *is*. Today that is one key, `locale`.
+`cvloom.yaml` at the project root holds settings owned by the project as a whole rather than by one build profile. A profile says how one output variant renders; this says what the project *is*: `locale` (the language it operates in), `ai` (which backend analyses it — never `api_key`, since the file is committed), and `pdf.variant` (a PDF conformance level to declare, absent by default).
 
 `load_project_config(root)` returns a frozen `ProjectConfig`. An absent file is not an error — it yields defaults identical to cvloom's behaviour before the file existed. Anything present is validated against `schemas/project-config.json`, which sets `additionalProperties: false` so a typo'd key fails with the file path rather than being ignored. Failures raise `ConfigError`, which `builder` translates into `ResolveError` so callers keep catching one pipeline error type.
 
@@ -297,7 +299,19 @@ Compares sections, entries, word counts, and highlight counts between two resolv
 
 Tokenizes CV content and JD text, removes stop words, classifies keywords as matched or gap, sorts by JD frequency. `MatchReport.reorder_hints` compares JD keyword overlap per work entry and suggests reordering.
 
-The stop-word list comes from `linter_locales` keyed by `resolved.locale.code`, so a Spanish JD does not return `de / la / que / el` as its top keywords. The tokenizer matches Unicode letters rather than `[a-z]`: an ASCII-only class split `gestión` into `gesti` and `n`, which shattered the keyword set of every accented language.
+The stop-word list comes from `linter_locales` keyed by `resolved.locale.code`, so a Spanish JD does not return `de / la / que / el` as its top keywords. The tokenizer matches Unicode letters rather than `[a-z]`: an ASCII-only class split `gestión` into `gesti` and `n`, which shattered the keyword set of every accented language. It is exposed as `match.tokenize` because `fidelity` has to split a CV the same way — two tokenizers would disagree about exactly the accented words that matter.
+
+### `fidelity.py`
+
+`recall(resolved, pdf_path) -> RecallReport`
+
+How much of a CV's own text survives into the built PDF's text layer, behind `build --extract-text`. Source tokens come from `sections.iter_visible_text` and are split by `match.tokenize`; each installed engine's extraction is then searched for them.
+
+The report separates two failures rather than summing them, because they have different fixes. A token **no engine found** is attributed to the template — it was never painted on the page, and no extractor could have helped — and is excluded from every engine's denominator. What remains is per-engine, where disagreement between engines is the signal that the text layer is ambiguous. Told apart by engine agreement, which works precisely because the five engines read the document by different means: all five missing the same word is not five failures.
+
+Scored the naive way, `cv/sidebar-compact` reported 188/198 under all five engines — it renders no education detail, so ten words were never there to find.
+
+Never averaged into a single figure across engines. See [ATS-readiness](../reference/ats-readiness.md) for why cvloom reports no composite score.
 
 ### `export.py`
 
@@ -663,4 +677,4 @@ def test_something(project):
 
 Type checking: `uv run mypy cvloom` (strict mode). All public functions must have full annotations.
 
-Linting: `uv run ruff check cvloom tests`. Line length 100, target Python 3.11, rules E/F/I/UP.
+Linting: `uv run ruff check cvloom tests scripts`. Line length 100, target Python 3.11, rules E/F/I/UP.

@@ -74,7 +74,7 @@ cvloom build [OPTIONS]
 | `--skip-pdf` | | off | Skip PDF generation; produce HTML only |
 | `--check` | | off | Run the writing lint after build and print a per-axis breakdown |
 | `--strict N` | | off | Exit non-zero if more than N lint findings (implies `--check`) |
-| `--extract-text` | | off | Also write the PDF's text layer, one file per installed extractor |
+| `--extract-text` | | off | Also write the PDF's text layer, one file per installed extractor, and score each |
 | `--all` | | off | Build every profile in `profiles/` instead of one (ignores `--profile`) |
 
 ### Examples
@@ -146,6 +146,34 @@ content-stream order (what Apache Tika and PDFBox do by default) and `structure`
 PDF tag tree; between them they bracket what any reader can conclude. `poppler` needs the
 system `pdftotext` binary; the rest come with the `extract` extra
 (`uv tool install 'cvloom[extract]'`, or `uv sync --extra extract` in a dev checkout).
+
+It then scores those files against the words in your own data, so you do not have to read
+five files to find the one that went missing:
+
+```
+Text layer, 198 rendered token(s):
+  construction  198/198  100.0%
+  poppler       198/198  100.0%
+  pypdf         198/198  100.0%
+  pdfminer      198/198  100.0%
+  structure     198/198  100.0%
+```
+
+When an engine does lose a word, its row names it — `(lost: ångström)` — so you know
+which word and which reader, not just that the count dropped.
+
+A word that *no* engine found is reported separately, above the table — it was never
+rendered on the page, so no extractor could have found it, and it is excluded from every
+engine's denominator:
+
+```
+10 of 198 source token(s) are not on the page — this template does not render
+them, so no extractor can find them: anytown, gpa, teaching, assistant, …
+```
+
+This is a recall figure with a stated denominator, per engine and never averaged — not an
+"ATS score". See [ATS-readiness](../reference/ats-readiness.md) for why cvloom prints no
+such score.
 
 If the profile's template is not rated safe for PDF text extraction, a note is printed
 with the specific caveat — see [list-templates](#list-templates):
@@ -533,6 +561,21 @@ after a tool upgrade with [`cvloom sync`](#sync).
 `cvloom.yaml` is **not** a managed file. It carries your own choices, so `sync` leaves it
 alone; only `init --force` rewrites it. An unknown locale is rejected before anything is
 written, so a failed `init --locale` leaves the directory untouched.
+
+It holds three settings, all optional: `locale` (the language the project operates in),
+`ai` (`base_url` / `model` — never `api_key`, since this file is committed), and `pdf`:
+
+```yaml
+locale: en
+
+pdf:
+  variant: pdf/ua-1   # optional; absent = a tagged PDF declaring no conformance level
+```
+
+`pdf.variant` declares a PDF conformance level — `pdf/ua-1` for accessibility, or one of
+`pdf/a-2b`, `pdf/a-2u`, `pdf/a-3b`, `pdf/a-3u` for archival. It does **not** make the
+document parse better; cvloom already emits a tagged PDF, which is the part a parser can
+use. See [ATS-readiness](../reference/ats-readiness.md).
 
 ### Examples
 

@@ -472,7 +472,8 @@ cvloom build --profile general --extract-text
 ```
 
 That writes the PDF's text layer next to it, once per installed engine, so you can read
-exactly what a parser gets.
+exactly what a parser gets — and scores each engine against the words in your own data,
+so a word that went missing is named rather than left for you to spot.
 
 The remaining difference between the safe templates is not parsing, it is the build:
 `cv/ats-clean` and `cv/academic` use system fonts and fetch nothing, while the other

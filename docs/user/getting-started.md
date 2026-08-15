@@ -69,7 +69,7 @@ This creates the following structure:
 
 ```
 my-cv/
-├── cvloom.yaml               # Project settings — `locale:` (committed)
+├── cvloom.yaml               # Project settings — `locale:`, `ai:`, `pdf:` (committed)
 ├── data/
 │   ├── basics.yaml           # Headline, summary, public links
 │   ├── work.yaml             # Work history
