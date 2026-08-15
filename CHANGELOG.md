@@ -7,6 +7,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.0](https://github.com/SWEStash/cvloom/compare/v0.9.0...v0.10.0) (2026-08-15)
+
+
+### Features
+
+* **config:** let a project declare a PDF conformance variant ([#29](https://github.com/SWEStash/cvloom/issues/29)) ([d7af213](https://github.com/SWEStash/cvloom/commit/d7af2139bbc63cf167d1a0ea3a698e96be9c20dc))
+* **extract:** score the text layer against the CV's own words ([#30](https://github.com/SWEStash/cvloom/issues/30)) ([26313c0](https://github.com/SWEStash/cvloom/commit/26313c07b267f63a9bf15196f0c866841cbfaa1a))
+
+
+### Documentation
+
+* **ats:** stop claiming cvloom emits untagged PDFs ([#27](https://github.com/SWEStash/cvloom/issues/27)) ([79628d8](https://github.com/SWEStash/cvloom/commit/79628d89b4d2632914c0a033500651fc7726cc76))
+* reconcile the PDF and extraction docs with what ships ([#31](https://github.com/SWEStash/cvloom/issues/31)) ([313baf1](https://github.com/SWEStash/cvloom/commit/313baf1c3de9598099ba5cb6a711c0759215eed1))
+
 ## [0.9.0](https://github.com/SWEStash/cvloom/compare/v0.8.0...v0.9.0) (2026-08-12)
 
 

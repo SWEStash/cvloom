@@ -5,4 +5,4 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("cvloom")
 except PackageNotFoundError:  # running from a source tree without installation
-    __version__ = "0.9.0"
+    __version__ = "0.10.0"
