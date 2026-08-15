@@ -16,6 +16,7 @@ from cvloom import (
     builder,
     config,
     export,
+    fidelity,
     importer,
     linter,
     linter_locales,
@@ -256,8 +257,8 @@ def _warn_template_parse_risk(template_name: str) -> None:
     )
 
 
-def _write_extracted_text(pdf_path: Path) -> None:
-    """Write the PDF's text layer beside it, once per available engine.
+def _write_extracted_text(pdf_path: Path, resolved: ResolvedProfile) -> None:
+    """Write the PDF's text layer beside it, once per available engine, and score it.
 
     The engine is named in each filename because they disagree about reading order.
     See docs/dev/architecture.md.
@@ -273,6 +274,49 @@ def _write_extracted_text(pdf_path: Path) -> None:
         out = pdf_path.with_name(f"{pdf_path.stem}.{result.engine}.txt")
         out.write_text(result.text, encoding="utf-8")
         _console.print(f"[green]✓[/green] TEXT  → {out}  [dim]({result.engine})[/dim]")
+    _print_recall(fidelity.recall(resolved, pdf_path))
+
+
+# How many missing tokens to name before summarising the rest. Naming them is the
+# useful half — a count alone tells the user something broke without telling them
+# what to look for — but a badly-broken extraction can lose hundreds.
+_MAX_NAMED_MISSING = 6
+
+
+def _named(tokens: tuple[str, ...]) -> str:
+    """Name the first few tokens and count the rest."""
+    named = ", ".join(tokens[:_MAX_NAMED_MISSING])
+    extra = len(tokens) - _MAX_NAMED_MISSING
+    return f"{named}, +{extra} more" if extra > 0 else named
+
+
+def _print_recall(report: fidelity.RecallReport) -> None:
+    """Print per-engine recall of the tokens the template rendered.
+
+    Per engine and never averaged. The engines disagree by design, and a single
+    figure across them would average away the disagreement that *is* the
+    measurement — see docs/reference/ats-readiness.md.
+    """
+    if not report.engines:
+        return
+    if report.unrendered:
+        _console.print(
+            f"\n[yellow]{len(report.unrendered)} of {report.source_total} source token(s) "
+            f"are not on the page[/yellow] [dim]— this template does not render them, "
+            f"so no extractor can find them: {_named(report.unrendered)}[/dim]"
+        )
+    total = report.engines[0].total
+    _console.print(f"\n[bold]Text layer[/bold], {total} rendered token(s):")
+    for r in report.engines:
+        colour = "green" if not r.missing else "yellow" if r.percentage >= 99 else "red"
+        line = f"  {r.engine:<14}[{colour}]{r.found}/{r.total}  {r.percentage:5.1f}%[/{colour}]"
+        if r.missing:
+            line += f"  [dim](lost: {_named(r.missing)})[/dim]"
+        _console.print(line)
+    _console.print(
+        "[dim]Recall of your own words in the extracted text, per engine. Not a "
+        "score — see docs/reference/ats-readiness.md.[/dim]"
+    )
 
 
 def _lint_breakdown(findings: list[linter.LintFinding]) -> str:
@@ -455,7 +499,7 @@ def _build_one(
         )
     _warn_template_parse_risk(result.resolved.template_name)
     if extract_text and result.pdf_path:
-        _write_extracted_text(result.pdf_path)
+        _write_extracted_text(result.pdf_path, result.resolved)
 
     if run_check or strict is not None:
         findings = linter.lint(result.resolved)

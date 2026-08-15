@@ -12,6 +12,7 @@ from click.testing import CliRunner
 from cvloom import config
 from cvloom.cli import cli
 from tests.ai_fakes import FakeAPIStatusError, FakeClient, NoJsonModeClient, ScriptedClient
+from tests.conftest import make_resolved
 
 
 @pytest.fixture
@@ -855,7 +856,7 @@ def test_extracted_text_is_named_per_engine(
             extract_mod.Extraction("pypdf", "pypdf order"),
         ],
     )
-    _write_extracted_text(pdf)
+    _write_extracted_text(pdf, make_resolved(work=[{"company": "Acme"}]))
     assert (tmp_path / "cv.poppler.txt").read_text() == "poppler order"
     assert (tmp_path / "cv.pypdf.txt").read_text() == "pypdf order"
 
@@ -869,7 +870,7 @@ def test_extracted_text_warns_when_no_engine_is_installed(
     pdf = tmp_path / "cv.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
     monkeypatch.setattr(extract_mod, "available_engines", lambda: [])
-    _write_extracted_text(pdf)
+    _write_extracted_text(pdf, make_resolved())
     assert "no PDF text extractor available" in capsys.readouterr().err
     assert list(tmp_path.glob("*.txt")) == []
 

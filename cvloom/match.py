@@ -43,10 +43,21 @@ class MatchReport:
 _TOKEN_RE = re.compile(r"\b[^\W\d_][\w+#]*\b", re.UNICODE)
 
 
+def tokenize(text: str) -> list[str]:
+    """Split *text* into lowercased word tokens.
+
+    Public because the text-layer recall report in :mod:`cvloom.fidelity` has to
+    split a CV the same way this module does. Two tokenisers would disagree about
+    exactly the words that matter — accented ones — and each would be right about
+    a different number.
+    """
+    return _TOKEN_RE.findall(text.lower())
+
+
 def _extract_keywords(text: str, lex: LintLocale) -> dict[str, int]:
     """Tokenise *text* and return non-stop-word frequency counts."""
     counts: dict[str, int] = {}
-    for token in _TOKEN_RE.findall(text.lower()):
+    for token in tokenize(text):
         if token not in lex.stop_words and len(token) > 1:
             counts[token] = counts.get(token, 0) + 1
     return counts
