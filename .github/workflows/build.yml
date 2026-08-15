@@ -69,12 +69,16 @@ jobs:
           curl -sL -o verapdf.zip https://software.verapdf.org/releases/verapdf-installer.zip
           unzip -q verapdf.zip
           cd verapdf-greenfield-*
+          # The heredoc is quoted so IzPack's own `$` syntax survives it, which
+          # means the shell expands nothing inside — the install path is
+          # substituted afterwards. Written as `${HOME}` inline it reached the XML
+          # literally and IzPack created a directory named `${HOME}`.
           cat > auto.xml <<'XML'
           <?xml version="1.0" encoding="UTF-8" standalone="no"?>
           <AutomatedInstallation langpack="eng">
             <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
             <com.izforge.izpack.panels.target.TargetPanel id="install_dir">
-              <installpath>${HOME}/verapdf</installpath>
+              <installpath>@VERAPDF_HOME@</installpath>
             </com.izforge.izpack.panels.target.TargetPanel>
             <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
               <pack index="0" name="veraPDF GUI" selected="true"/>
@@ -84,7 +88,11 @@ jobs:
             <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
           </AutomatedInstallation>
           XML
+          sed -i "s|@VERAPDF_HOME@|$HOME/verapdf|" auto.xml
           java -jar verapdf-izpack-installer-*.jar auto.xml
+          # The installer exits 0 whether or not it wrote anything, so the next
+          # step's "not found" would be the first sign of a bad install.
+          test -x "$HOME/verapdf/verapdf"
       - name: Build every template under each declared variant, and validate
         run: uv run python scripts/check_pdf_conformance.py --verapdf "$HOME/verapdf/verapdf"
 
