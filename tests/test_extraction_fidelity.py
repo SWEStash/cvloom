@@ -409,6 +409,127 @@ def test_no_variant_declares_no_conformance(project: Path) -> None:
     )
 
 
+# Everything above renders ASCII: `COMPANY00`, `SKILLA0`, `PAYPAL`. So none of it
+# reaches the font's non-Latin coverage, and none of it exercises the two ways a
+# non-ASCII glyph goes missing from a text layer — a `/ToUnicode` map that does not
+# round-trip the codepoint, and a ligature substitution that maps two source
+# characters onto one glyph. cvloom ships an `es` locale and an `examples-es/`
+# project, so this is content users already write.
+#
+# These pass today. They are a fence, not a bug hunt: the failure they guard
+# against is a font-subsetting or shaping regression, which arrives from a
+# dependency upgrade rather than from a change in this repo, and would otherwise
+# land silently.
+_ACCENTS = ("Zoë", "Ångström-Muñoz", "São", "Ingénieur", "Universität", "Tübingen")
+# `Æ` is a single codepoint rather than a composed pair, and `ø` carries a stroke
+# rather than a combining mark; both are subset separately from the a-with-ring set.
+_LATIN_EXTENDED = ("Ærø", "Systèmes", "Kraków")
+# The `es` pack's own vocabulary. `Formación` matters most: it is a *heading*, and
+# headings carry the letter-spacing that `test_renderer.py` caps at .08em — the
+# construct already known to split `EDUCATION` into `E D U C AT I O N`.
+_SPANISH = ("migración", "gestión", "Métodos", "Diseño", "Gestión")
+# Not Latin at all, so it lands in a different subset table.
+_CYRILLIC = ("Спеціаліст",)
+# `fi`, `fl` and `ffl` are the substitutions a shaper makes silently. The glyph is
+# one; the text layer has to give back two characters, or `office` becomes `oce`.
+_LIGATURES = ("office", "affluent", "Difficult", "flying", "fjord")
+# Punctuation cvloom does not rewrite, unlike the en/em dashes wl-023 flags.
+_PUNCTUATION = ("“quoted”", "3×")
+
+_NON_ASCII = _ACCENTS + _LATIN_EXTENDED + _SPANISH + _CYRILLIC + _LIGATURES + _PUNCTUATION
+
+
+def _write_non_ascii_project(root: Path, locale: str | None = None) -> None:
+    """A project whose every field carries non-ASCII content.
+
+    Deliberately not a variant of `_write_project`: that fixture's shape is tuned
+    for page breaks and gutter widths, and reusing it would put these tokens where
+    the interesting layout cases are not.
+    """
+    for name in ("data", "private", "profiles"):
+        (root / name).mkdir()
+    if locale is not None:
+        (root / "cvloom.yaml").write_text(f"locale: {locale}\n")
+    (root / "private" / "contact.yaml").write_text(
+        'name: "Zoë Ångström-Muñoz"\n'
+        'email: "zoe@example.com"\n'
+        'phone: "+44 7700 900000"\n'
+        'location: "São Paulo, Brasil"\n'
+    )
+    (root / "data" / "basics.yaml").write_text(
+        'headline: "Ingénieur logiciel"\n'
+        'summary: "Difficult affluent office finder — flying fjord. Métodos “quoted” 3× here."\n'
+        "links: []\n"
+    )
+    (root / "data" / "work.yaml").write_text(
+        '- company: "Ærø Systèmes"\n'
+        '  title: "Спеціаліст"\n'
+        '  location: "Kraków"\n'
+        '  start_date: "2019-04"\n'
+        '  end_date: "2023-08"\n'
+        "  highlights:\n"
+        '    - "Dirigió la migración de infraestructura con gestión de equipos."\n'
+    )
+    (root / "data" / "education.yaml").write_text(
+        '- institution: "Universität Tübingen"\n'
+        '  degree: "Diplom"\n'
+        '  field: "Informatik"\n'
+        '  start_date: "2004"\n'
+        '  end_date: "2008"\n'
+    )
+    (root / "data" / "skills.yaml").write_text(
+        '- category: "Métodos"\n  items: ["Diseño", "Gestión"]\n'
+    )
+
+
+@pytest.fixture(scope="module")
+def non_ascii_project(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("nonascii")
+    _write_non_ascii_project(root)
+    return root
+
+
+@pytest.fixture(scope="module")
+def non_ascii_es_project(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("nonascii-es")
+    _write_non_ascii_project(root, locale="es")
+    return root
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("template", _TEMPLATES)
+@pytest.mark.parametrize("engine", _ENGINES)
+def test_non_ascii_content_survives_extraction(
+    non_ascii_project: Path, template: str, engine: str
+) -> None:
+    text = _text(non_ascii_project, template, engine)
+    missing = [token for token in _NON_ASCII if token not in text]
+    assert not missing, f"{template}/{engine} lost {missing}"
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("template", _TEMPLATES)
+@pytest.mark.parametrize("engine", _ENGINES)
+def test_locale_pack_headings_survive_extraction(
+    non_ascii_es_project: Path, template: str, engine: str
+) -> None:
+    """The `es` pack's headings are content the user never typed.
+
+    A parser segments a CV on its headings, so a heading that extracts as
+    `F o r m a c i ó n` costs that section its label — and unlike the data above,
+    a user cannot see the problem by reading their own YAML.
+
+    Compared case-insensitively because most templates set `text-transform:
+    uppercase` on `h2`, and WeasyPrint applies the transform before emitting
+    glyphs: the pack says `Formación` and the text layer says `FORMACIÓN`. That
+    makes this the stricter test of the two — `Ó` is subset separately from `ó`,
+    so the uppercased form exercises a codepoint the data fixture never reaches.
+    """
+    text = _text(non_ascii_es_project, template, engine).casefold()
+    missing = [h for h in ("Experiencia", "Formación", "Competencias") if h.casefold() not in text]
+    assert not missing, f"{template}/{engine} lost the {missing} heading(s)"
+
+
 def _paints_timeline_rule(pdf_path: Path) -> bool:
     """True when page 1 fills with `--timeline-line` (#d1d5db) at least once."""
     pypdf = pytest.importorskip("pypdf")
