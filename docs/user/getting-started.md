@@ -349,7 +349,7 @@ cvloom build --output-dir out/
 
 ## Scenario 4: Lint Your CV
 
-The writing lint checks your bullet points and CV structure for common quality issues. It runs 17 built-in rules across three honest axes (`writing`, `structure`, `ats-parse`) — see the [ATS-readiness model](../reference/ats-readiness.md) for why there is no single "ATS score":
+The writing lint checks your bullet points and CV structure for common quality issues. It runs 25 built-in rules across three honest axes (`writing`, `structure`, `ats-parse`) — see the [ATS-readiness model](../reference/ats-readiness.md) for why there is no single "ATS score":
 
 | Rule | Severity | What it catches |
 |------|:--------:|----------------|

@@ -204,7 +204,7 @@ cvloom check [OPTIONS]
 
 ### Lint Rules
 
-17 built-in rules (see [ats-linter-rules.md](../reference/ats-linter-rules.md) for full details):
+25 built-in rules (see [ats-linter-rules.md](../reference/ats-linter-rules.md) for full details):
 
 | Rule | Severity | What it catches |
 |---|---|---|
@@ -225,6 +225,14 @@ cvloom check [OPTIONS]
 | `wl-015` | suggestion | Metric present but no result-framing phrase |
 | `wl-016` | suggestion | Flesch-Kincaid grade level outside 6–12 |
 | `wl-017` | suggestion | Work entry mentions no skill item in highlights |
+| `wl-018` | warning | More than 6 education entries |
+| `wl-019` | warning | A section not ordered newest-first |
+| `wl-020` | warning | End before start, future dates, expired credentials |
+| `wl-021` | warning | Scaffold placeholders (e.g. `[Company Name]`) left in the content |
+| `wl-022` | warning | Two `links` entries pointing at the same place |
+| `wl-023` | info | En/em dashes in content, where cvloom emits ASCII |
+| `wl-024` | warning | A `connector` rendering degree and field fused together |
+| `wl-025` | warning | Spanish CV terms written without their accent (`es` only) |
 
 ### Examples
 
