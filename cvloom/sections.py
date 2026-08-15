@@ -261,34 +261,53 @@ def iter_entry_text(entry: dict[str, Any]) -> Iterable[str]:
         yield highlight_text(hl)
 
 
-def count_words(resolved: ResolvedProfile) -> dict[str, int]:
-    """Word count per visible section (work/education/projects/skills) plus basics."""
+def iter_visible_text(resolved: ResolvedProfile) -> Iterable[tuple[str, str]]:
+    """Yield ``(section, text)`` for every text fragment the document will render.
+
+    The one traversal of a resolved profile's prose. Two things read it and want
+    different answers from it — :func:`count_words` sums, and the text-layer
+    recall report in ``cvloom.fidelity`` matches tokens — so it yields fragments
+    tagged with their section rather than an aggregate either of them would have
+    to undo.
+
+    ``basics`` is yielded unconditionally, matching the templates: the headline
+    and summary are not a section a profile can switch off.
+    """
     data = resolved.data
     show = resolved.show_sections
-    counts: dict[str, int] = {}
 
     for section in ARRAY_SECTIONS:
         if not show.get(section):
             continue
-        counts[section] = sum(
-            len(text.split()) for entry in data.get(section, []) for text in iter_entry_text(entry)
-        )
+        for entry in data.get(section, []):
+            for text in iter_entry_text(entry):
+                yield section, text
 
     if show.get("skills"):
-        words = 0
         for group in data.get("skills", []):
-            words += len(str(group.get("category", "")).split())
+            yield "skills", str(group.get("category", ""))
             for item in group.get("items", []):
-                words += len(skill_name(item).split())
-        counts["skills"] = words
+                yield "skills", skill_name(item)
 
     basics = data.get("basics", {})
-    basics_words = 0
     for key in ("headline", "summary"):
         val = basics.get(key)
         if isinstance(val, str):
-            basics_words += len(val.split())
-    counts["basics"] = basics_words
+            yield "basics", val
+
+
+def count_words(resolved: ResolvedProfile) -> dict[str, int]:
+    """Word count per visible section (work/education/projects/skills) plus basics."""
+    show = resolved.show_sections
+    # Seeded so a visible-but-empty section reports 0 rather than going missing:
+    # callers render this as a breakdown, and an absent row reads as "not shown".
+    counts: dict[str, int] = {s: 0 for s in ARRAY_SECTIONS if show.get(s)}
+    if show.get("skills"):
+        counts["skills"] = 0
+    counts["basics"] = 0
+
+    for section, text in iter_visible_text(resolved):
+        counts[section] += len(text.split())
 
     return counts
 
