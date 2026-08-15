@@ -203,22 +203,42 @@ def resolve_project(
     )
 
 
+def _project_config(root: Path) -> config.ProjectConfig:
+    """Load ``cvloom.yaml``, restating config failures as pipeline failures.
+
+    Config problems surface as :class:`ResolveError` so callers keep catching one
+    pipeline error type; ``config`` and ``locale`` stay free of it.
+    """
+    try:
+        return config.load_project_config(root)
+    except config.ConfigError as exc:
+        raise ResolveError(exc.errors) from None
+
+
 def project_locale(root: Path) -> tuple[LocalePack, list[str]]:
     """Read ``cvloom.yaml`` and load the pack it names.
 
     Public because three entry points need it: :func:`resolve_project` and
     :func:`build_project` reach ``resolve`` by different routes, and
     ``mcp_server.validate_data`` validates a project without resolving one.
-
-    Config problems surface as :class:`ResolveError` so callers keep catching one
-    pipeline error type; ``config`` and ``locale`` stay free of it.
     """
+    cfg = _project_config(root)
     try:
-        cfg = config.load_project_config(root)
         pack, warnings = locale_mod.load_pack(cfg.locale)
     except config.ConfigError as exc:
         raise ResolveError(exc.errors) from None
     return pack, list(warnings)
+
+
+def project_pdf_variant(root: Path) -> str | None:
+    """The PDF conformance variant ``cvloom.yaml`` declares, or ``None``.
+
+    Separate from :func:`project_locale` rather than returned alongside it: three
+    callers depend on that function's current signature and none of them renders
+    a PDF, so widening its return type would change all three to serve none. The
+    cost is parsing a small YAML file twice per build.
+    """
+    return _project_config(root).pdf.variant
 
 
 def build_project(
@@ -252,6 +272,7 @@ def build_project(
         skip_pdf=skip_pdf,
         locale=pack,
         locale_warnings=locale_warnings,
+        pdf_variant=project_pdf_variant(root),
     )
 
 
@@ -298,8 +319,14 @@ def build(
     skip_pdf: bool = False,
     locale: LocalePack | None = None,
     locale_warnings: list[str] | None = None,
+    pdf_variant: str | None = None,
 ) -> BuildResult:
-    """Full build pipeline for one profile. Returns structured result."""
+    """Full build pipeline for one profile. Returns structured result.
+
+    ``pdf_variant`` stays an argument rather than a lookup for the same reason
+    ``locale`` does: this function takes a project's settings, it does not go
+    and find them. :func:`build_project` is the entry point that knows the root.
+    """
     resolved = resolve(
         data_dir=data_dir,
         private_dir=private_dir,
@@ -350,7 +377,7 @@ def build(
     pdf_path: Path | None = None
     if not skip_pdf:
         pdf_path = output_dir / f"{_pdf_filename(resolved)}.pdf"
-        _render_pdf(html, pdf_path)
+        _render_pdf(html, pdf_path, variant=pdf_variant)
 
     words, pages = _estimate_pages(html)
     section_word_counts = sections.count_words(resolved)
@@ -366,10 +393,30 @@ def build(
     )
 
 
-def _render_pdf(html: str, output_path: Path) -> None:
+def _render_pdf(html: str, output_path: Path, *, variant: str | None = None) -> None:
     try:
         from weasyprint import HTML  # type: ignore[import-untyped]
     except ImportError:
         raise SystemExit("WeasyPrint is not installed. Install it with: uv pip install weasyprint")
-    # Tagged output carries the logical reading order in a structure tree.
-    HTML(string=html).write_pdf(str(output_path), pdf_tags=True)
+    # Tagged output carries the logical reading order in a structure tree. Always
+    # on: it costs nothing and an untagged PDF states no reading order at all.
+    #
+    # `variant` is separate and off unless the project asks. It writes conformance
+    # metadata (PDF/UA, PDF/A) and changes neither the glyphs nor the structure
+    # tree — `test_extraction_fidelity` asserts exactly that — so it buys standards
+    # conformance, not parseability.
+    options: dict[str, Any] = {"pdf_tags": True}
+    if variant is not None:
+        options["pdf_variant"] = variant
+    if variant is not None and variant.startswith("pdf/a-"):
+        # PDF/A requires a device-independent colour space and a file identifier,
+        # and WeasyPrint emits neither by default — a document asking for
+        # `pdf/a-2b` without them writes the conformance metadata and then fails
+        # validation on clauses 6.2.4.3 and 6.3.2. Measured with veraPDF 1.30.2:
+        # all six templates FAIL without these two and PASS with them.
+        #
+        # Not set for PDF/UA, which passes without them, and not set by default,
+        # so an ordinary build is byte-for-byte what it was.
+        options["srgb"] = True
+        options["pdf_identifier"] = True
+    HTML(string=html).write_pdf(str(output_path), **options)
