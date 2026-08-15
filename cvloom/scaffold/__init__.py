@@ -106,6 +106,14 @@ def write_config(root: Path, locale: str) -> None:
         "# ai:\n"
         "#   base_url: http://localhost:11434/v1\n"
         "#   model: gemma3:27b\n"
+        "\n"
+        "# A PDF conformance variant to declare. Commented out because cvloom's\n"
+        "# default already emits a tagged PDF, which is the part that carries\n"
+        "# reading order; pdf/ua-1 adds the accessibility conformance metadata on\n"
+        "# top. It does not make the document parse better — see\n"
+        "# docs/reference/ats-readiness.md.\n"
+        "# pdf:\n"
+        "#   variant: pdf/ua-1\n"
     )
 
 

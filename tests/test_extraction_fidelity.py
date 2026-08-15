@@ -125,6 +125,38 @@ def _text(root: Path, template: str, engine: str) -> str:
     return extract_mod.extract(_build(root, template), engine).text
 
 
+def _struct_kinds(pdf_path: Path) -> list[str]:
+    """Every `/S` in the structure tree, in the order the tree is walked.
+
+    Ordered rather than a set because two callers want different things from it:
+    one asks which kinds exist, the other compares two whole trees for equality,
+    and a set would let a reordered tree pass as unchanged.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
+
+    kinds: list[str] = []
+    seen: set[int] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, IndirectObject):
+            if node.idnum in seen:
+                return
+            seen.add(node.idnum)
+            node = node.get_object()
+        if isinstance(node, (ArrayObject, list)):
+            for kid in node:
+                walk(kid)
+        elif isinstance(node, DictionaryObject):
+            if node.get("/S"):
+                kinds.append(str(node["/S"]))
+            if node.get("/K") is not None:
+                walk(node["/K"])
+
+    walk(pypdf.PdfReader(str(pdf_path)).trailer["/Root"]["/StructTreeRoot"])
+    return kinds
+
+
 @pytest.fixture(scope="module")
 def project(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("fidelity")
@@ -152,29 +184,7 @@ def test_headings_reach_the_structure_tree(template: str, project: Path) -> None
     looks identical on the page and arrives in the structure tree as an anonymous
     `/Div`, which is worth nothing to anything reading the document semantically.
     """
-    pypdf = pytest.importorskip("pypdf")
-    from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
-
-    reader = pypdf.PdfReader(str(_build(project, template)))
-    kinds: set[str] = set()
-    seen: set[int] = set()
-
-    def walk(node: object) -> None:
-        if isinstance(node, IndirectObject):
-            if node.idnum in seen:
-                return
-            seen.add(node.idnum)
-            node = node.get_object()
-        if isinstance(node, (ArrayObject, list)):
-            for kid in node:
-                walk(kid)
-        elif isinstance(node, DictionaryObject):
-            if node.get("/S"):
-                kinds.add(str(node["/S"]))
-            if node.get("/K") is not None:
-                walk(node["/K"])
-
-    walk(reader.trailer["/Root"]["/StructTreeRoot"])
+    kinds = set(_struct_kinds(_build(project, template)))
     for want in ("/H1", "/H2", "/H3"):
         assert want in kinds, f"{template} emits no {want}; found {sorted(kinds)}"
 
@@ -331,6 +341,72 @@ def test_kern_pairs_do_not_split_words(
     text = _text(root, template, engine)
     split = [n for n in _KERN_TRAPS if n not in text]
     assert not split, f"{template}/{engine} split {split} across a kern pair"
+
+
+# A conformance variant is metadata. The claim this rests on is that declaring one
+# changes nothing a parser reads — otherwise `pdf.variant` would be a parseability
+# setting in disguise, and the docs say plainly that it is not.
+_VARIANTS = ["pdf/ua-1", "pdf/a-2b"]
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("variant", _VARIANTS)
+@pytest.mark.parametrize("template", _TEMPLATES)
+def test_a_conformance_variant_changes_no_text_and_no_structure(
+    project: Path, tmp_path_factory: pytest.TempPathFactory, template: str, variant: str
+) -> None:
+    """Declaring PDF/UA or PDF/A must not move a single glyph.
+
+    This is the assertion `pdf.variant` is sold on. If a variant ever did change
+    the text layer, the setting would silently be a parseability change and every
+    template's measured rating would be conditional on it.
+    """
+    root = tmp_path_factory.mktemp("variant")
+    _write_project(root)
+    (root / "cvloom.yaml").write_text(f"pdf:\n  variant: {variant}\n")
+
+    for engine in _ENGINES:
+        assert _text(root, template, engine) == _text(project, template, engine), (
+            f"{template}/{engine} extracts differently under {variant}"
+        )
+    assert _struct_kinds(_build(root, template)) == _struct_kinds(_build(project, template)), (
+        f"{template} builds a different structure tree under {variant}"
+    )
+
+
+@pytest.mark.parametrize("variant,marker", [("pdf/ua-1", "pdfuaid"), ("pdf/a-2b", "pdfaid")])
+def test_a_declared_variant_reaches_the_xmp_metadata(
+    tmp_path_factory: pytest.TempPathFactory, variant: str, marker: str
+) -> None:
+    """The identifier is the whole point: without it nothing has been declared.
+
+    Asserted on the raw XMP packet rather than through a conformance checker.
+    veraPDF is what proves the document *is* conformant; this proves cvloom asked
+    for it, which is the half that can regress from a change in this repo.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    root = tmp_path_factory.mktemp("xmp")
+    _write_project(root)
+    (root / "cvloom.yaml").write_text(f"pdf:\n  variant: {variant}\n")
+
+    reader = pypdf.PdfReader(str(_build(root, "cv/ats-clean")))
+    assert reader.xmp_metadata is not None, f"{variant} produced no XMP packet"
+    packet = reader.xmp_metadata.stream.get_data().decode("utf-8", "replace")
+    assert marker in packet, f"{variant} left no {marker} identifier in the XMP"
+
+
+def test_no_variant_declares_no_conformance(project: Path) -> None:
+    """The default must stay a plain tagged PDF, claiming nothing."""
+    pypdf = pytest.importorskip("pypdf")
+    reader = pypdf.PdfReader(str(_build(project, "cv/ats-clean")))
+    packet = (
+        reader.xmp_metadata.stream.get_data().decode("utf-8", "replace")
+        if reader.xmp_metadata is not None
+        else ""
+    )
+    assert "pdfuaid" not in packet and "pdfaid" not in packet, (
+        "a default build claims a conformance level nobody asked for"
+    )
 
 
 # Everything above renders ASCII: `COMPANY00`, `SKILLA0`, `PAYPAL`. So none of it

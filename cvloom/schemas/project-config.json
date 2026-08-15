@@ -12,6 +12,24 @@
       "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
       "default": "en"
     },
+    "pdf": {
+      "type": "object",
+      "description": "How the rendered PDF is written. Absent means cvloom's default: a tagged PDF declaring no conformance variant.",
+      "additionalProperties": false,
+      "properties": {
+        "variant": {
+          "type": "string",
+          "description": "PDF conformance variant to declare. 'pdf/ua-1' is the accessibility standard and the one worth asking for; the pdf/a-* variants are archival. Neither affects how a PDF's text extracts — see docs/reference/ats-readiness.md. Absent means no variant is declared. Every value here passes veraPDF on every shipped template, which is why the list is short: pdf/x-* is print-oriented, pdf/a-4u is written by WeasyPrint with a pdfaid:conformance entry PDF/A-4 forbids, and pdf/a-1b forbids the transparency that cv/timeline-clean and cv/sidebar-compact are drawn with.",
+          "enum": [
+            "pdf/ua-1",
+            "pdf/a-2b",
+            "pdf/a-2u",
+            "pdf/a-3b",
+            "pdf/a-3u"
+          ]
+        }
+      }
+    },
     "ai": {
       "type": "object",
       "description": "Which backend and model this project is analysed with. The credential is never expressible here: this file sits at the project root and is committed. Set CVLOOM_AI_API_KEY in the environment instead. Every value here is overridden by the matching CVLOOM_AI_* variable, so a machine can point at its own backend.",
