@@ -72,11 +72,31 @@ The `cvloom check` output and the `check_cv` MCP tool tag every finding with its
 ## The parseability limitation (stated plainly)
 
 The strongest parseability signal is the structure of the **rendered PDF** itself. cvloom
-currently renders HTML → PDF via WeasyPrint, which produces a real text layer and a
-single-column, standard-headed layout, but **not** a fully tagged PDF/A the way a Typst-based
-pipeline (e.g. RenderCV) does. In practice cvloom's output parses well in mainstream ATSes, but
-we don't claim tagged-PDF/A compliance. A Typst/tagged-PDF export backend is on the roadmap;
-until then, this axis is reported honestly rather than overstated.
+renders HTML → PDF via WeasyPrint, which produces a real text layer, a single-column,
+standard-headed layout, and a tagged structure tree — see *cvloom emits tagged PDFs*
+under [what the templates actually do](#what-the-templates-actually-do-measured) for what
+that contains and what it is worth.
+
+Three PDF properties get conflated in discussions of ATS compatibility, and only the
+first has anything to do with parsing:
+
+- **Tagged PDF** — a `/StructTreeRoot` stating the document's logical reading order
+  instead of leaving it to be inferred from glyph coordinates. This is the one that
+  matters for a parser, and cvloom emits it. Its measured value is narrower than it
+  sounds: poppler and pdfminer ignore the structure tree entirely, so tagging buys
+  nothing with them. It is what makes the document correct for tag-aware consumers.
+- **PDF/A** — an *archival* conformance standard: embedded fonts, no encryption, a
+  colour profile, XMP metadata. Nothing in it concerns reading order, and no part of it
+  makes a document easier to parse. It is not an ATS concern.
+- **PDF/UA-1** — an *accessibility* conformance standard, built on tagging. Real value
+  for screen readers. No ATS reads it.
+
+So the honest limitation is not the file format. It is the layer above: cvloom measures
+what a PDF's **text layer** yields, exhaustively and under five extractors. It does not
+measure how any particular ATS then maps that text into structured fields — whether
+`Acme Corp` lands in `company` and `2019-04` in `start_date`. That is per-vendor,
+closed, and unmeasurable from here. A document can extract perfectly and still be mapped
+badly, and nothing in this page claims otherwise.
 
 ## What the templates actually do (measured)
 

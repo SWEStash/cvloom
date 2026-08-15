@@ -125,6 +125,38 @@ def _text(root: Path, template: str, engine: str) -> str:
     return extract_mod.extract(_build(root, template), engine).text
 
 
+def _struct_kinds(pdf_path: Path) -> list[str]:
+    """Every `/S` in the structure tree, in the order the tree is walked.
+
+    Ordered rather than a set because two callers want different things from it:
+    one asks which kinds exist, the other compares two whole trees for equality,
+    and a set would let a reordered tree pass as unchanged.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
+
+    kinds: list[str] = []
+    seen: set[int] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, IndirectObject):
+            if node.idnum in seen:
+                return
+            seen.add(node.idnum)
+            node = node.get_object()
+        if isinstance(node, (ArrayObject, list)):
+            for kid in node:
+                walk(kid)
+        elif isinstance(node, DictionaryObject):
+            if node.get("/S"):
+                kinds.append(str(node["/S"]))
+            if node.get("/K") is not None:
+                walk(node["/K"])
+
+    walk(pypdf.PdfReader(str(pdf_path)).trailer["/Root"]["/StructTreeRoot"])
+    return kinds
+
+
 @pytest.fixture(scope="module")
 def project(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("fidelity")
@@ -152,29 +184,7 @@ def test_headings_reach_the_structure_tree(template: str, project: Path) -> None
     looks identical on the page and arrives in the structure tree as an anonymous
     `/Div`, which is worth nothing to anything reading the document semantically.
     """
-    pypdf = pytest.importorskip("pypdf")
-    from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
-
-    reader = pypdf.PdfReader(str(_build(project, template)))
-    kinds: set[str] = set()
-    seen: set[int] = set()
-
-    def walk(node: object) -> None:
-        if isinstance(node, IndirectObject):
-            if node.idnum in seen:
-                return
-            seen.add(node.idnum)
-            node = node.get_object()
-        if isinstance(node, (ArrayObject, list)):
-            for kid in node:
-                walk(kid)
-        elif isinstance(node, DictionaryObject):
-            if node.get("/S"):
-                kinds.add(str(node["/S"]))
-            if node.get("/K") is not None:
-                walk(node["/K"])
-
-    walk(reader.trailer["/Root"]["/StructTreeRoot"])
+    kinds = set(_struct_kinds(_build(project, template)))
     for want in ("/H1", "/H2", "/H3"):
         assert want in kinds, f"{template} emits no {want}; found {sorted(kinds)}"
 
@@ -331,6 +341,193 @@ def test_kern_pairs_do_not_split_words(
     text = _text(root, template, engine)
     split = [n for n in _KERN_TRAPS if n not in text]
     assert not split, f"{template}/{engine} split {split} across a kern pair"
+
+
+# A conformance variant is metadata. The claim this rests on is that declaring one
+# changes nothing a parser reads — otherwise `pdf.variant` would be a parseability
+# setting in disguise, and the docs say plainly that it is not.
+_VARIANTS = ["pdf/ua-1", "pdf/a-2b"]
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("variant", _VARIANTS)
+@pytest.mark.parametrize("template", _TEMPLATES)
+def test_a_conformance_variant_changes_no_text_and_no_structure(
+    project: Path, tmp_path_factory: pytest.TempPathFactory, template: str, variant: str
+) -> None:
+    """Declaring PDF/UA or PDF/A must not move a single glyph.
+
+    This is the assertion `pdf.variant` is sold on. If a variant ever did change
+    the text layer, the setting would silently be a parseability change and every
+    template's measured rating would be conditional on it.
+    """
+    root = tmp_path_factory.mktemp("variant")
+    _write_project(root)
+    (root / "cvloom.yaml").write_text(f"pdf:\n  variant: {variant}\n")
+
+    for engine in _ENGINES:
+        assert _text(root, template, engine) == _text(project, template, engine), (
+            f"{template}/{engine} extracts differently under {variant}"
+        )
+    assert _struct_kinds(_build(root, template)) == _struct_kinds(_build(project, template)), (
+        f"{template} builds a different structure tree under {variant}"
+    )
+
+
+@pytest.mark.parametrize("variant,marker", [("pdf/ua-1", "pdfuaid"), ("pdf/a-2b", "pdfaid")])
+def test_a_declared_variant_reaches_the_xmp_metadata(
+    tmp_path_factory: pytest.TempPathFactory, variant: str, marker: str
+) -> None:
+    """The identifier is the whole point: without it nothing has been declared.
+
+    Asserted on the raw XMP packet rather than through a conformance checker.
+    veraPDF is what proves the document *is* conformant; this proves cvloom asked
+    for it, which is the half that can regress from a change in this repo.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    root = tmp_path_factory.mktemp("xmp")
+    _write_project(root)
+    (root / "cvloom.yaml").write_text(f"pdf:\n  variant: {variant}\n")
+
+    reader = pypdf.PdfReader(str(_build(root, "cv/ats-clean")))
+    assert reader.xmp_metadata is not None, f"{variant} produced no XMP packet"
+    packet = reader.xmp_metadata.stream.get_data().decode("utf-8", "replace")
+    assert marker in packet, f"{variant} left no {marker} identifier in the XMP"
+
+
+def test_no_variant_declares_no_conformance(project: Path) -> None:
+    """The default must stay a plain tagged PDF, claiming nothing."""
+    pypdf = pytest.importorskip("pypdf")
+    reader = pypdf.PdfReader(str(_build(project, "cv/ats-clean")))
+    packet = (
+        reader.xmp_metadata.stream.get_data().decode("utf-8", "replace")
+        if reader.xmp_metadata is not None
+        else ""
+    )
+    assert "pdfuaid" not in packet and "pdfaid" not in packet, (
+        "a default build claims a conformance level nobody asked for"
+    )
+
+
+# Everything above renders ASCII: `COMPANY00`, `SKILLA0`, `PAYPAL`. So none of it
+# reaches the font's non-Latin coverage, and none of it exercises the two ways a
+# non-ASCII glyph goes missing from a text layer — a `/ToUnicode` map that does not
+# round-trip the codepoint, and a ligature substitution that maps two source
+# characters onto one glyph. cvloom ships an `es` locale and an `examples-es/`
+# project, so this is content users already write.
+#
+# These pass today. They are a fence, not a bug hunt: the failure they guard
+# against is a font-subsetting or shaping regression, which arrives from a
+# dependency upgrade rather than from a change in this repo, and would otherwise
+# land silently.
+_ACCENTS = ("Zoë", "Ångström-Muñoz", "São", "Ingénieur", "Universität", "Tübingen")
+# `Æ` is a single codepoint rather than a composed pair, and `ø` carries a stroke
+# rather than a combining mark; both are subset separately from the a-with-ring set.
+_LATIN_EXTENDED = ("Ærø", "Systèmes", "Kraków")
+# The `es` pack's own vocabulary. `Formación` matters most: it is a *heading*, and
+# headings carry the letter-spacing that `test_renderer.py` caps at .08em — the
+# construct already known to split `EDUCATION` into `E D U C AT I O N`.
+_SPANISH = ("migración", "gestión", "Métodos", "Diseño", "Gestión")
+# Not Latin at all, so it lands in a different subset table.
+_CYRILLIC = ("Спеціаліст",)
+# `fi`, `fl` and `ffl` are the substitutions a shaper makes silently. The glyph is
+# one; the text layer has to give back two characters, or `office` becomes `oce`.
+_LIGATURES = ("office", "affluent", "Difficult", "flying", "fjord")
+# Punctuation cvloom does not rewrite, unlike the en/em dashes wl-023 flags.
+_PUNCTUATION = ("“quoted”", "3×")
+
+_NON_ASCII = _ACCENTS + _LATIN_EXTENDED + _SPANISH + _CYRILLIC + _LIGATURES + _PUNCTUATION
+
+
+def _write_non_ascii_project(root: Path, locale: str | None = None) -> None:
+    """A project whose every field carries non-ASCII content.
+
+    Deliberately not a variant of `_write_project`: that fixture's shape is tuned
+    for page breaks and gutter widths, and reusing it would put these tokens where
+    the interesting layout cases are not.
+    """
+    for name in ("data", "private", "profiles"):
+        (root / name).mkdir()
+    if locale is not None:
+        (root / "cvloom.yaml").write_text(f"locale: {locale}\n")
+    (root / "private" / "contact.yaml").write_text(
+        'name: "Zoë Ångström-Muñoz"\n'
+        'email: "zoe@example.com"\n'
+        'phone: "+44 7700 900000"\n'
+        'location: "São Paulo, Brasil"\n'
+    )
+    (root / "data" / "basics.yaml").write_text(
+        'headline: "Ingénieur logiciel"\n'
+        'summary: "Difficult affluent office finder — flying fjord. Métodos “quoted” 3× here."\n'
+        "links: []\n"
+    )
+    (root / "data" / "work.yaml").write_text(
+        '- company: "Ærø Systèmes"\n'
+        '  title: "Спеціаліст"\n'
+        '  location: "Kraków"\n'
+        '  start_date: "2019-04"\n'
+        '  end_date: "2023-08"\n'
+        "  highlights:\n"
+        '    - "Dirigió la migración de infraestructura con gestión de equipos."\n'
+    )
+    (root / "data" / "education.yaml").write_text(
+        '- institution: "Universität Tübingen"\n'
+        '  degree: "Diplom"\n'
+        '  field: "Informatik"\n'
+        '  start_date: "2004"\n'
+        '  end_date: "2008"\n'
+    )
+    (root / "data" / "skills.yaml").write_text(
+        '- category: "Métodos"\n  items: ["Diseño", "Gestión"]\n'
+    )
+
+
+@pytest.fixture(scope="module")
+def non_ascii_project(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("nonascii")
+    _write_non_ascii_project(root)
+    return root
+
+
+@pytest.fixture(scope="module")
+def non_ascii_es_project(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("nonascii-es")
+    _write_non_ascii_project(root, locale="es")
+    return root
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("template", _TEMPLATES)
+@pytest.mark.parametrize("engine", _ENGINES)
+def test_non_ascii_content_survives_extraction(
+    non_ascii_project: Path, template: str, engine: str
+) -> None:
+    text = _text(non_ascii_project, template, engine)
+    missing = [token for token in _NON_ASCII if token not in text]
+    assert not missing, f"{template}/{engine} lost {missing}"
+
+
+@pytest.mark.skipif(not _ENGINES, reason="no PDF text extractor installed")
+@pytest.mark.parametrize("template", _TEMPLATES)
+@pytest.mark.parametrize("engine", _ENGINES)
+def test_locale_pack_headings_survive_extraction(
+    non_ascii_es_project: Path, template: str, engine: str
+) -> None:
+    """The `es` pack's headings are content the user never typed.
+
+    A parser segments a CV on its headings, so a heading that extracts as
+    `F o r m a c i ó n` costs that section its label — and unlike the data above,
+    a user cannot see the problem by reading their own YAML.
+
+    Compared case-insensitively because most templates set `text-transform:
+    uppercase` on `h2`, and WeasyPrint applies the transform before emitting
+    glyphs: the pack says `Formación` and the text layer says `FORMACIÓN`. That
+    makes this the stricter test of the two — `Ó` is subset separately from `ó`,
+    so the uppercased form exercises a codepoint the data fixture never reaches.
+    """
+    text = _text(non_ascii_es_project, template, engine).casefold()
+    missing = [h for h in ("Experiencia", "Formación", "Competencias") if h.casefold() not in text]
+    assert not missing, f"{template}/{engine} lost the {missing} heading(s)"
 
 
 def _paints_timeline_rule(pdf_path: Path) -> bool:
