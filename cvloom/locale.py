@@ -20,10 +20,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-import yaml
-
 from cvloom import schema, sections
-from cvloom.config import DEFAULT_LOCALE, ConfigError
+from cvloom.config import DEFAULT_LOCALE, ConfigError, read_yaml_mapping
 
 _LOCALES_DIR = Path(__file__).parent / "locales"
 
@@ -137,18 +135,16 @@ def _read_pack_file(code: str) -> dict[str, Any]:
             ]
         )
 
-    try:
-        with path.open() as f:
-            raw: Any = yaml.safe_load(f)
-    except yaml.YAMLError as exc:
-        raise ConfigError([f"locales/{code}.yaml: not valid YAML: {exc}"]) from None
-
-    if not isinstance(raw, dict):
-        raise ConfigError([f"locales/{code}.yaml: expected a mapping of locale keys"])
+    label = f"locales/{code}.yaml"
+    raw = read_yaml_mapping(path, label)
+    # An empty pack is a broken pack, not "no overrides": every key would fall
+    # back, and for `en` there is nothing to fall back to.
+    if raw is None:
+        raise ConfigError([f"{label}: expected a mapping, got an empty file"])
 
     # Validated at load, so a malformed pack fails here with its path rather than
     # at render time with a confusing template error.
-    errors = schema.validate("locale", raw, source_path=f"locales/{code}.yaml")
+    errors = schema.validate("locale", raw, source_path=label)
     if errors:
         raise ConfigError(errors)
 
@@ -248,8 +244,12 @@ def pack_coverage(code: str) -> PackCoverage:
     Raises :class:`~cvloom.config.ConfigError` for an unknown or malformed code.
     """
     raw = _read_pack_file(code)
-    inherited = () if code == DEFAULT_LOCALE else tuple(k for k in PACK_KEYS if k not in raw)
-    titles = raw.get("section_titles") or {}
+    # `en` is not special-cased. It is what every other pack falls back to, so a
+    # gap in it is the one gap that cannot be filled — reporting it as complete
+    # by construction is how `list-locales` printed a clean row for a file
+    # `load_pack` was already raising on. A complete `en` yields () here anyway.
+    inherited = tuple(k for k in PACK_KEYS if k not in raw)
+    titles = raw.get("section_titles", {})
     return PackCoverage(
         code=code,
         inherited_keys=inherited,

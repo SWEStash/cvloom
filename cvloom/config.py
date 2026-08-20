@@ -36,6 +36,28 @@ class ConfigError(Exception):
         super().__init__("; ".join(errors) if errors else "config failed")
 
 
+def read_yaml_mapping(path: Path, label: str) -> dict[str, Any] | None:
+    """Read *path* as a YAML mapping, or raise :class:`ConfigError` naming *label*.
+
+    Returns ``None`` for an empty file — that means different things to different
+    callers (no overrides for ``cvloom.yaml``, a broken pack for a locale), so the
+    decision stays with them. Shared by ``cvloom.yaml`` and the locale packs
+    because a user who mistypes either deserves the same message; schema
+    validation is *not* done here, since each caller runs checks of its own
+    between parsing and validating.
+    """
+    try:
+        with path.open() as f:
+            raw: Any = yaml.safe_load(f)
+    except yaml.YAMLError as exc:
+        raise ConfigError([f"{label}: not valid YAML: {exc}"]) from None
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ConfigError([f"{label}: expected a mapping"])
+    return raw
+
+
 @dataclass(frozen=True)
 class AIConfig:
     """The ``ai:`` block of ``cvloom.yaml``.
@@ -87,17 +109,10 @@ def load_project_config(root: Path) -> ProjectConfig:
     if not path.exists():
         return ProjectConfig()
 
-    try:
-        with path.open() as f:
-            raw: Any = yaml.safe_load(f)
-    except yaml.YAMLError as exc:
-        raise ConfigError([f"{CONFIG_FILENAME}: not valid YAML: {exc}"]) from None
-
     # An empty file parses to None and means "no overrides", not "invalid".
+    raw = read_yaml_mapping(path, CONFIG_FILENAME)
     if raw is None:
         return ProjectConfig()
-    if not isinstance(raw, dict):
-        raise ConfigError([f"{CONFIG_FILENAME}: expected a mapping of settings"])
 
     # Checked before the schema so the credential gets its own message. The
     # schema would reject it too (`additionalProperties: false` on `ai`), but
@@ -123,8 +138,9 @@ def load_project_config(root: Path) -> ProjectConfig:
     if errors:
         raise ConfigError(errors)
 
-    raw_pdf = raw.get("pdf")
-    pdf_block: dict[str, Any] = raw_pdf if isinstance(raw_pdf, dict) else {}
+    # No isinstance guard: the schema types `pdf` as an object and has just run.
+    # The `ai` block above needs one because that check precedes validation.
+    pdf_block: dict[str, Any] = raw.get("pdf") or {}
 
     return ProjectConfig(
         locale=raw.get("locale", DEFAULT_LOCALE),

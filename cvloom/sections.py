@@ -152,6 +152,10 @@ ENTRY_TEXT_FIELDS = (
     "fluency",
 )
 
+# The header fields every template renders. `public_name` is absent because the
+# loader has already resolved it into `name` by the time anything walks the data.
+CONTACT_TEXT_FIELDS = ("name", "email", "phone", "location")
+
 
 # Credential kinds, following the Open Badges 3.0 achievementType vocabulary.
 # The split is exam-backed credential vs completion record, and it decides which
@@ -270,8 +274,12 @@ def iter_visible_text(resolved: ResolvedProfile) -> Iterable[tuple[str, str]]:
     tagged with their section rather than an aggregate either of them would have
     to undo.
 
-    ``basics`` is yielded unconditionally, matching the templates: the headline
-    and summary are not a section a profile can switch off.
+    ``basics`` and ``contact`` are yielded unconditionally, matching the
+    templates: the header is not a section a profile can switch off. Including it
+    matters most for the recall report — a name and an email set in the header are
+    the most extraction-fragile text on the page, and omitting them meant nothing
+    scored the region most likely to fail. In a ``--public`` build the placeholder
+    contact is what gets yielded, because that is what gets rendered.
     """
     data = resolved.data
     show = resolved.show_sections
@@ -294,10 +302,20 @@ def iter_visible_text(resolved: ResolvedProfile) -> Iterable[tuple[str, str]]:
         val = basics.get(key)
         if isinstance(val, str):
             yield "basics", val
+    # Link labels are rendered; the URLs are not prose and tokenize into noise.
+    for link in basics.get("links") or []:
+        label = link.get("label") if isinstance(link, dict) else None
+        if isinstance(label, str):
+            yield "basics", label
+
+    for key in CONTACT_TEXT_FIELDS:
+        val = data.get("contact", {}).get(key)
+        if isinstance(val, str):
+            yield "contact", val
 
 
 def count_words(resolved: ResolvedProfile) -> dict[str, int]:
-    """Word count per visible section (work/education/projects/skills) plus basics."""
+    """Word count per visible section, plus the always-rendered basics and contact."""
     show = resolved.show_sections
     # Seeded so a visible-but-empty section reports 0 rather than going missing:
     # callers render this as a breakdown, and an absent row reads as "not shown".
@@ -305,6 +323,7 @@ def count_words(resolved: ResolvedProfile) -> dict[str, int]:
     if show.get("skills"):
         counts["skills"] = 0
     counts["basics"] = 0
+    counts["contact"] = 0
 
     for section, text in iter_visible_text(resolved):
         counts[section] += len(text.split())

@@ -107,13 +107,19 @@ def _collect(pdf: Path) -> tuple[str, dict[int, dict[int, str]]]:
         def begin_tag(self, tag: Any, props: Any = None) -> None:
             self._mcid_stack.append(self._mcid)
             mcid = props.get("MCID") if isinstance(props, dict) else None
-            if isinstance(mcid, int):
-                self._mcid = mcid
+            # A tag without an MCID — /Artifact is the one that matters, and it
+            # never has one — belongs to no structure element. Leaving the
+            # enclosing MCID in place would append page furniture to whatever
+            # paragraph happens to contain it.
+            self._mcid = mcid if isinstance(mcid, int) else None
 
         def end_tag(self) -> None:
             self._mcid = self._mcid_stack.pop() if self._mcid_stack else None
 
         def render_char(self, *args: Any, **kwargs: Any) -> float:
+            # pdfminer has changed render_char's signature across releases and
+            # cvloom pins no upper bound, so the arguments are forwarded blind
+            # rather than restated. Only the return value is used here.
             adv = super().render_char(*args, **kwargs)
             # `_objs` is pdfminer's own child list; reading its tail is the only
             # way to reach the LTChar that super() just created.
@@ -221,13 +227,17 @@ def extract(pdf: Path, engine: str) -> Extraction:
 def extract_all(pdf: Path, engines: list[str] | None = None) -> list[Extraction]:
     """Extract with every requested engine that is installed.
 
-    Returns the list of engines that actually ran, so a caller never reports
-    "clean" off a single engine.
+    Returns one :class:`Extraction` per engine that ran. Fewer than requested is
+    normal — an engine may not be installed, and the structure reader declines a
+    PDF cvloom did not build. Callers must not read a short list as agreement:
+    :func:`cvloom.fidelity.recall` needs two engines before it will attribute a
+    missing word to anything.
     """
-    wanted = engines or available_engines()
+    installed = available_engines()
+    wanted = installed if engines is None else engines
     out = []
     for engine in wanted:
-        if engine not in available_engines():
+        if engine not in installed:
             continue
         try:
             out.append(extract(pdf, engine))

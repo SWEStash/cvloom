@@ -306,7 +306,9 @@ The stop-word list comes from `linter_locales` keyed by `resolved.locale.code`, 
 
 `recall(resolved, pdf_path) -> RecallReport`
 
-How much of a CV's own text survives into the built PDF's text layer, behind `build --extract-text`. Source tokens come from `sections.iter_visible_text` and are split by `match.tokenize`; each installed engine's extraction is then searched for them.
+How much of a CV's own text survives into the built PDF's text layer, behind `build --extract-text`. Source tokens come from `sections.iter_visible_text` — including the contact block and profile link labels, the most extraction-fragile text on the page — and are split by `match.tokenize`; each installed engine's extraction is then searched for them. Tokens shorter than four characters must match on a word boundary, because `ai` occurs inside `domain`; longer ones match as substrings, so a word welded to its neighbour still counts as found.
+
+Attribution needs corroboration. A token no engine found is the template's omission rather than an extraction failure, but that inference only holds with **two or more** engines: a lone engine's misses are indistinguishable from words never drawn, and blaming the template for them would drop exactly those tokens from the denominator and score the engine 100% for losing them. Below two engines `RecallReport.attribution_available` is False and nothing is attributed.
 
 The report separates two failures rather than summing them, because they have different fixes. A token **no engine found** is attributed to the template — it was never painted on the page, and no extractor could have helped — and is excluded from every engine's denominator. What remains is per-engine, where disagreement between engines is the signal that the text layer is ambiguous. Told apart by engine agreement, which works precisely because the five engines read the document by different means: all five missing the same word is not five failures.
 

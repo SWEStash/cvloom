@@ -130,3 +130,75 @@ def test_no_installed_engine_yields_an_empty_report(
     assert report.engines == ()
     assert report.unrendered == ()
     assert report.source_total == 1
+
+
+# ── attribution needs corroboration ──────────────────────────────────
+
+
+def test_a_single_engine_attributes_nothing_to_the_template(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """One engine cannot tell "never rendered" from "this engine lost it".
+
+    Agreement is what separates the two failures, and one engine agrees with
+    nobody. Attributing its misses to the template empties the denominator of
+    exactly the tokens it just failed on, so the engine scores 100% *because*
+    it did badly — worst on a bare install, where poppler is the only engine.
+    """
+    resolved = _resolved(work=[{"company": "Alpha", "highlights": ["Beta gamma."]}])
+    _fake_extractions(monkeypatch, {"poppler": "Alpha"})
+    report = fidelity.recall(resolved, tmp_path / "cv.pdf")
+
+    assert report.attribution_available is False
+    assert report.unrendered == ()
+    (only,) = report.engines
+    assert set(only.missing) == {"beta", "gamma"}
+    assert only.percentage < 100.0
+
+
+def test_two_engines_agreeing_still_blame_the_template(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The corroborated case is unchanged: two engines agreeing is evidence."""
+    resolved = _resolved(work=[{"company": "Alpha", "highlights": ["Beta gamma."]}])
+    _fake_extractions(monkeypatch, {"poppler": "Alpha beta", "pypdf": "Alpha beta"})
+    report = fidelity.recall(resolved, tmp_path / "cv.pdf")
+
+    assert report.attribution_available is True
+    assert report.unrendered == ("gamma",)
+    for engine in report.engines:
+        assert engine.missing == ()
+        assert engine.percentage == 100.0
+
+
+def test_a_short_token_needs_a_word_boundary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`ai` inside `domain` is a coincidence, not evidence the token survived.
+
+    Short tokens are where a substring test stops discriminating, and they are
+    disproportionately the ones that matter — `ai`, `ml`, `aws`, `js`, `sql` are
+    skill names. On a real CV, 28 of 60 short tokens occur inside some longer
+    token, so their recall could not fail.
+    """
+    resolved = _resolved(skills=[{"category": "Stack", "items": ["AI", "Rust"]}])
+    _fake_extractions(monkeypatch, {"poppler": "Stack domain Rust", "pypdf": "Stack domain Rust"})
+    report = fidelity.recall(resolved, tmp_path / "cv.pdf")
+
+    # No engine found `ai` as a word, so it is the template's omission, not theirs.
+    assert "ai" in report.unrendered
+
+
+def test_a_long_token_still_matches_inside_a_welded_word(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Words welded to a neighbour are `extract`'s problem, not a recall failure."""
+    resolved = _resolved(skills=[{"category": "Stack", "items": ["Engineer"]}])
+    _fake_extractions(
+        monkeypatch, {"poppler": "Stack SeniorEngineerLead", "pypdf": "Stack Engineer"}
+    )
+    report = fidelity.recall(resolved, tmp_path / "cv.pdf")
+
+    assert report.unrendered == ()
+    for engine in report.engines:
+        assert engine.missing == ()

@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from cvloom import sections
+from tests.conftest import make_resolved
 
 _SCHEMAS_DIR = Path(__file__).parent.parent / "cvloom" / "schemas"
 
@@ -167,3 +168,37 @@ def test_degree_line_without_field_returns_the_degree_alone() -> None:
 
 def test_degree_line_missing_degree_is_not_an_error() -> None:
     assert sections.degree_line({}) == ""
+
+
+def test_visible_text_covers_the_header_every_template_renders() -> None:
+    """The contact line and profile links are on the page, so they are text.
+
+    Leaving them out meant the most extraction-fragile region of the document —
+    a name and an email, set in the header — was scored by nothing in the recall
+    report and counted by nothing in the word totals.
+    """
+    resolved = make_resolved(
+        contact={
+            "name": "Jane Smith",
+            "email": "jane@example.com",
+            "location": "Springfield",
+        },
+        basics={
+            "headline": "Engineer",
+            "summary": "A summary.",
+            "links": [{"label": "GitHub", "url": "https://example.com/jane"}],
+        },
+    )
+    by_section: dict[str, list[str]] = {}
+    for section, text in sections.iter_visible_text(resolved):
+        by_section.setdefault(section, []).append(text)
+
+    assert "Jane Smith" in by_section["contact"]
+    assert "jane@example.com" in by_section["contact"]
+    assert "Springfield" in by_section["contact"]
+    assert "GitHub" in by_section["basics"]
+
+
+def test_count_words_reports_the_contact_block() -> None:
+    resolved = make_resolved(contact={"name": "Jane Smith", "location": "Springfield"})
+    assert sections.count_words(resolved)["contact"] == 3

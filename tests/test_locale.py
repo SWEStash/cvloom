@@ -12,6 +12,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+import yaml
 
 from cvloom import builder, config, linter, locale, sections
 from cvloom.export import to_json_resume, to_markdown
@@ -576,3 +577,19 @@ def test_fallback_warnings_reach_resolved_profile(tmp_path: Path, packs_dir: Pat
     root = make_project(tmp_path, extra={"cvloom.yaml": "locale: xx\n"})
     resolved = builder.resolve_project(root, "general")
     assert any("placeholder_contact" in w for w in resolved.warnings)
+
+
+def test_pack_coverage_reports_an_incomplete_en(packs_dir: Path) -> None:
+    """`en` is an ordinary pack, and `list-locales` has to be able to say it broke.
+
+    Special-casing it to "complete" made the one pack nothing falls back to the
+    one pack whose gaps could not be reported: `load_pack("en")` raised while
+    `list-locales` printed a clean row for the same file.
+    """
+    raw = yaml.safe_load((packs_dir / "en.yaml").read_text())
+    del raw["duration"]
+    (packs_dir / "en.yaml").write_text(yaml.safe_dump(raw))
+
+    coverage = locale.pack_coverage("en")
+    assert "duration" in coverage.inherited_keys
+    assert coverage.is_complete is False

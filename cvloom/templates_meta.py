@@ -9,7 +9,10 @@ A rating is a function of how many of the five extraction engines flag a defect:
 ===============  ============================================================
 
 ``tests/test_ats_ratings.py`` measures each template and fails if a declared rating
-disagrees. See docs/reference/ats-readiness.md.
+disagrees — but only when all five engines are installed, since a rating measured
+against fewer cannot tell ``ATS_CAUTION`` from ``ATS_UNSAFE``. With a partial set
+that test skips rather than assert a weaker verdict. See
+docs/reference/ats-readiness.md.
 """
 
 from __future__ import annotations
@@ -17,11 +20,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import Literal
 
 # Extraction verdicts, worst last — `build` warns on anything but SAFE.
-ATS_SAFE = "safe"
-ATS_CAUTION = "caution"
-ATS_UNSAFE = "unsafe"
+AtsRating = Literal["safe", "caution", "unsafe"]
+ATS_SAFE: AtsRating = "safe"
+ATS_CAUTION: AtsRating = "caution"
+ATS_UNSAFE: AtsRating = "unsafe"
+
+# Whether rendering the template reaches the network for a webfont.
+FontSource = Literal["system", "network"]
 
 
 @dataclass(frozen=True)
@@ -30,12 +38,14 @@ class TemplateInfo:
 
     name: str
     columns: int
-    ats: str
-    fonts: str  # "system" (no network) | "network" (Google Fonts at render time)
+    ats: AtsRating
+    fonts: FontSource
     summary: str
     caveat: str = ""
 
-    suggested_titles: Mapping[str, str] = field(default_factory=dict)
+    # An empty *immutable* default: every populated instance uses MappingProxyType,
+    # and a bare dict here would be the one mutable value on a frozen dataclass.
+    suggested_titles: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     """Section wording this design reads best with, for `profile.section_titles`.
 
     A suggestion, not a mechanism: the locale pack supplies one flat default per
