@@ -80,6 +80,10 @@ _ISO_DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 # them through a round-trip; conforming consumers ignore unknown x- keys.
 TAGS_EXTENSION_KEY = "x-cvloom-tags"
 
+# Per-item skill proficiency: JSON Resume's `keywords` is a flat string array,
+# so the level rides beside it as a name -> level map on the skill group.
+LEVELS_EXTENSION_KEY = "x-cvloom-levels"
+
 
 @dataclass(frozen=True)
 class _Field:
@@ -200,7 +204,7 @@ def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
             _skill_name(i): i["level"] for i in items if isinstance(i, dict) and i.get("level")
         }
         if levels:
-            entry["x-cvloom-levels"] = levels
+            entry[LEVELS_EXTENSION_KEY] = levels
         result.append(entry)
     return result
 

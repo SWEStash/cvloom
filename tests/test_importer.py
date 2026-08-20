@@ -515,3 +515,36 @@ def test_awards_and_languages_written_to_data_dir(tmp_path: Path) -> None:
 def test_from_json_resume_rejects_non_array_awards() -> None:
     with pytest.raises(importer.ImportProblem):
         importer.from_json_resume({"basics": {"name": "Jane"}, "awards": {"title": "x"}})
+
+
+def test_map_skills_restores_levels_from_extension() -> None:
+    """Per-item proficiency rides in x-cvloom-levels; without reading it back,
+    a round-trip silently downgrades every rated skill to a bare string."""
+    groups = [
+        {
+            "name": "Languages",
+            "keywords": ["Go", "Rust"],
+            "x-cvloom-levels": {"Go": "expert"},
+        }
+    ]
+    assert importer._map_skills(groups) == [
+        {"category": "Languages", "items": [{"name": "Go", "level": "expert"}, "Rust"]}
+    ]
+
+
+def test_map_skills_without_extension_stays_bare_strings() -> None:
+    groups = [{"name": "Languages", "keywords": ["Go", "Rust"]}]
+    assert importer._map_skills(groups) == [{"category": "Languages", "items": ["Go", "Rust"]}]
+
+
+def test_roundtrip_preserves_skill_levels() -> None:
+    from tests.conftest import make_resolved
+
+    skills = [
+        {"category": "Languages", "items": [{"name": "Go", "level": "expert"}, "Rust"]},
+        {"category": "Cloud", "items": ["AWS"]},
+    ]
+    resolved = make_resolved(skills=skills)
+    back = _roundtrip(resolved)
+    assert back.skills == skills
+    assert importer.validate_imported(back) == []
