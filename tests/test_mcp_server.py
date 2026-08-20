@@ -172,8 +172,8 @@ def test_build_cv_missing_profile(project_dir: str) -> None:
 
 def test_export_json_resume_valid(project_dir: str) -> None:
     result = json.loads(export_json_resume(profile="general", project_root=project_dir))
-    assert "basics" in result
-    assert result["basics"]["name"] == "Test"
+    assert "basics" in result["document"]
+    assert result["document"]["basics"]["name"] == "Test"
 
 
 def test_export_json_resume_missing_profile(project_dir: str) -> None:
@@ -198,7 +198,7 @@ def test_export_json_resume_fences_pii_by_default(project_dir: str) -> None:
     assert "test@example.com" not in raw
     assert "(555)" not in raw
     # Non-sensitive fields still export.
-    assert json.loads(raw)["basics"]["name"] == "Test"
+    assert json.loads(raw)["document"]["basics"]["name"] == "Test"
 
 
 def test_export_json_resume_public_false_includes_pii(project_dir: str) -> None:
@@ -379,6 +379,10 @@ def test_ai_review_cv_success(
     assert result["overall_band"] == "strong"
     assert result["sections"][0]["section"] == "work"
     assert result["top_priorities"] == ["add metrics"]
+    # Merged beside the result's own fields, not wrapped around them.
+    assert result["warnings"] == []
+    # Distinct from context_notes, which is about the model's context budget.
+    assert "context_notes" in result
 
 
 def test_ai_settings_come_from_the_targeted_project_not_the_servers_cwd(
@@ -676,3 +680,60 @@ def test_list_locales_survives_a_broken_project_config(tmp_path: Path) -> None:
     make_project(tmp_path, extra={"cvloom.yaml": "local: es\n"})
     rows = json.loads(list_locales(project_root=str(tmp_path)))
     assert not any(r["active"] for r in rows)
+
+
+# ── warnings reach the agent ───────────────────────────────────────
+
+# Every tool that resolves a profile carries the warnings that resolve produced.
+# The CLI has always printed these; over MCP they went nowhere, so a missing data
+# file or a `select` that matched nothing was invisible to an agent caller.
+_WARNING_CARRYING_TOOLS = [
+    ("build_cv", lambda root: build_cv(profile="warned", skip_pdf=True, project_root=root)),
+    ("check_cv", lambda root: check_cv(profile="warned", project_root=root)),
+    ("trim_report", lambda root: trim_report(profile="warned", project_root=root)),
+    ("match_jd", lambda root: match_jd("python", profile="warned", project_root=root)),
+    ("export_json_resume", lambda root: export_json_resume(profile="warned", project_root=root)),
+]
+_WARNING_TOOL_IDS = [name for name, _ in _WARNING_CARRYING_TOOLS]
+
+
+@pytest.fixture
+def warned_project(project_dir: str) -> str:
+    """A project whose `warned` profile selects a tag no entry carries.
+
+    An unmatched selector is the cheapest reproducible warning: it resolves fine
+    and quietly drops every entry, which is exactly the silent failure a warning
+    exists to report.
+    """
+    profile = Path(project_dir) / "profiles" / "warned.yaml"
+    profile.write_text("template: cv/ats-clean\nselect:\n  work:\n    tags: [no-such-tag]\n")
+    return project_dir
+
+
+@pytest.mark.parametrize(("name", "call"), _WARNING_CARRYING_TOOLS, ids=_WARNING_TOOL_IDS)
+def test_resolving_tools_report_warnings(warned_project: str, name: str, call) -> None:
+    result = json.loads(call(warned_project))
+    assert result["warnings"], f"{name} dropped the resolve warnings"
+    assert any("no-such-tag" in w for w in result["warnings"])
+
+
+@pytest.mark.parametrize(("name", "call"), _WARNING_CARRYING_TOOLS, ids=_WARNING_TOOL_IDS)
+def test_resolving_tools_report_an_empty_list_when_clean(project_dir: str, name: str, call) -> None:
+    """An absent key and "no warnings" must not look the same to an agent."""
+    profile = Path(project_dir) / "profiles" / "warned.yaml"
+    profile.write_text("template: cv/ats-clean\n")
+    result = json.loads(call(project_dir))
+    assert result["warnings"] == []
+
+
+def test_export_json_resume_wraps_the_document(project_dir: str) -> None:
+    """The document keeps its own shape; warnings ride beside it, not inside it."""
+    result = json.loads(export_json_resume(profile="general", project_root=project_dir))
+    assert set(result) == {"document", "warnings"}
+    assert result["document"]["basics"]["name"] == "Test"
+
+
+def test_diff_profiles_keeps_each_profile_s_warnings_apart(warned_project: str) -> None:
+    result = json.loads(diff_profiles("general", "warned", project_root=warned_project))
+    assert result["warnings_a"] == []
+    assert any("no-such-tag" in w for w in result["warnings_b"])
