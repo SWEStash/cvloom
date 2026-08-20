@@ -7,6 +7,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.0](https://github.com/SWEStash/cvloom/compare/v0.10.1...v0.11.0) (2026-08-20)
+
+
+### Features
+
+* **mcp:** return resolve warnings from every tool that resolves a profile ([#37](https://github.com/SWEStash/cvloom/issues/37)) ([fbc6b60](https://github.com/SWEStash/cvloom/commit/fbc6b60acd4b237459a59c9fd382e08ecbce4c96))
+
+
+### Bug Fixes
+
+* correct the text-layer recall report and the date and locale readers ([#36](https://github.com/SWEStash/cvloom/issues/36)) ([6c2c360](https://github.com/SWEStash/cvloom/commit/6c2c36085617a1d89c9b16ade62ef525a2e4d537))
+
 ## [0.10.1](https://github.com/SWEStash/cvloom/compare/v0.10.0...v0.10.1) (2026-08-20)
 
 
