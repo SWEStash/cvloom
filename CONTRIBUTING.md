@@ -131,7 +131,7 @@ Export functions live in `cvloom/export.py`. Each format needs:
    resolved CV data to the target schema.
 2. An `export_<format>(resolved, output_path: Path) -> None` function that
    writes the file.
-3. A new `--format` choice added to the `export` command in `cli.py`.
+3. A new `--format` choice added to the `export` command in `cli/data.py`.
 4. Tests in `tests/test_export.py`.
 
 ## Commit style
