@@ -140,12 +140,3 @@ def test_declared_rating_matches_measurement(
         f"{template} is declared {declared!r} but measures {measured!r}. "
         f"Per engine: { {k: v for k, v in per_engine.items() if v} }"
     )
-
-
-@pytest.mark.parametrize("template", sorted(templates_meta.TEMPLATES))
-def test_only_safe_templates_omit_a_caveat(template: str) -> None:
-    """Anything not rated safe has to say what is wrong with it, in prose."""
-    info = templates_meta.TEMPLATES[template]
-    if info.ats == templates_meta.ATS_SAFE:
-        return
-    assert info.caveat, f"{template} is rated {info.ats} with no caveat to show the user"

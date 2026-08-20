@@ -114,7 +114,7 @@ def test_render_project_card() -> None:
 # ── Built-in CV template rendering ────────────────────────────────
 
 
-def test_render_ats_single_template() -> None:
+def test_render_ats_clean_template() -> None:
     html = render_template("cv/ats-clean", _FULL_CONTEXT)
     assert "Jane" in html
     assert "Engineer" in html
@@ -276,31 +276,24 @@ def test_render_strict_undefined_error(templates_dir: Path) -> None:
 _GOOGLE_FONTS_DOMAIN = "fonts.googleapis.com"
 
 
-def test_timeline_clean_has_inter_font_link() -> None:
-    html = render_template("cv/timeline-clean", _FULL_CONTEXT)
+@pytest.mark.parametrize(
+    ("template", "family"),
+    [
+        ("cv/timeline-clean", "Inter"),
+        ("cv/modern-single", "Lato"),
+        ("cv/executive-dark", "Source+Sans+3"),
+        ("cv/sidebar-compact", "Lato"),
+    ],
+)
+def test_template_links_its_google_font(template: str, family: str) -> None:
+    html = render_template(template, _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Inter" in html
+    assert family in html
 
 
-def test_modern_single_has_lato_font_link() -> None:
-    html = render_template("cv/modern-single", _FULL_CONTEXT)
-    assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Lato" in html
-
-
-def test_executive_dark_has_source_sans_font_link() -> None:
-    html = render_template("cv/executive-dark", _FULL_CONTEXT)
-    assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Source+Sans+3" in html
-
-
-def test_sidebar_compact_has_lato_font_link() -> None:
-    html = render_template("cv/sidebar-compact", _FULL_CONTEXT)
-    assert _GOOGLE_FONTS_DOMAIN in html
-    assert "Lato" in html
-
-
-def test_ats_single_has_no_google_fonts_link() -> None:
+# The two negative cases stay separate: "links no font at all" is a different
+# claim from "links this one", and each names the design reason it holds.
+def test_ats_clean_has_no_google_fonts_link() -> None:
     """ATS template must use system fonts only."""
     html = render_template("cv/ats-clean", _FULL_CONTEXT)
     assert _GOOGLE_FONTS_DOMAIN not in html
