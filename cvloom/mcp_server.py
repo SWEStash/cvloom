@@ -215,6 +215,7 @@ def build_cv(
                 "words": result.words,
                 "pages": result.pages,
                 "section_word_counts": result.section_word_counts,
+                "warnings": result.resolved.warnings,
             },
             indent=2,
         )
@@ -279,22 +280,27 @@ def validate_data(project_root: str | None = None) -> str:
     # reporting the data as valid would tell an agent the project is healthy
     # when `build_cv` is about to fail.
     try:
-        pack, _ = builder.project_locale(root)
+        pack, locale_warnings = builder.project_locale(root)
     except builder.ResolveError as exc:
         return json.dumps({"valid": False, "errors": exc.errors}, indent=2)
 
+    warnings = list(locale_warnings)
     data = loader.load_data(
         data_dir=root / "data",
         private_dir=root / "private",
         public=False,
+        warnings=warnings,
     )
     errors = schema.validate_all(
         data,
         private_path=str(root / "private" / "contact.yaml"),
     )
     if errors:
-        return json.dumps({"valid": False, "locale": pack.code, "errors": errors}, indent=2)
-    return json.dumps({"valid": True, "locale": pack.code})
+        return json.dumps(
+            {"valid": False, "locale": pack.code, "errors": errors, "warnings": warnings},
+            indent=2,
+        )
+    return json.dumps({"valid": True, "locale": pack.code, "warnings": warnings})
 
 
 @mcp.tool()
@@ -308,12 +314,21 @@ def export_json_resume(
     PII fence: ``public`` defaults to True, so email and phone are stripped from
     the returned document. Pass ``public=False`` to include real contact PII —
     an explicit opt-out only.
+
+    The document is returned under ``document`` rather than bare, so warnings
+    have somewhere to go that is not inside it. A JSON Resume document is meant
+    to be portable — handed to another tool, or to a person — and notes about how
+    this project resolved are not part of anyone's resume.
     """
     root = _root(project_root)
     try:
         resolved = builder.resolve_project(root, profile, public=public)
         resume = to_json_resume(resolved)
-        return json.dumps(resume, indent=2, ensure_ascii=False)
+        return json.dumps(
+            {"document": resume, "warnings": resolved.warnings},
+            indent=2,
+            ensure_ascii=False,
+        )
     except builder.ResolveError as e:
         return json.dumps({"error": "resolve failed", "details": e.errors})
 
@@ -357,6 +372,7 @@ def check_cv(
                     }
                     for f in findings
                 ],
+                "warnings": resolved.warnings,
             },
             indent=2,
         )
@@ -391,6 +407,7 @@ def trim_report(
                     for s in report.sections
                 ],
                 "recommendations": report.recommendations,
+                "warnings": resolved.warnings,
             },
             indent=2,
         )
@@ -422,6 +439,10 @@ def diff_profiles(
                 "word_count_b": result.word_count_b,
                 "highlight_count_a": result.highlight_count_a,
                 "highlight_count_b": result.highlight_count_b,
+                # Split rather than merged: a warning names an entry, and which
+                # profile produced it is the whole point of a comparison.
+                "warnings_a": resolved_a.warnings,
+                "warnings_b": resolved_b.warnings,
             },
             indent=2,
         )
@@ -454,6 +475,7 @@ def match_jd(
                 ],
                 "gaps": report.gaps,
                 "top_jd_keywords": report.top_jd_keywords,
+                "warnings": resolved.warnings,
             },
             indent=2,
         )
@@ -497,7 +519,11 @@ def ai_review_cv(profile: str = "general", project_root: str | None = None) -> s
     except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps(dataclasses.asdict(result), indent=2)
+    # Merged, not wrapped: the AI result's own fields stay at the top level, and
+    # `warnings` sits beside them. Distinct from the result's `context_notes`,
+    # which report deterministic context dropped to fit the model — these are
+    # what resolving the profile had to say, before any model saw it.
+    return json.dumps({**dataclasses.asdict(result), "warnings": resolved.warnings}, indent=2)
 
 
 @mcp.tool()
@@ -542,7 +568,11 @@ def ai_generate_cover(
     except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps(dataclasses.asdict(result), indent=2)
+    # Merged, not wrapped: the AI result's own fields stay at the top level, and
+    # `warnings` sits beside them. Distinct from the result's `context_notes`,
+    # which report deterministic context dropped to fit the model — these are
+    # what resolving the profile had to say, before any model saw it.
+    return json.dumps({**dataclasses.asdict(result), "warnings": resolved.warnings}, indent=2)
 
 
 @mcp.tool()
@@ -583,7 +613,11 @@ def ai_suggest_improvements(
     except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps(dataclasses.asdict(result), indent=2)
+    # Merged, not wrapped: the AI result's own fields stay at the top level, and
+    # `warnings` sits beside them. Distinct from the result's `context_notes`,
+    # which report deterministic context dropped to fit the model — these are
+    # what resolving the profile had to say, before any model saw it.
+    return json.dumps({**dataclasses.asdict(result), "warnings": resolved.warnings}, indent=2)
 
 
 @mcp.tool()
@@ -625,7 +659,11 @@ def ai_align_to_jd(
     except (AINotConfiguredError, RuntimeError) as exc:
         return json.dumps({"error": str(exc)})
 
-    return json.dumps(dataclasses.asdict(result), indent=2)
+    # Merged, not wrapped: the AI result's own fields stay at the top level, and
+    # `warnings` sits beside them. Distinct from the result's `context_notes`,
+    # which report deterministic context dropped to fit the model — these are
+    # what resolving the profile had to say, before any model saw it.
+    return json.dumps({**dataclasses.asdict(result), "warnings": resolved.warnings}, indent=2)
 
 
 def main() -> None:
