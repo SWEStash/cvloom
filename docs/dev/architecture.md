@@ -25,7 +25,7 @@ This document describes how cvloom is structured internally — the build pipeli
 
 ```
 cvloom/
-├── cli.py              # Click command group and all subcommands
+├── cli/                # Click command group, one module per command group
 ├── builder.py          # Core pipeline: resolve() and build()
 ├── models.py           # ResolvedProfile, BuildResult dataclasses
 ├── config.py           # cvloom.yaml project config: ProjectConfig, load_project_config()
@@ -80,7 +80,7 @@ tests/                  # pytest test suite
 The central pipeline is:
 
 ```
-cli.py
+cli
   └─► builder.resolve()
         ├─► loader.load_data()           load YAML from data/ and private/
         ├─► select.apply_selection()     narrow the sections `select` names
@@ -106,15 +106,25 @@ cli.py
 
 ## Module Reference
 
-### `cli.py`
+### `cli/`
 
-Click command group with all top-level commands. Each command:
+A package, one module per command group. Each command:
 
 1. Validates inputs and constructs `Path` objects from `Path.cwd()`
 2. Calls the appropriate domain function (builder, linter, etc.)
 3. Formats and prints output using `rich`
 
-The `ai` subgroup is defined here and delegates to `ai/analyzer.py`, `ai/cover.py`, `ai/suggest.py`, `ai/align.py`.
+| Module | Holds |
+|---|---|
+| `group.py` | the root `cli` group, `_CvloomCLI`, and `_friendly` — the exception-to-one-line translation |
+| `shared.py` | the consoles, `_root`, `_resolve`, and the reporting helpers more than one group prints |
+| `build.py` | `build`, and the text-extraction and lint output it prints |
+| `analyse.py` | `check`, `trim`, `diff`, `match` |
+| `data.py` | `export`, `import`, `init`, `sync` |
+| `listing.py` | the four `list-*` commands |
+| `ai.py` | the `ai` subgroup, delegating to `ai/analyzer.py`, `ai/cover.py`, `ai/suggest.py`, `ai/align.py` |
+
+Commands reach the group through `cli.group` and the helpers through `cli.shared`; nothing imports the package root, which is what keeps it acyclic. `cli/__init__.py` imports each command module for the registration side effect — a module nobody imports contributes no command — and is the single `cvloom.cli:cli` entry point `pyproject.toml` names.
 
 The `list-*` commands are the disclosure surface: `list-templates` prints per-template parse risk, and `list-locales` prints per-locale coverage on both the document and lint axes. Neither needs a project root. `_lint_coverage()` and `_rule_cell()` both partition through `linter.rules_for()`; the counts are never literals.
 
