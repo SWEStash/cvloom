@@ -299,6 +299,12 @@ def _print_recall(report: fidelity.RecallReport) -> None:
     """
     if not report.engines:
         return
+    if not report.attribution_available:
+        _console.print(
+            "\n[dim]One extraction engine installed, so a missing word cannot be "
+            "told apart from one the template never drew — every loss below is "
+            "counted against the engine. Install the `extract` extra for more.[/dim]"
+        )
     if report.unrendered:
         _console.print(
             f"\n[yellow]{len(report.unrendered)} of {report.source_total} source token(s) "

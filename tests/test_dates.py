@@ -149,3 +149,19 @@ def test_a_range_that_ends_before_it_starts_has_no_span() -> None:
 
 def test_a_start_date_in_the_future_has_no_span() -> None:
     assert dates.span_months("2027-01", None, _EN, today=_TODAY) is None
+
+
+# ── month range ──────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("value", ["2020-00", "2020-13", "2020-99"])
+def test_out_of_range_months_are_not_dates(value: str) -> None:
+    """`\\d{2}` is a shape, not a month.
+
+    This module calls itself the one place cvloom reads a CV date, and nothing
+    downstream re-validates: the linter compares the tuples it returns and
+    `span_months` does base-12 arithmetic on them, so `2020-13` silently became
+    a real date one month before 2021-01.
+    """
+    assert dates.parse_partial(value) is None
+    assert dates.granularity(value) == "other"

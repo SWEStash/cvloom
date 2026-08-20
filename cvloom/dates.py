@@ -21,7 +21,10 @@ from datetime import date
 
 from cvloom.locale import Ongoing
 
-_DATE_YYYY_MM_RE = re.compile(r"^\d{4}-\d{2}$")
+# The month is range-checked in the pattern, not merely shaped: nothing
+# downstream re-validates, so `2020-13` would reach base-12 arithmetic as a
+# real date one month before 2021-01.
+_DATE_YYYY_MM_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 _DATE_YYYY_RE = re.compile(r"^\d{4}$")
 
 
@@ -32,7 +35,7 @@ def parse_partial(value: str, *, as_end: bool = False) -> tuple[int, int] | None
     an open-ended date means. A bare year resolves to December when it closes a
     range and January when it opens one.
     """
-    text = str(value).strip()
+    text = value.strip()
     if _DATE_YYYY_MM_RE.match(text):
         year, month = text.split("-")
         return int(year), int(month)
@@ -48,7 +51,7 @@ def granularity(value: str) -> str:
     :func:`parse_partial` because that one collapses ``YYYY`` and ``YYYY-MM`` into
     the same shape, which is exactly the distinction wl-012 exists to see.
     """
-    text = str(value).strip()
+    text = value.strip()
     if _DATE_YYYY_MM_RE.match(text):
         return "YYYY-MM"
     if _DATE_YYYY_RE.match(text):
