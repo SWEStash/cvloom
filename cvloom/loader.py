@@ -7,13 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from rich.console import Console
 
 from cvloom import locale as locale_mod
 from cvloom import schema, sections
 from cvloom.locale import LocalePack
-
-_console = Console(stderr=True)
 
 # Fields that must never appear in public builds
 _SENSITIVE_FIELDS: frozenset[str] = frozenset({"email", "phone"})
@@ -73,6 +70,7 @@ def load_data(
     private_dir: Path | None,
     public: bool = False,
     locale: LocalePack | None = None,
+    warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     """Load all CV data sections and return a merged context dict.
 
@@ -81,11 +79,15 @@ def load_data(
         private_dir: Path to the ``private/`` directory (may not exist).
         public: If True, use placeholder contact data instead of private/contact.yaml.
         locale: Pack supplying the placeholder contact. Defaults to ``en``.
+        warnings: Appended to with any missing-file notice. Passing a list is how
+            a caller sees them at all — this function performs no terminal I/O,
+            so an unwatched warning is simply dropped.
 
     Selection by tag is not done here — see :mod:`cvloom.select`, which the
     builder applies to the loaded data. This function is I/O and merge only.
     """
     pack = locale if locale is not None else locale_mod.default_pack()
+    warn = warnings if warnings is not None else []
     result: dict[str, Any] = {}
 
     # basics and skills have bespoke shapes; the entry-list sections come from
@@ -95,7 +97,7 @@ def load_data(
         if path.exists():
             result[name] = _load_yaml(path)
         else:
-            _console.print(f"[yellow]Warning:[/yellow] {path} not found — section will be empty.")
+            warn.append(f"{path} not found — section will be empty.")
             result[name] = copy.deepcopy(empty)
 
     for section in sections.SECTIONS:
@@ -115,9 +117,7 @@ def load_data(
             result[section.name] = _load_yaml(path) or []
         else:
             if section.warn_if_missing:
-                _console.print(
-                    f"[yellow]Warning:[/yellow] {path} not found — section will be empty."
-                )
+                warn.append(f"{path} not found — section will be empty.")
             result[section.name] = []
 
     # Contact data
@@ -134,9 +134,9 @@ def load_data(
         # No private dir in public build — use minimal name-only placeholder
         result["contact"] = {"name": pack.placeholder_contact["name"]}
     else:
-        _console.print(
-            "[yellow]Warning:[/yellow] private/contact.yaml not found — "
-            "using placeholder contact. Run with --public to silence this warning."
+        warn.append(
+            "private/contact.yaml not found — using placeholder contact. "
+            "Run with --public to silence this warning."
         )
         result["contact"] = dict(pack.placeholder_contact)
 
