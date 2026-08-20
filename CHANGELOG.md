@@ -7,6 +7,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.1](https://github.com/SWEStash/cvloom/compare/v0.10.0...v0.10.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **import:** restore per-item skill levels on a JSON Resume round-trip ([#33](https://github.com/SWEStash/cvloom/issues/33)) ([5523fa5](https://github.com/SWEStash/cvloom/commit/5523fa5e70cff6effdae7988e032122002b77132))
+
 ## [0.10.0](https://github.com/SWEStash/cvloom/compare/v0.9.0...v0.10.0) (2026-08-15)
 
 
