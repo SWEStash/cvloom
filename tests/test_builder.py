@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -715,3 +716,42 @@ def test_a_hidden_work_section_warns_about_nothing(tmp_path: Path) -> None:
         },
     )
     assert not [w for w in _resolve(project).warnings if "no duration shown" in w]
+
+
+def test_resolve_reports_missing_section_as_warning_not_stderr(
+    project_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A missing data file is the caller's business, not the terminal's.
+
+    Printing it here strands the warning: an MCP client reads the returned
+    ResolvedProfile, never resolve()'s stderr.
+    """
+    (project_dir / "data" / "work.yaml").unlink()
+    result = resolve(
+        data_dir=project_dir / "data",
+        private_dir=project_dir / "private",
+        profiles_dir=project_dir / "profiles",
+        profile_name="general",
+        public=True,
+    )
+    assert any("work.yaml" in w for w in result.warnings)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+
+def test_resolve_reports_missing_contact_as_warning_not_stderr(
+    project_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    shutil.rmtree(project_dir / "private")
+    result = resolve(
+        data_dir=project_dir / "data",
+        private_dir=project_dir / "private",
+        profiles_dir=project_dir / "profiles",
+        profile_name="general",
+        public=False,
+    )
+    assert any("contact.yaml" in w for w in result.warnings)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""

@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 
 from cvloom import schema, sections
-from cvloom.export import TAGS_EXTENSION_KEY
+from cvloom.export import LEVELS_EXTENSION_KEY, TAGS_EXTENSION_KEY
 from cvloom.links import network_of, normalize_url
 
 
@@ -188,12 +188,14 @@ def _map_skills(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
         _require(group, "object", "skill group")
         keywords = group.get("keywords") or []
         _require(keywords, "array", "skill keywords")
-        result.append(
-            {
-                "category": str(group.get("name", "")),
-                "items": [str(k) for k in keywords],
-            }
-        )
+        levels = group.get(LEVELS_EXTENSION_KEY) or {}
+        _require(levels, "object", "skill levels")
+        items: list[Any] = []
+        for keyword in keywords:
+            name = str(keyword)
+            level = levels.get(name)
+            items.append({"name": name, "level": str(level)} if level else name)
+        result.append({"category": str(group.get("name", "")), "items": items})
     return result
 
 

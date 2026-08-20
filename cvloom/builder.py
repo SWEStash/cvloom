@@ -110,7 +110,14 @@ def resolve(
     sections_cfg: dict[str, bool] = profile.get("sections", {}) or {}
 
     # Load data
-    data = loader.load_data(data_dir=data_dir, private_dir=private_dir, public=public, locale=pack)
+    load_warnings: list[str] = []
+    data = loader.load_data(
+        data_dir=data_dir,
+        private_dir=private_dir,
+        public=public,
+        locale=pack,
+        warnings=load_warnings,
+    )
 
     # Narrow each section the profile names. Selection runs before anything
     # normalizes or patches the data, so overlays only ever see what survives.
@@ -169,7 +176,13 @@ def resolve(
         section_titles=section_titles,
         template_name=template_name,
         output_filename=output_filename,
-        warnings=((locale_warnings or []) + select_warnings + overlay_warnings + duration_warnings),
+        warnings=(
+            (locale_warnings or [])
+            + load_warnings
+            + select_warnings
+            + overlay_warnings
+            + duration_warnings
+        ),
         profile_name=profile_name,
         locale=pack,
         show_durations=show_durations,

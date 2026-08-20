@@ -136,6 +136,7 @@ Loads and merges YAML from `data/` and `private/`. Key responsibilities:
 - Public/private contact mode (removes `email` and `phone` in `--public`)
 - `normalize_highlights()` — converts `{id, text}` dicts to plain strings while retaining IDs for overlay matching
 - `normalize_optional_fields()` — fills each entry's schema-optional keys with typed empties. Templates render under `StrictUndefined`, where an *absent* key raises rather than evaluating falsy, so `{% if edu.field %}` needs the key to exist. `contact` is excluded on purpose: its templates guard with `is defined` so `--public` redaction stays invisible.
+- Missing-file notices (a section's YAML absent, `private/contact.yaml` absent) are **appended to the `warnings` list the caller passes**, not printed. `load_data` performs no terminal I/O, which is what lets `builder.resolve()` stay pure — the notices ride out on `ResolvedProfile.warnings` alongside the select, overlay and duration warnings, and `cli._resolve` renders them. A caller that passes no list drops them.
 
 ### `select.py`
 
