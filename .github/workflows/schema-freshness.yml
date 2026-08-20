@@ -1,0 +1,70 @@
+name: Vendored schema freshness
+
+# The JSON Resume schema is vendored so the conformance suite stays hermetic
+# (tests/fixtures/jsonresume-schema.json). Nothing notices when upstream moves, so
+# this asks once a week and opens an issue on drift.
+#
+# Deliberately its own workflow rather than a job in build.yml: a `schedule:`
+# trigger there would run the full 3.11/3.12/3.13 matrix and the veraPDF job every
+# week to answer one network question, and would contend for build.yml's `pages`
+# concurrency group.
+
+on:
+  schedule:
+    # Mondays, 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    name: Compare vendored JSON Resume schema against upstream
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Compare
+        id: compare
+        # Never fails the run: drift is a maintenance signal, not a broken build.
+        continue-on-error: true
+        run: |
+          if uv run python scripts/check_schema_freshness.py > drift.txt 2>&1; then
+            echo "drifted=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+          fi
+          cat drift.txt
+
+      - name: Open an issue on drift
+        if: steps.compare.outputs.drifted == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('drift.txt', 'utf8');
+            const title = 'Vendored JSON Resume schema has drifted from upstream';
+            // One open issue at a time — a weekly cron would otherwise file a
+            // duplicate every Monday until someone refreshes the file.
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'schema-drift',
+            });
+            if (existing.length > 0) {
+              core.info(`Issue #${existing[0].number} is already open; not filing another.`);
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['schema-drift'],
+              body: '```\n' + body + '\n```',
+            });

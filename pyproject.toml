@@ -64,7 +64,7 @@ dev = [
 # that mcp_server.py uses (FastMCP was split into the standalone `fastmcp`
 # package — itself still mcp<2). 1.x is the current, maintained line (1.29.0)
 # and keeps the bundled FastMCP; migrating to mcp 2.0's low-level server API is
-# a tracked follow-up, not needed for cvloom's 16 stdio tools.
+# a tracked follow-up, not needed for cvloom's 17 stdio tools.
 mcp = [
     "mcp>=1.0,<2",
 ]

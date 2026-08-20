@@ -128,10 +128,11 @@ def test_load_data_empty_yaml(tmp_path: Path) -> None:
     (d / "skills.yaml").write_text("")
     (d / "projects").mkdir()
     result = load_data(d, private_dir=None, public=True)
-    # Empty YAML files return None from yaml.safe_load
-    assert result["work"] is None or result["work"] == []
-    assert result["education"] is None or result["education"] == []
-    assert result["skills"] is None or result["skills"] == []
+    # `basics` and `skills` are read raw, so an empty file reaches the caller as
+    # yaml.safe_load's None. The registry sections coerce with `or []`.
+    assert result["skills"] is None
+    assert result["work"] == []
+    assert result["education"] == []
 
 
 # ── Highlight normalization ────────────────────────────────────────

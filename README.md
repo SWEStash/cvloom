@@ -51,6 +51,7 @@ example.
 | | Per-section reordering and visibility | `section_order:` / `sections:` |
 | | Rename any section heading, styling untouched | `section_titles:` in profile |
 | | Build every profile in one run | `cvloom build --all` |
+| | Seven entry-list sections — work, education, projects, publications, certifications, awards, languages | `data/*.yaml` |
 | | Public mode with placeholder contact data | `--public` |
 | **Localise** | Write and grade the CV in your own language — English and Spanish | `locale:` in `cvloom.yaml` |
 | | Scaffold a project in a language | `cvloom init --locale es` |

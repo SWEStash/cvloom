@@ -49,11 +49,13 @@ def test_multi_column_templates_are_never_rated_safe() -> None:
             assert meta.ats != templates_meta.ATS_SAFE, name
 
 
-def test_non_safe_templates_explain_themselves() -> None:
+@pytest.mark.parametrize("name", sorted(templates_meta.TEMPLATES))
+def test_non_safe_templates_explain_themselves(name: str) -> None:
     """A warning with no caveat text tells the user nothing actionable."""
-    for name, meta in templates_meta.TEMPLATES.items():
-        if meta.ats != templates_meta.ATS_SAFE:
-            assert meta.caveat.strip(), f"{name} is rated {meta.ats} with no caveat"
+    meta = templates_meta.TEMPLATES[name]
+    if meta.ats == templates_meta.ATS_SAFE:
+        return
+    assert meta.caveat.strip(), f"{name} is rated {meta.ats} with no caveat"
 
 
 def test_info_for_tolerates_the_j2_suffix() -> None:
